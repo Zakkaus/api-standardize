@@ -32,12 +32,19 @@ title: Capabilities
 - Per-group and per-node capabilities may be stricter than this response.
 - Limits are server-advertised ceilings. Exceeding a request rate returns
   `429`; exceeding fan-out or size returns `413`; a full bounded queue returns
-  `503`.
+  `503`. Traffic-history window and point limits instead return
+  `400 invalid_request`.
 
 `runtime_memory.metrics` contains canonical response field paths. An
 implementation must not advertise a metric that it always reports as `null`.
 `dns_cache.entry_kinds` declares which positive or negative cache entries can
 be read and mutated without silently hiding another cache class.
+
+`runtime_outbounds.available` declares the per-outbound cumulative counter
+snapshot. `traffic_history.available` declares the bounded traffic ring;
+when true, `max_window_seconds` and `max_points` are required positive safe
+integers. They bound the look-back window and returned sample count, not a
+retention guarantee. Both resources are optional and require `observe`.
 
 ## Conformance profiles
 

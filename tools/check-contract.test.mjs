@@ -77,6 +77,140 @@ test("connection examples preserve totals and linked flow identity", () => {
   assert.notEqual(unrelated.connection_id, connection.id);
 });
 
+test("connection and flow-summary examples carry required list-view evidence", () => {
+  const fields = ["chain", "chain_source", "rule_id", "rule_expression", "rule_source", "ingress", "domain_source"];
+  const sources = {
+    chain_source: ["evaluation", "reconstructed", "unknown"],
+    rule_source: ["kernel", "recomputed", "unknown"],
+  };
+  const selectors = {
+    listConnections: (body) => [...body.tcp, ...body.udp],
+    listFlows: (body) => body.flows,
+    getFlow: (body) => [body],
+  };
+  const seen = new Set();
+  for (const response of contract.examples.values()) {
+    const select = selectors[response.operationId];
+    if (response.kind !== "response" || response.status !== 200 || !select) continue;
+    const schema = { $ref: `#/components/schemas/${response.operationId === "listConnections" ? "Connection" : "FlowSummary"}` };
+    for (const row of select(response.body)) {
+      seen.add(response.operationId);
+      for (const field of fields) {
+        assert.ok(Object.hasOwn(row, field), `${response.id} ${row.id} lacks ${field}`);
+        const missing = structuredClone(row);
+        delete missing[field];
+        assertInvalid(contract.validate(schema, missing), `${field} must be required`);
+      }
+      assert.ok(Array.isArray(row.chain) && row.chain.every((id) => typeof id === "string"));
+      for (const [field, values] of Object.entries(sources)) {
+        assert.ok(values.includes(row[field]), `${response.id} has invalid ${field}`);
+        assertInvalid(contract.validate(schema, { ...row, [field]: "invalid" }));
+      }
+      assert.ok(["lan", "wan", null].includes(row.ingress));
+      assert.ok(row.domain_source === null || spec.components.schemas.DomainSource.enum.includes(row.domain_source));
+    }
+  }
+  assert.deepEqual([...seen].sort(), Object.keys(selectors).sort());
+});
+
+test("linked list evidence agrees with the application flow rather than DNS attempts", () => {
+  const connection = example("listConnections:200:visible").body.tcp[0];
+  const summary = example("listFlows:200:visible").body.flows[0];
+  const detail = example("getFlow:200:partial_handoff").body;
+  for (const field of ["chain", "chain_source", "rule_id", "rule_expression", "rule_source", "ingress", "domain_source"]) {
+    assert.deepEqual(connection[field], summary[field], field);
+    assert.deepEqual(summary[field], detail[field], field);
+  }
+  for (const key of ["getFlow:200:partial_handoff", "getFlow:200:interleaved_dns"]) {
+    const flow = example(key).body;
+    const outbound = step(flow, "outbound", (data) => data.target === flow.input.domain + ":443").data;
+    assert.deepEqual(flow.chain, [...outbound.selection_path.map((item) => item.group_id), outbound.leaf_node_id]);
+    assert.equal(flow.ingress, flow.input.ingress);
+    assert.equal(flow.domain_source, flow.input.domain_source);
+    const route = step(flow, "route", (data) => data.evaluation_id === outbound.evaluation_id).data;
+    assert.equal(flow.rule_id, route.rule_id);
+  }
+});
+
+test("outbound counters retain uint64 totals and a numeric active count", () => {
+  const response = example("getRuntimeOutbounds:200:snapshot");
+  const row = response.body.outbounds[0];
+  for (const field of ["total_connections", "upload_bytes", "download_bytes", "errors"]) {
+    row[field] = "18446744073709551615";
+    assertValid(validateExample(contract, response));
+    row[field] = 0;
+    assertInvalid(validateExample(contract, response), `${field} accepted a JSON number`);
+    row[field] = "0";
+  }
+  row.active_connections = 9007199254740991;
+  assertValid(validateExample(contract, response));
+  row.active_connections = "0";
+  assertInvalid(validateExample(contract, response));
+  row.active_connections = 0;
+  row.kind = "invalid";
+  assertInvalid(validateExample(contract, response));
+  row.kind = "builtin";
+  delete response.body.counter_since;
+  assertInvalid(validateExample(contract, response));
+});
+
+test("traffic history preserves gaps, timestamps, and safe numeric boundaries", () => {
+  const response = example("getTrafficHistory:200:recent");
+  const sample = response.body.samples[0];
+  sample.upload_bytes_per_second = null;
+  sample.download_bytes_per_second = null;
+  sample.connections = null;
+  assertValid(validateExample(contract, response));
+  sample.upload_bytes_per_second = "18446744073709551615";
+  sample.download_bytes_per_second = "18446744073709551615";
+  sample.connections = 9007199254740991;
+  assertValid(validateExample(contract, response));
+  for (const field of ["upload_bytes_per_second", "download_bytes_per_second", "connections"]) {
+    const valid = sample[field];
+    sample[field] = field === "connections" ? "0" : 0;
+    assertInvalid(validateExample(contract, response), `${field} accepted the wrong numeric type`);
+    sample[field] = valid;
+  }
+  delete sample.sampled_at;
+  assertInvalid(validateExample(contract, response));
+  response.body.samples = [];
+  assertValid(validateExample(contract, response));
+  response.body.sampled_every_seconds = 0;
+  assertInvalid(validateExample(contract, response));
+});
+
+test("traffic history advertises usable limits and rejects invalid query shapes", () => {
+  const capabilities = example("getCapabilities:200:available");
+  const limits = capabilities.body.resources.traffic_history;
+  assert.equal(typeof capabilities.body.resources.runtime_outbounds.available, "boolean");
+  assert.equal(limits.available, true);
+  for (const field of ["max_window_seconds", "max_points"]) {
+    const value = limits[field];
+    delete limits[field];
+    assertInvalid(validateExample(contract, capabilities), `${field} must be advertised when available`);
+    limits[field] = 0;
+    assertInvalid(validateExample(contract, capabilities));
+    limits[field] = value;
+  }
+  const request = example("getTrafficHistory:request");
+  for (const name of ["window_seconds", "max_points"]) {
+    const parameter = request.parameters.find((item) => item.definition.name === name);
+    assert.ok(parameter, `missing ${name} query parameter`);
+    const value = parameter.value;
+    parameter.value = 0;
+    assertInvalid(validateExample(contract, request));
+    parameter.value = value;
+  }
+  const history = example("getTrafficHistory:200:recent").body;
+  assert.ok(history.window_seconds <= limits.max_window_seconds);
+  assert.ok(history.samples.length <= limits.max_points);
+  for (const key of ["window_too_large", "too_many_points"]) {
+    const rejected = example(`getTrafficHistory:400:${key}`);
+    assert.equal(rejected.body.error.code, "invalid_request");
+    assertValid(validateExample(contract, rejected));
+  }
+});
+
 test("examples remain bound to their operation schema", () => {
   const changed = structuredClone(spec);
   changed.paths["/api/v1/flows/{flow_id}"].get.responses["200"].content[

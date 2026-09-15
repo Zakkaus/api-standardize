@@ -27,6 +27,8 @@ paths:
                       version: /api/v1/version
                       capabilities: /api/v1/capabilities
                       runtime: /api/v1/runtime
+                      runtime_outbounds: /api/v1/runtime/outbounds
+                      traffic_history: /api/v1/runtime/traffic/history
                       operations: /api/v1/operations/{id}
                   x-headers:
                     Content-Type: application/json
@@ -101,6 +103,12 @@ paths:
                       runtime_memory:
                         available: true
                         metrics: [ process.rss_bytes, cgroup.current_bytes, cgroup.limit_bytes, cgroup.events.high, cgroup.events.oom, cgroup.events.oom_kill ]
+                      runtime_outbounds:
+                        available: true
+                      traffic_history:
+                        available: true
+                        max_window_seconds: 3600
+                        max_points: 360
                       datapath:
                         available: true
                         kinds: [ ebpf ]
@@ -202,7 +210,7 @@ schemas:
         const: /api/v1
       links:
         type: object
-        required: [ version, capabilities, runtime, operations ]
+        required: [ version, capabilities, runtime, runtime_outbounds, traffic_history, operations ]
         properties:
           version:
             type: string
@@ -213,6 +221,12 @@ schemas:
           runtime:
             type: string
             const: /api/v1/runtime
+          runtime_outbounds:
+            type: string
+            const: /api/v1/runtime/outbounds
+          traffic_history:
+            type: string
+            const: /api/v1/runtime/traffic/history
           operations:
             type: string
             const: /api/v1/operations/{id}
@@ -288,7 +302,7 @@ schemas:
             minimum: 1
       resources:
         type: object
-        required: [ runtime, runtime_memory, datapath, nodes, groups, probes, connections, flows, routing_trace, events, dns_query, dns_cache, operations, reload, suspend, resume ]
+        required: [ runtime, runtime_memory, runtime_outbounds, traffic_history, datapath, nodes, groups, probes, connections, flows, routing_trace, events, dns_query, dns_cache, operations, reload, suspend, resume ]
         properties:
           runtime:
             $ref: ./openapi.yaml#/components/schemas/AvailableResource
@@ -310,6 +324,28 @@ schemas:
                 items:
                   type: string
                   enum: [ process.rss_bytes, cgroup.current_bytes, cgroup.limit_bytes, cgroup.events.high, cgroup.events.oom, cgroup.events.oom_kill, kernel.ebpf_bytes ]
+          runtime_outbounds:
+            $ref: ./openapi.yaml#/components/schemas/AvailableResource
+          traffic_history:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ max_window_seconds, max_points ]
+            properties:
+              available:
+                type: boolean
+              max_window_seconds:
+                $ref: ./openapi.yaml#/components/schemas/SafeUInt
+                minimum: 1
+                description: Maximum look-back window in seconds; not a guarantee against bounded-ring eviction.
+              max_points:
+                $ref: ./openapi.yaml#/components/schemas/SafeUInt
+                minimum: 1
+                description: Maximum returned samples per history request.
           datapath:
             type: object
             required: [ available ]

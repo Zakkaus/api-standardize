@@ -82,6 +82,9 @@ Engines with different formulas must return null for the canonical average,
 not relabel their native statistic. In particular, parsing `min_avg10` does
 not prove that an engine ranks by an average of ten.
 
+Latency history is out of scope for this draft; clients sample
+`moving_avg_ms`/`avg10_ms` to maintain their own series.
+
 `subscription_tag` is current node provenance, not identity. A stable node ID
 can remain unchanged across subscription refresh/tag changes. Unknown and
 manual provenance both yield null; the API must not infer tags from names.

@@ -78,10 +78,9 @@ rules are defined in [Datapath](datapath.html).
 > **Note:** Per-connection details and byte counters are available from
 > [`GET /api/v1/connections`](connections.html). They carry the same visibility limits.
 
-The draft has no per-outbound cumulative counters or traffic history.
-Summing live connection bytes by `outbound` is only a bounded snapshot
-derivation: it omits closed, truncated, and unobserved connections and is
-not a usage total. SSE invalidations do not recover historical traffic samples.
+Per-outbound cumulative counters and bounded traffic history are separate
+resources below. Summing live connection bytes by `outbound` omits closed,
+truncated, and unobserved connections; it is not a usage total.
 
 Memory metrics are intentionally excluded from this snapshot so a dashboard
 can poll [`GET /api/v1/runtime/memory`](runtime-memory.html) without repeatedly fetching
@@ -110,3 +109,91 @@ actual producer generation and may legitimately span multiple generations.
 ```bash
 curl "http://localhost:9527/api/v1/runtime?detail=full"
 ```
+
+## GET /api/v1/runtime/outbounds
+
+Requires `observe` and `resources.runtime_outbounds.available`. This snapshot
+mirrors honk's Clash-surface [`/stats` outbound counters](honk-mapping.html#outbound-counters),
+not a sum of the current `/connections` page.
+
+{% api_request getRuntimeOutbounds %}
+
+{% api_example getRuntimeOutbounds 200 snapshot %}
+
+| Field | Type | Description |
+|-------|------|-------------|
+| observed_at | string | Counter snapshot timestamp (RFC3339). |
+| counter_since | string | Shared start/reset boundary for all cumulative counters (RFC3339). |
+| outbounds | array | Counters attributed to engine-visible outbounds. |
+| outbounds[].name | string | Outbound name retained with the counters, not a stable node/group ID. |
+| outbounds[].kind | string | `group`: configured group; `node`: leaf node; `builtin`: engine builtin such as direct/block. |
+| outbounds[].active_connections | safe unsigned integer | Currently active connections attributed to this outbound. |
+| outbounds[].total_connections | decimal uint64 string | Cumulative connections attributed to this outbound since `counter_since`. |
+| outbounds[].upload_bytes | decimal uint64 string | Cumulative visible uploaded bytes since `counter_since`. |
+| outbounds[].download_bytes | decimal uint64 string | Cumulative visible downloaded bytes since `counter_since`. |
+| outbounds[].errors | decimal uint64 string | Cumulative outbound failures since `counter_since`; policy blocks are not errors. |
+
+Restart or counter reset changes `counter_since`; clients must not compute
+deltas across that boundary. A reload changes it only if the counters reset.
+Closed connections remain in cumulative totals. Newly observed outbounds
+start at zero within the same interval; retain old names and kinds with
+their counters rather than relabelling them from today's registry.
+Rows reflect the producer's attribution, not every group and node on a
+selection path; do not duplicate counters across `chain` entries.
+These counters cover visible traffic only, not all kernel-direct or blocked
+traffic. Zero denotes a measured zero, never unsupported accounting.
+
+## GET /api/v1/runtime/traffic/history
+
+Requires `observe` and `resources.traffic_history.available`. The producer
+samples visible runtime rates and active connection counts into a bounded
+in-memory ring independently of HTTP reads.
+
+### Request
+
+{% api_request getTrafficHistory %}
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| window_seconds | positive safe integer | Advertised `max_window_seconds` | Look-back window ending at `observed_at`. |
+| max_points | positive safe integer | Advertised `max_points` | Maximum returned sample count. |
+
+Both limits are under `resources.traffic_history`. Invalid, zero, negative,
+or non-integer values and requests above either advertised limit return
+`400 invalid_request`; the server must not silently clamp them.
+
+{% api_example getTrafficHistory 400 window_too_large %}
+
+{% api_example getTrafficHistory 400 too_many_points %}
+
+### Response
+
+{% api_example getTrafficHistory 200 recent %}
+
+| Field | Type | Description |
+|-------|------|-------------|
+| observed_at | string | History snapshot timestamp (RFC3339), not a replacement for sample timestamps. |
+| window_seconds | positive safe integer | Requested look-back window, even when retention is shorter. |
+| sampled_every_seconds | positive number | Nominal interval between returned samples after thinning; recorder interval for an empty result. |
+| samples | array | At most `max_points` samples, oldest first, in `(observed_at - window_seconds, observed_at]`. |
+| samples[].sampled_at | string | Original sample timestamp (RFC3339). |
+| samples[].upload_bytes_per_second | decimal uint64 string or null | Sampled visible upload rate, or null when unavailable. |
+| samples[].download_bytes_per_second | decimal uint64 string or null | Sampled visible download rate, or null when unavailable. |
+| samples[].connections | safe unsigned integer or null | Visible active TCP and UDP connections at the sample, or null when unavailable. |
+
+When the window holds too many points, select every Nth stored sample
+backwards from the newest to fit `max_points`, then return them oldest
+first. Choose the smallest positive N that fits the limit. Preserve original
+timestamps and rates; `sampled_every_seconds` describes the resulting
+cadence, not a new rate averaging interval.
+Missed intervals remain timestamp gaps; unavailable measurements are null,
+not zero. A cumulative counter reset makes the spanning rate sample null,
+not a negative rate or a fabricated spike.
+
+The ring is bounded by age and capacity and is cleared on process restart.
+It may return fewer samples than requested, or an empty array before
+sampling; a requested window is not a retention guarantee.
+This is the only sampled-metric history the native API serves; retained
+flow traces and operation results remain separate records. SSE does not
+replay traffic history, even with `Last-Event-ID`; fetch this resource on
+first open or reconnect rather than treating invalidations as samples.

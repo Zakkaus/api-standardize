@@ -50,6 +50,13 @@ paths:
                         dst: 1.2.3.4:443
                         domain: example.com
                         outbound: proxy
+                        chain: [ group-proxy, node-hk-01 ]
+                        chain_source: evaluation
+                        rule_id: null
+                        rule_expression: null
+                        rule_source: unknown
+                        ingress: wan
+                        domain_source: tls_sni
                         started_at: 2026-08-15T09:59:50Z
                         observed_by: userspace
                         upload_bytes: "20480"
@@ -65,6 +72,13 @@ paths:
                         dst: 8.8.8.8:53
                         domain: null
                         outbound: direct
+                        chain: []
+                        chain_source: unknown
+                        rule_id: null
+                        rule_expression: null
+                        rule_source: unknown
+                        ingress: null
+                        domain_source: null
                         started_at: 2026-08-15T09:59:55Z
                         observed_by: ebpf
                         upload_bytes: null
@@ -151,6 +165,13 @@ paths:
                         pname: curl
                         connection_id: tcp-01HZX4K8W5
                         outbound: proxy
+                        chain: [ group-proxy, node-hk-01 ]
+                        chain_source: evaluation
+                        rule_id: null
+                        rule_expression: null
+                        rule_source: unknown
+                        ingress: wan
+                        domain_source: tls_sni
                         observed_by: userspace
                         started_at: 2026-08-15T09:59:50Z
                         ended_at: null
@@ -231,6 +252,13 @@ paths:
                     pname: curl
                     connection_id: tcp-01HZX4K8W5
                     outbound: proxy
+                    chain: [ group-proxy, node-hk-01 ]
+                    chain_source: evaluation
+                    rule_id: null
+                    rule_expression: null
+                    rule_source: unknown
+                    ingress: wan
+                    domain_source: tls_sni
                     observed_by: userspace
                     started_at: 2026-08-15T09:59:50Z
                     ended_at: null
@@ -355,6 +383,13 @@ paths:
                     pname: curl
                     connection_id: tcp-24
                     outbound: proxy
+                    chain: [ node-hk-01 ]
+                    chain_source: evaluation
+                    rule_id: rule-traffic
+                    rule_expression: null
+                    rule_source: kernel
+                    ingress: wan
+                    domain_source: explicit
                     observed_by: userspace
                     started_at: 2026-09-14T09:59:59Z
                     ended_at: null
@@ -583,7 +618,7 @@ schemas:
     enum: [ observed, routing, dialing, active, closed, blocked, failed, unknown ]
   Connection:
     type: object
-    required: [ id, flow_id, pname, state, outbound, started_at, observed_by, upload_bytes, download_bytes, upload_bytes_per_second, download_bytes_per_second ]
+    required: [ id, flow_id, pname, state, outbound, chain, chain_source, rule_id, rule_expression, rule_source, ingress, domain_source, started_at, observed_by, upload_bytes, download_bytes, upload_bytes_per_second, download_bytes_per_second ]
     properties:
       id:
         type: string
@@ -604,6 +639,32 @@ schemas:
         type: [ string, "null" ]
       outbound:
         type: [ string, "null" ]
+      chain:
+        type: array
+        items:
+          type: string
+        description: Application outbound selection_path group IDs followed by the leaf node ID, in order; empty for direct/block or an unknown path.
+      chain_source:
+        type: string
+        enum: [ evaluation, reconstructed, unknown ]
+        description: Selection captured at evaluation, reconstructed from retained evidence, or unavailable; never a current group snapshot.
+      rule_id:
+        type: [ string, "null" ]
+        description: Generation-scoped traffic rule ID, or null when unavailable.
+      rule_expression:
+        type: [ string, "null" ]
+        description: Sanitized display expression for that rule, or null when unavailable.
+      rule_source:
+        type: string
+        enum: [ kernel, recomputed, unknown ]
+        description: Deciding kernel rule, recomputed userspace evidence, or unavailable provenance; see honk-mapping's matched_rule row.
+      ingress:
+        type: [ string, "null" ]
+        enum: [ lan, wan, null ]
+      domain_source:
+        oneOf:
+          - type: "null"
+          - $ref: ./openapi.yaml#/components/schemas/DomainSource
       started_at:
         $ref: ./openapi.yaml#/components/schemas/NullableTimestamp
       observed_by:
@@ -694,7 +755,7 @@ schemas:
     enum: [ tls_sni, http_host, quic_sni, dns_mapping, explicit, unknown ]
   FlowSummary:
     type: object
-    required: [ id, instance_id, revision, network, state, pname, connection_id, outbound, observed_by, started_at, ended_at, trace_status ]
+    required: [ id, instance_id, revision, network, state, pname, connection_id, outbound, chain, chain_source, rule_id, rule_expression, rule_source, ingress, domain_source, observed_by, started_at, ended_at, trace_status ]
     properties:
       id:
         type: string
@@ -716,6 +777,32 @@ schemas:
         type: [ string, "null" ]
       outbound:
         type: [ string, "null" ]
+      chain:
+        type: array
+        items:
+          type: string
+        description: Application outbound selection_path group IDs followed by the leaf node ID, in order; empty for direct/block or an unknown path.
+      chain_source:
+        type: string
+        enum: [ evaluation, reconstructed, unknown ]
+        description: Selection captured at evaluation, reconstructed from retained evidence, or unavailable; never a current group snapshot.
+      rule_id:
+        type: [ string, "null" ]
+        description: Generation-scoped traffic rule ID, or null when unavailable.
+      rule_expression:
+        type: [ string, "null" ]
+        description: Sanitized display expression for that rule, or null when unavailable.
+      rule_source:
+        type: string
+        enum: [ kernel, recomputed, unknown ]
+        description: Deciding kernel rule, recomputed userspace evidence, or unavailable provenance; see honk-mapping's matched_rule row.
+      ingress:
+        type: [ string, "null" ]
+        enum: [ lan, wan, null ]
+      domain_source:
+        oneOf:
+          - type: "null"
+          - $ref: ./openapi.yaml#/components/schemas/DomainSource
       observed_by:
         $ref: ./openapi.yaml#/components/schemas/ObservedBy
       started_at:

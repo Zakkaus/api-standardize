@@ -132,6 +132,173 @@ paths:
           $ref: ./openapi.yaml#/components/responses/NotFound
         "429":
           $ref: ./openapi.yaml#/components/responses/RateLimited
+  /api/v1/runtime/outbounds:
+    get:
+      operationId: getRuntimeOutbounds
+      summary: Read per-outbound cumulative counters
+      description: |
+        Mirrors honk's Clash-surface /stats counters for visible traffic, not
+        a sum of live connections. All rows share counter_since; restart or
+        counter reset starts a new interval. Requires resources.runtime_outbounds.available.
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        "200":
+          description: Outbound counter snapshot
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/RuntimeOutbounds
+              examples:
+                snapshot:
+                  value:
+                    observed_at: 2026-08-15T10:00:00Z
+                    counter_since: 2026-08-15T08:00:00Z
+                    outbounds:
+                      - name: direct
+                        kind: builtin
+                        active_connections: 12
+                        total_connections: "240"
+                        upload_bytes: "123456"
+                        download_bytes: "654321"
+                        errors: "0"
+                      - name: proxy
+                        kind: group
+                        active_connections: 158
+                        total_connections: "1200"
+                        upload_bytes: "123333333"
+                        download_bytes: "987000000"
+                        errors: "3"
+                      - name: block
+                        kind: builtin
+                        active_connections: 0
+                        total_connections: "0"
+                        upload_bytes: "0"
+                        download_bytes: "0"
+                        errors: "0"
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "429":
+          $ref: ./openapi.yaml#/components/responses/RateLimited
+  /api/v1/runtime/traffic/history:
+    get:
+      operationId: getTrafficHistory
+      summary: Read bounded traffic history
+      description: |
+        Reads a bounded in-memory ring of visible traffic samples without
+        starting sampling on GET. This is the only traffic history the native
+        API serves; SSE does not replay it. Requires resources.traffic_history.available.
+        A query above either advertised limit returns 400 invalid_request,
+        never a silently clamped window or point limit.
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - name: window_seconds
+          in: query
+          description: Look-back window ending at observed_at; defaults to resources.traffic_history.max_window_seconds.
+          schema:
+            $ref: ./openapi.yaml#/components/schemas/SafeUInt
+            minimum: 1
+          example: 60
+        - name: max_points
+          in: query
+          description: Maximum returned samples; defaults to resources.traffic_history.max_points.
+          schema:
+            $ref: ./openapi.yaml#/components/schemas/SafeUInt
+            minimum: 1
+          example: 3
+      responses:
+        "200":
+          description: Retained traffic samples, oldest first
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/TrafficHistory
+              examples:
+                recent:
+                  value:
+                    observed_at: 2026-08-15T10:00:00Z
+                    window_seconds: 60
+                    sampled_every_seconds: 20
+                    samples:
+                      - sampled_at: 2026-08-15T09:59:20Z
+                        upload_bytes_per_second: "2048"
+                        download_bytes_per_second: "16384"
+                        connections: 162
+                      - sampled_at: 2026-08-15T09:59:40Z
+                        upload_bytes_per_second: null
+                        download_bytes_per_second: null
+                        connections: null
+                      - sampled_at: 2026-08-15T10:00:00Z
+                        upload_bytes_per_second: "4096"
+                        download_bytes_per_second: "32768"
+                        connections: 170
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          description: Invalid query or window_seconds/max_points above the advertised limit
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                window_too_large:
+                  value:
+                    error:
+                      code: invalid_request
+                      message: window_seconds exceeds the advertised limit.
+                    request_id: request-1
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+                too_many_points:
+                  value:
+                    error:
+                      code: invalid_request
+                      message: max_points exceeds the advertised limit.
+                    request_id: request-2
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "429":
+          $ref: ./openapi.yaml#/components/responses/RateLimited
   /api/v1/datapath:
     get:
       operationId: getDatapath
@@ -310,6 +477,85 @@ schemas:
                 $ref: ./openapi.yaml#/components/schemas/NullableUInt64
               download_bytes_per_second:
                 $ref: ./openapi.yaml#/components/schemas/NullableUInt64
+  RuntimeOutbounds:
+    type: object
+    required: [ observed_at, counter_since, outbounds ]
+    properties:
+      observed_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      counter_since:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+        description: Shared cumulative counter reset boundary; changes on restart or reset. Never compute deltas across this boundary.
+      outbounds:
+        type: array
+        items:
+          $ref: ./openapi.yaml#/components/schemas/OutboundCounters
+  OutboundCounters:
+    type: object
+    required: [ name, kind, active_connections, total_connections, upload_bytes, download_bytes, errors ]
+    properties:
+      name:
+        type: string
+        minLength: 1
+        description: Engine-visible outbound name, retained with its counters across reloads.
+      kind:
+        type: string
+        enum: [ group, node, builtin ]
+        description: Configured group, leaf node, or engine builtin such as direct/block.
+      active_connections:
+        $ref: ./openapi.yaml#/components/schemas/SafeUInt
+        description: Currently active connections attributed to this outbound.
+      total_connections:
+        $ref: ./openapi.yaml#/components/schemas/UInt64
+        description: Cumulative connections attributed to this outbound since counter_since.
+      upload_bytes:
+        $ref: ./openapi.yaml#/components/schemas/UInt64
+      download_bytes:
+        $ref: ./openapi.yaml#/components/schemas/UInt64
+      errors:
+        $ref: ./openapi.yaml#/components/schemas/UInt64
+        description: Cumulative outbound failures since counter_since; policy blocks are not errors.
+  TrafficHistory:
+    type: object
+    required: [ observed_at, window_seconds, sampled_every_seconds, samples ]
+    description: |
+      Samples lie in (observed_at - window_seconds, observed_at], oldest first.
+      Retention is bounded by age and capacity and is cleared on process restart.
+      Return fewer points for short retention, or an empty array before sampling.
+      If needed, select every Nth stored sample backwards from the newest to
+      fit max_points; preserve original timestamps and rates, without interpolation.
+      Choose the smallest positive N that fits the point limit. A cumulative
+      counter reset makes the spanning rate sample null, never a spike.
+    properties:
+      observed_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      window_seconds:
+        $ref: ./openapi.yaml#/components/schemas/SafeUInt
+        minimum: 1
+        description: Requested look-back window, not the age of the oldest retained sample.
+      sampled_every_seconds:
+        type: number
+        exclusiveMinimum: 0
+        description: Nominal interval between returned samples after thinning, or the recorder interval for an empty result; not the rate averaging interval.
+      samples:
+        type: array
+        description: At most max_points retained samples; missed intervals remain gaps, never fabricated zero traffic.
+        items:
+          $ref: ./openapi.yaml#/components/schemas/TrafficHistorySample
+  TrafficHistorySample:
+    type: object
+    required: [ sampled_at, upload_bytes_per_second, download_bytes_per_second, connections ]
+    properties:
+      sampled_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+        description: Original sample timestamp, never the HTTP snapshot time.
+      upload_bytes_per_second:
+        $ref: ./openapi.yaml#/components/schemas/NullableUInt64
+      download_bytes_per_second:
+        $ref: ./openapi.yaml#/components/schemas/NullableUInt64
+      connections:
+        $ref: ./openapi.yaml#/components/schemas/NullableSafeUInt
+        description: Visible active TCP and UDP connections at sampled_at, or null when unavailable.
   RuntimeMemory:
     type: object
     required: [ observed_at, process, cgroup, kernel ]

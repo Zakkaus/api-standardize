@@ -61,6 +61,38 @@ Use `connection_id` to find retained traces after a connection leaves the
 live snapshot. Correlate IDs only within the same `instance_id`; a restart
 does not authorize a tuple-based fallback.
 
+### List-view fields
+
+`Connection` and `FlowSummary` carry the same required list-view evidence,
+including with `detail=summary`; no per-row trace fetch is needed for these
+columns. Nullable fields remain present when unavailable.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| chain | array of strings | Application outbound `selection_path` group IDs followed by the leaf node ID, in order; empty for direct/block or an unknown path. |
+| chain_source | string | `evaluation`: captured at selection; `reconstructed`: recovered from retained evidence; `unknown`: unavailable. |
+| rule_id | string or null | Generation-scoped traffic rule ID, or null when unavailable. |
+| rule_expression | string or null | Sanitized display expression for that rule, or null when unavailable. |
+| rule_source | string | `kernel`: deciding kernel rule; `recomputed`: userspace recomputation, not the deciding kernel rule; `unknown`: unavailable provenance. |
+| ingress | string or null | `lan` or `wan` when captured; null when unavailable. |
+| domain_source | string or null | `tls_sni`, `http_host`, `quic_sni`, `dns_mapping`, `explicit`, or `unknown`; null without domain evidence. |
+
+`chain` describes the effective application selection, not an interleaved
+DNS lookup or a transport retry. Use an empty chain with `chain_source:
+unknown` when the path was not captured; an empty chain alone does not prove
+direct/block. Never join today's group registry to claim an old selection.
+The source label describes evidence, not the outbound step's `routing_source`.
+
+The [honk `matched_rule` row](honk-mapping.html#matched-rule) distinguishes
+the deciding kernel rule from recomputed userspace evidence. Preserve that
+distinction in `rule_source`; GET must not re-run routing to populate it.
+`rule_expression` is display text, never executable configuration.
+Rule IDs retain their generation and traffic-chain scope; use the detail
+trace for that context rather than merging identical IDs across reloads.
+These columns do not upgrade a partial trace to complete.
+
+### Full inputs
+
 `detail=full` adds an `input` object with `src`, `dst`, `domain`, `domain_source`,
 `pid`, `process_path`, `src_mac`, `ingress`, `domain_rule_ids`, `dscp`, and
 `mark`; each is nullable. `ingress` is `lan` or `wan` when known;
