@@ -46,7 +46,7 @@ it when the adapter can observe it.
 | traffic.scope | string | Scope of the counters, normally `visible`. |
 | traffic.observed_by | string | `userspace`, `ebpf`, or `mixed`. |
 | traffic.counter_since | string or null | Start time of the reported cumulative counters. |
-| traffic.sampled_at | string or null | Required time the traffic sample was taken; null when unavailable, not replaced by the HTTP snapshot time. |
+| traffic.sampled_at | string or null | Traffic sample timestamp (RFC3339), or null when unavailable. Never substitute the HTTP snapshot timestamp. |
 | traffic.connections | object | Currently visible TCP, UDP, and total connection counts. Each count is a bounded JSON integer or `null` when unobservable. |
 | traffic.bytes | object | Cumulative visible bytes. Each value is a decimal uint64 string or `null` when unobservable. |
 | traffic.rates | object or null | Current rates. `null` when unavailable; `window_seconds` stays numeric and byte rates are decimal uint64 strings or `null`. |

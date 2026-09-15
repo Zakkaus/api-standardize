@@ -110,10 +110,9 @@ flow revisions and monotonic offsets are bounded JSON integers in
 
 Each selection-path item also has nullable `member_name` and `selection`.
 `selection` is a decision-time object with nullable `previous_member_id`,
-`metric`, `tolerance_ms`, and a `candidates` array. Each candidate has
-`member_id`, nullable `member_name`, `leaf_node_id`, `leaf_node_name`,
-`eligible`, `sorting_latency_ms`, and `score`, plus `selected` (boolean)
-and safe `reason`. Preserve the actual considered
+`metric`, `tolerance_ms`, and a `candidates` array. Each candidate requires `member_id`, `selected` (boolean), and safe
+`reason`; its required nullable fields are `member_name`, `leaf_node_id`,
+`leaf_node_name`, `eligible`, `sorting_latency_ms`, and `score`. Preserve the actual considered
 candidates and eligibility/demotion/exploration reasons, not every configured
 node. Manual selection can use null; an automatic decision whose context
 was not captured makes the trace partial. These values come from the actual

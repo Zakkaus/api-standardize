@@ -24,8 +24,8 @@ An implementation that does not expose a capability must return `404` with
 The response is a paginated snapshot. The cache can change while the client
 walks the pages, so `cursor` is opaque and must not be manufactured by a
 client.
-The cursor is bound to the running adapter instance, filters, and retained
-snapshot. Restart, changed filters, or snapshot expiry/eviction invalidates
+The server binds the cursor to the running adapter instance, filters, and
+retained snapshot. Restart, changed filters, or snapshot expiry/eviction invalidates
 it. An unknown or invalidated cursor returns `400 invalid_request`; discard
 it and restart without a cursor, never silently continue a different snapshot.
 

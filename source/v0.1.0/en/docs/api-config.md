@@ -44,6 +44,9 @@ needs an adapter implementation before this block becomes active.
   in URLs, responses, or logs.
 - Browser access is disabled unless the exact request origin is listed in
   `allow_origins`; wildcard origins are not valid with bearer credentials.
+- Browsers send CORS preflights without credentials. The server validates the
+  origin, requested method, and requested headers, then answers the preflight
+  without bearer authentication; the actual request is authenticated as usual.
 - Non-loopback bearer transport MUST use TLS at the listener or a trusted
   local reverse proxy; a secret sent over untrusted cleartext is not secure.
 - Reject unapproved browser Origins on all native requests, including

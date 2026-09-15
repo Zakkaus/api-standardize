@@ -446,7 +446,7 @@ schemas:
           minLength: 1
       health:
         type: array
-        description: Latest observations, unique by (transport, purpose, measurement, ip_version) within this node; warmth describes the sample, not a separate key.
+        description: Latest observations, unique by (transport, purpose, measurement, ip_version, warmth) within this node.
         items:
           $ref: ./openapi.yaml#/components/schemas/HealthObservation
   NodeList:

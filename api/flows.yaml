@@ -50,7 +50,7 @@ paths:
                         dst: 1.2.3.4:443
                         domain: example.com
                         outbound: proxy
-                        started_at: 2026-08-13T12:00:00Z
+                        started_at: 2026-08-15T09:59:50Z
                         observed_by: userspace
                         upload_bytes: "20480"
                         download_bytes: "1048576"
@@ -65,7 +65,7 @@ paths:
                         dst: 8.8.8.8:53
                         domain: null
                         outbound: direct
-                        started_at: 2026-08-13T12:00:05Z
+                        started_at: 2026-08-15T09:59:55Z
                         observed_by: ebpf
                         upload_bytes: null
                         download_bytes: null
@@ -152,7 +152,7 @@ paths:
                         connection_id: tcp-01HZX4K8W5
                         outbound: proxy
                         observed_by: userspace
-                        started_at: 2026-08-13T12:00:00Z
+                        started_at: 2026-08-15T09:59:50Z
                         ended_at: null
                         trace_status: partial
                     next_cursor: null
@@ -232,7 +232,7 @@ paths:
                     connection_id: tcp-01HZX4K8W5
                     outbound: proxy
                     observed_by: userspace
-                    started_at: 2026-08-13T12:00:00Z
+                    started_at: 2026-08-15T09:59:50Z
                     ended_at: null
                     trace_status: partial
                     input:
@@ -253,7 +253,7 @@ paths:
                       steps:
                         - seq: 1
                           stage: route
-                          observed_at: 2026-08-13T12:00:00Z
+                          observed_at: 2026-08-15T09:59:50Z
                           elapsed_us: 0
                           generation_id: generation-42
                           evidence: observed
@@ -270,7 +270,7 @@ paths:
                             mark: 0
                         - seq: 2
                           stage: dial_mode
-                          observed_at: 2026-08-13T12:00:00Z
+                          observed_at: 2026-08-15T09:59:50Z
                           elapsed_us: 100
                           generation_id: generation-42
                           evidence: observed
@@ -283,7 +283,7 @@ paths:
                             reason: preserve_initial_route
                         - seq: 3
                           stage: reroute
-                          observed_at: 2026-08-13T12:00:00Z
+                          observed_at: 2026-08-15T09:59:50Z
                           elapsed_us: 120
                           generation_id: generation-42
                           evidence: observed
@@ -294,7 +294,7 @@ paths:
                             to_evaluation_id: null
                         - seq: 4
                           stage: outbound
-                          observed_at: 2026-08-13T12:00:00Z
+                          observed_at: 2026-08-15T09:59:50Z
                           elapsed_us: 150
                           generation_id: generation-42
                           evidence: observed
@@ -325,7 +325,7 @@ paths:
                             error: null
                         - seq: 5
                           stage: connection
-                          observed_at: 2026-08-13T12:00:00Z
+                          observed_at: 2026-08-15T09:59:50Z
                           elapsed_us: 20000
                           generation_id: generation-42
                           evidence: observed

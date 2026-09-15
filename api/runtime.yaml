@@ -277,7 +277,7 @@ schemas:
         $ref: ./openapi.yaml#/components/schemas/NullableTimestamp
       sampled_at:
         $ref: ./openapi.yaml#/components/schemas/NullableTimestamp
-        description: Time the traffic sample was taken, or null when unavailable; not the HTTP snapshot time.
+        description: Traffic sample timestamp, or null when unavailable. Never substitute the HTTP snapshot timestamp.
       connections:
         type: object
         required: [ tcp, udp, total ]

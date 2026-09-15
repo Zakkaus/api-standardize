@@ -31,10 +31,10 @@ accommodate `EventSource`.
 
 For explicitly allowed origins, CORS permits `Authorization`, `Last-Event-ID`,
 `Content-Type`, `If-Match`, `Idempotency-Key`, and `Accept` request headers,
-and exposes `Location`, `Retry-After`, and `ETag`. Preflight requests are
-answered without bearer authentication after validating the origin,
-requested method, and requested headers. Actual requests retain their
-normal authentication and permission checks.
+and exposes `Location`, `Retry-After`, and `ETag`. The server validates the
+origin, requested method, and requested headers before answering a CORS
+preflight without bearer authentication; the actual request keeps its normal
+authentication and permission checks.
 
 ## Event kinds
 
