@@ -17,6 +17,11 @@ All native API errors use one JSON envelope:
 
 ## Shared status semantics
 
+The `ErrorCode` schema in the OpenAPI document enumerates exactly the codes below
+for HTTP error bodies (`ApiError`); adding one is a contract change. Errors embedded
+in resources (`operation.error`, `datapath.errors`, `lifecycle.last_error`) carry an
+adapter-defined code.
+
 | Status | Typical code | Meaning |
 |--------|--------------|---------|
 | 400 | `invalid_request` | Malformed parameter or request shape. |

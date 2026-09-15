@@ -245,6 +245,32 @@ schemas:
   NullableTimestamp:
     type: [ string, "null" ]
     format: date-time
+  ErrorCode:
+    type: string
+    description: >-
+      Closed catalogue of HTTP error codes (docs/errors.md keeps the prose). Adding a
+      code is a contract change; adapters never invent codes. Errors embedded in
+      resources (operation.error, datapath.errors, lifecycle.last_error) carry an
+      adapter-defined code and stay plain SafeError.
+    enum:
+      - invalid_request
+      - authentication_required
+      - permission_denied
+      - resource_not_found
+      - capability_not_supported
+      - state_conflict
+      - idempotency_conflict
+      - event_cursor_expired
+      - snapshot_unavailable
+      - snapshot_expired
+      - flow_expired
+      - stale_revision
+      - request_too_large
+      - unsupported_media_type
+      - unsupported_value
+      - precondition_required
+      - rate_limited
+      - temporarily_unavailable
   SafeError:
     type: object
     required: [ code, message ]
@@ -258,12 +284,20 @@ schemas:
       details:
         type: [ object, "null" ]
     description: Safe structured error; never raw engine output.
+  ApiError:
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/SafeError
+      - type: object
+        properties:
+          code:
+            $ref: ./openapi.yaml#/components/schemas/ErrorCode
+    description: HTTP error body; the code comes from ErrorCode.
   ErrorResponse:
     type: object
     required: [ error, request_id ]
     properties:
       error:
-        $ref: ./openapi.yaml#/components/schemas/SafeError
+        $ref: ./openapi.yaml#/components/schemas/ApiError
       request_id:
         type: [ string, "null" ]
   Visibility:

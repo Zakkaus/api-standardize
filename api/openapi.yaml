@@ -142,8 +142,12 @@ components:
       $ref: ./common.yaml#/schemas/Timestamp
     NullableTimestamp:
       $ref: ./common.yaml#/schemas/NullableTimestamp
+    ErrorCode:
+      $ref: ./common.yaml#/schemas/ErrorCode
     SafeError:
       $ref: ./common.yaml#/schemas/SafeError
+    ApiError:
+      $ref: ./common.yaml#/schemas/ApiError
     ErrorResponse:
       $ref: ./common.yaml#/schemas/ErrorResponse
     Discovery:
