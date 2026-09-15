@@ -142,6 +142,7 @@ schemas:
         maximum: 4294967295
       input:
         type: [ object, "null" ]
+        additionalProperties: true
         description: Immutable inputs consumed by this evaluation, typed by chain below; null means missing capture.
       dns_action:
         type: [ string, "null" ]
@@ -348,7 +349,7 @@ schemas:
             $ref: ./openapi.yaml#/components/schemas/OutboundStepData
   OutboundStepData:
     type: object
-    required: [ attempt_id, parent_attempt_id, kind, evaluation_id, routing_source, routed_outbound, effective_outbound, mode_override, selection_path, leaf_node_id, target, target_kind, dial_ip, server_addr, resolution_location, status, error ]
+    required: [ attempt_id, parent_attempt_id, kind, evaluation_id, routing_source, routed_outbound, effective_outbound, mode_override, selection_path, leaf_node_id, leaf_node_name, target, target_kind, dial_ip, server_addr, resolution_location, status, error ]
     properties:
       attempt_id:
         type: string
@@ -377,6 +378,9 @@ schemas:
           $ref: ./openapi.yaml#/components/schemas/SelectionPathItem
       leaf_node_id:
         type: [ string, "null" ]
+      leaf_node_name:
+        type: [ string, "null" ]
+        description: Sanitized leaf name captured at decision time, or null when unavailable; leaf_node_id remains authoritative.
       target:
         type: [ string, "null" ]
       target_kind:
@@ -410,7 +414,7 @@ schemas:
           type: "null"
   SelectionPathItem:
     type: object
-    required: [ group_id, member_id, policy, reason, selection ]
+    required: [ group_id, member_id, member_name, policy, reason, selection ]
     properties:
       group_id:
         type: string
@@ -418,6 +422,9 @@ schemas:
       member_id:
         type: [ string, "null" ]
         minLength: 1
+      member_name:
+        type: [ string, "null" ]
+        description: Sanitized member name captured at decision time, or null when unavailable; member_id remains authoritative.
       policy:
         type: string
         minLength: 1
@@ -444,13 +451,19 @@ schemas:
           $ref: ./openapi.yaml#/components/schemas/SelectionCandidate
   SelectionCandidate:
     type: object
-    required: [ member_id, leaf_node_id, eligible, sorting_latency_ms, score, selected, reason ]
+    required: [ member_id, member_name, leaf_node_id, leaf_node_name, eligible, sorting_latency_ms, score, selected, reason ]
     properties:
       member_id:
         type: string
         minLength: 1
+      member_name:
+        type: [ string, "null" ]
+        description: Sanitized member name captured at decision time, or null when unavailable; member_id remains authoritative.
       leaf_node_id:
         type: [ string, "null" ]
+      leaf_node_name:
+        type: [ string, "null" ]
+        description: Sanitized leaf name captured at decision time, or null when unavailable; leaf_node_id remains authoritative.
       eligible:
         type: [ boolean, "null" ]
       sorting_latency_ms:

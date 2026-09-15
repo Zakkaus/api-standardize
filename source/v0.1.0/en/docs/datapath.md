@@ -59,13 +59,25 @@ compare their observation times before diagnosing a mismatch.
 
 ## State rules
 
-- `active` requires loaded programs, required hooks attached, and published
-  routing for the active generation.
-- `degraded` means the datapath can operate only partially, or an important
-  map/counter cannot be read.
+- For `kind: ebpf`, `active` requires loaded programs, required hooks attached,
+  and published routing for the active generation.
+- For `kind: ebpf`, `degraded` means the datapath can operate only partially,
+  or an important map/counter cannot be read.
 - `failed` means initialization or a required runtime operation failed.
 - `unknown` means the adapter cannot verify the state; it must not infer
   `active` from configuration alone.
+
+For `kind: userspace`, `active` means the required listeners and forwarding
+workers are running with the active routing configuration and can handle
+traffic. `degraded` means forwarding remains partially usable but a required
+listener, worker, or observation is impaired. eBPF programs, hooks, and
+publication are not prerequisites for a userspace-only datapath; `ebpf` is null.
+
+For `kind: mock` or `ebpf.backend: mock`, states describe the simulated path
+only. A mock may report `active` for verified simulated readiness, but this
+does not claim real packet handling, kernel hooks, routing publication, or
+host-traffic visibility. Unverified state remains `unknown`; clients must
+not present mock readiness as a healthy production datapath.
 
 This endpoint is read-only. Reload and lifecycle actions use
 `/api/v1/operations/*`.

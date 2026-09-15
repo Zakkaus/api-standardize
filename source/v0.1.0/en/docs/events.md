@@ -27,8 +27,14 @@ shape is not a parsing contract. Resume with `Last-Event-ID`; bearer secrets
 never go in URLs. Native browser `EventSource` cannot set Authorization:
 use streaming `fetch` with the header and an SSE parser, or a same-origin
 server-side credential boundary. Do not add query tokens or weaken auth to
-accommodate `EventSource`. CORS permits `Authorization` and `Last-Event-ID`
-and exposes `Location`, `Retry-After`, and `ETag`.
+accommodate `EventSource`.
+
+For explicitly allowed origins, CORS permits `Authorization`, `Last-Event-ID`,
+`Content-Type`, `If-Match`, `Idempotency-Key`, and `Accept` request headers,
+and exposes `Location`, `Retry-After`, and `ETag`. Preflight requests are
+answered without bearer authentication after validating the origin,
+requested method, and requested headers. Actual requests retain their
+normal authentication and permission checks.
 
 ## Event kinds
 

@@ -68,8 +68,9 @@ distinct policy, not URLTest with its score mislabeled as milliseconds.
 
 ## GET /api/v1/groups
 
-Returns group summaries for discovery. Use the detail endpoint for members and
-health observations.
+Returns group summaries for discovery, including the same opaque
+`config_revision` as the detail resource; preserve it without numeric parsing.
+Use the detail endpoint for members and health observations.
 
 ### Request
 

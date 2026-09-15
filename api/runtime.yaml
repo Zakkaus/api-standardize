@@ -53,6 +53,7 @@ paths:
                       scope: visible
                       observed_by: mixed
                       counter_since: 2026-08-15T08:00:00Z
+                      sampled_at: 2026-08-15T10:00:00Z
                       connections:
                         tcp: 42
                         udp: 128
@@ -265,7 +266,7 @@ schemas:
           - $ref: ./openapi.yaml#/components/schemas/SafeError
   TrafficSummary:
     type: object
-    required: [ scope, observed_by, counter_since, connections, bytes, rates ]
+    required: [ scope, observed_by, counter_since, sampled_at, connections, bytes, rates ]
     properties:
       scope:
         type: string
@@ -274,6 +275,9 @@ schemas:
         $ref: ./openapi.yaml#/components/schemas/ObservedBy
       counter_since:
         $ref: ./openapi.yaml#/components/schemas/NullableTimestamp
+      sampled_at:
+        $ref: ./openapi.yaml#/components/schemas/NullableTimestamp
+        description: Time the traffic sample was taken, or null when unavailable; not the HTTP snapshot time.
       connections:
         type: object
         required: [ tcp, udp, total ]
@@ -301,6 +305,7 @@ schemas:
               window_seconds:
                 type: number
                 exclusiveMinimum: 0
+                description: Duration of the rate interval ending at sampled_at, in seconds.
               upload_bytes_per_second:
                 $ref: ./openapi.yaml#/components/schemas/NullableUInt64
               download_bytes_per_second:

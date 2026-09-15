@@ -136,6 +136,12 @@ generation and immutable dictionaries. Retain terminal evidence before guards
 or endpoint retirement remove live entries. Unknown/lost/expired evidence
 must remain visible as such, rather than becoming a fabricated clean close.
 
+Serialize sanitized decision-time `member_name` beside selection-path and
+candidate `member_id`, and `leaf_node_name` beside candidate and outbound
+`leaf_node_id`. These name fields are required but null when unavailable.
+IDs remain authoritative. Retained traces must not acquire new names by
+joining the current registry after a reload renames or removes a node/group.
+
 ## Implementation order, without reducing the target
 
 1. Introduce compact observation ownership at existing TCP guards, UDP leases,

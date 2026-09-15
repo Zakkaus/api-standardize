@@ -89,6 +89,7 @@ paths:
                   value:
                     - id: group-proxy
                       name: proxy
+                      config_revision: "17"
                       policy:
                         kind: urltest
                         native: min_moving_avg
@@ -445,6 +446,7 @@ schemas:
           minLength: 1
       health:
         type: array
+        description: Latest observations, unique by (transport, purpose, measurement, ip_version) within this node; warmth describes the sample, not a separate key.
         items:
           $ref: ./openapi.yaml#/components/schemas/HealthObservation
   NodeList:
@@ -630,7 +632,7 @@ schemas:
         $ref: ./openapi.yaml#/components/schemas/GroupCapabilities
   GroupSummary:
     type: object
-    required: [ id, name, policy, member_count, selection ]
+    required: [ id, name, config_revision, policy, member_count, selection ]
     properties:
       id:
         type: string
@@ -638,6 +640,10 @@ schemas:
       name:
         type: string
         minLength: 1
+      config_revision:
+        type: string
+        minLength: 1
+        description: Same opaque configuration revision as Group.config_revision; preserve without numeric parsing.
       policy:
         $ref: ./openapi.yaml#/components/schemas/GroupPolicy
       member_count:

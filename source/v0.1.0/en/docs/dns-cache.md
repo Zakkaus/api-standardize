@@ -24,6 +24,10 @@ An implementation that does not expose a capability must return `404` with
 The response is a paginated snapshot. The cache can change while the client
 walks the pages, so `cursor` is opaque and must not be manufactured by a
 client.
+The cursor is bound to the running adapter instance, filters, and retained
+snapshot. Restart, changed filters, or snapshot expiry/eviction invalidates
+it. An unknown or invalidated cursor returns `400 invalid_request`; discard
+it and restart without a cursor, never silently continue a different snapshot.
 
 {% api_request listDnsCache %}
 
@@ -71,7 +75,7 @@ cache class they claim to expose.
 | status | string | `NOERROR`, `NXDOMAIN`, `NODATA`, `SERVFAIL`, or another DNS result |
 | answers | array, optional | Complete cached RRset with `detail=full`; an entry is not one individual answer value |
 | expires_at | string | Time at which the normal cache lifetime ends (RFC3339) |
-| stale_until | string | Optional optimistic-cache stale boundary (RFC3339) |
+| stale_until | string or null | Required end of optimistic stale-answer eligibility (RFC3339); null when stale serving is disabled or the boundary is unavailable. |
 
 Negative results such as `NXDOMAIN` and `NODATA` are cache entries too. A
 delete operation removes the complete question/type entry, including every

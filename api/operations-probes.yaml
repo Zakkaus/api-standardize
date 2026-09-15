@@ -83,7 +83,34 @@ paths:
         "429":
           $ref: ./openapi.yaml#/components/responses/RateLimited
         "503":
-          $ref: ./openapi.yaml#/components/responses/Unavailable
+          description: Probe queue is full
+          headers:
+            Retry-After:
+              description: Positive retry delay in seconds.
+              required: true
+              schema:
+                type: integer
+                minimum: 1
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                queue_full:
+                  value:
+                    error:
+                      code: temporarily_unavailable
+                      message: Probe queue is full.
+                    request_id: request-1
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+                    Retry-After: 1
   /api/v1/operations/reload:
     post:
       operationId: startReload
@@ -819,6 +846,7 @@ schemas:
         $ref: ./openapi.yaml#/components/schemas/NullableTimestamp
       result:
         type: [ object, "null" ]
+        additionalProperties: true
       error:
         oneOf:
           - type: "null"

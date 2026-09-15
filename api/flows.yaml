@@ -14,6 +14,12 @@ paths:
             type: string
             enum: [ tcp, udp, all ]
             default: all
+        - name: src
+          in: query
+          description: Exact source IP literal, without a port; applied with type before limit. Totals and truncated describe only matching visible entries.
+          schema:
+            $ref: ./openapi.yaml#/components/schemas/IpAddress
+          example: 192.168.1.100
         - $ref: ./openapi.yaml#/components/parameters/Limit1000
         - $ref: ./openapi.yaml#/components/parameters/Detail
       responses:
@@ -65,8 +71,8 @@ paths:
                         download_bytes: null
                         upload_bytes_per_second: null
                         download_bytes_per_second: null
-                    total_tcp: 42
-                    total_udp: 128
+                    total_tcp: 1
+                    total_udp: 1
                   x-headers:
                     Content-Type: application/json
                     Cache-Control: no-store
@@ -101,6 +107,13 @@ paths:
               - $ref: ./openapi.yaml#/components/schemas/ConnectionState
               - const: all
             default: all
+        - name: connection_id
+          in: query
+          description: Exact opaque connection ID within the current adapter instance; never inferred from a tuple. Matches active and retained terminal flows.
+          schema:
+            type: string
+            minLength: 1
+          example: tcp-01HZX4K8W5
         - $ref: ./openapi.yaml#/components/parameters/Limit1000
         - $ref: ./openapi.yaml#/components/parameters/Cursor
         - $ref: ./openapi.yaml#/components/parameters/Detail
@@ -136,10 +149,10 @@ paths:
                         network: tcp
                         state: active
                         pname: curl
-                        connection_id: tcp-23
+                        connection_id: tcp-01HZX4K8W5
                         outbound: proxy
                         observed_by: userspace
-                        started_at: 2026-09-14T09:59:59Z
+                        started_at: 2026-08-13T12:00:00Z
                         ended_at: null
                         trace_status: partial
                     next_cursor: null
@@ -216,15 +229,15 @@ paths:
                     network: tcp
                     state: active
                     pname: curl
-                    connection_id: tcp-23
+                    connection_id: tcp-01HZX4K8W5
                     outbound: proxy
                     observed_by: userspace
-                    started_at: 2026-09-14T09:59:59Z
+                    started_at: 2026-08-13T12:00:00Z
                     ended_at: null
                     trace_status: partial
                     input:
-                      src: 192.0.2.10:53000
-                      dst: 198.51.100.20:443
+                      src: 192.168.1.100:12345
+                      dst: 1.2.3.4:443
                       domain: example.com
                       domain_source: tls_sni
                       pid: null
@@ -240,7 +253,7 @@ paths:
                       steps:
                         - seq: 1
                           stage: route
-                          observed_at: 2026-09-14T09:59:59Z
+                          observed_at: 2026-08-13T12:00:00Z
                           elapsed_us: 0
                           generation_id: generation-42
                           evidence: observed
@@ -257,7 +270,7 @@ paths:
                             mark: 0
                         - seq: 2
                           stage: dial_mode
-                          observed_at: 2026-09-14T09:59:59Z
+                          observed_at: 2026-08-13T12:00:00Z
                           elapsed_us: 100
                           generation_id: generation-42
                           evidence: observed
@@ -270,7 +283,7 @@ paths:
                             reason: preserve_initial_route
                         - seq: 3
                           stage: reroute
-                          observed_at: 2026-09-14T09:59:59Z
+                          observed_at: 2026-08-13T12:00:00Z
                           elapsed_us: 120
                           generation_id: generation-42
                           evidence: observed
@@ -281,7 +294,7 @@ paths:
                             to_evaluation_id: null
                         - seq: 4
                           stage: outbound
-                          observed_at: 2026-09-14T09:59:59Z
+                          observed_at: 2026-08-13T12:00:00Z
                           elapsed_us: 150
                           generation_id: generation-42
                           evidence: observed
@@ -297,10 +310,12 @@ paths:
                             selection_path:
                               - group_id: group-proxy
                                 member_id: node-hk-01
+                                member_name: hk-01
                                 policy: selector
                                 reason: manual_selection
                                 selection: null
                             leaf_node_id: node-hk-01
+                            leaf_node_name: hk-01
                             target: example.com:443
                             target_kind: domain
                             dial_ip: null
@@ -310,7 +325,7 @@ paths:
                             error: null
                         - seq: 5
                           stage: connection
-                          observed_at: 2026-09-14T09:59:59Z
+                          observed_at: 2026-08-13T12:00:00Z
                           elapsed_us: 20000
                           generation_id: generation-42
                           evidence: observed
@@ -332,13 +347,13 @@ paths:
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
                   value:
-                    id: flow-23
+                    id: flow-24
                     instance_id: instance-7
                     revision: 8
                     network: tcp
                     state: active
                     pname: curl
-                    connection_id: tcp-23
+                    connection_id: tcp-24
                     outbound: proxy
                     observed_by: userspace
                     started_at: 2026-09-14T09:59:59Z
@@ -471,6 +486,7 @@ paths:
                             mode_override: none
                             selection_path: []
                             leaf_node_id: node-hk-01
+                            leaf_node_name: hk-01
                             target: 203.0.113.53:53
                             target_kind: ip
                             dial_ip: 203.0.113.53
@@ -545,6 +561,7 @@ paths:
                             mode_override: none
                             selection_path: []
                             leaf_node_id: node-hk-01
+                            leaf_node_name: hk-01
                             target: example.com:443
                             target_kind: domain
                             dial_ip: null
@@ -612,6 +629,7 @@ schemas:
         $ref: ./openapi.yaml#/components/schemas/Visibility
       truncated:
         type: boolean
+        description: Whether limit omitted visible entries matching type and src.
       tcp:
         type: array
         items:
@@ -622,8 +640,10 @@ schemas:
           $ref: ./openapi.yaml#/components/schemas/Connection
       total_tcp:
         $ref: ./openapi.yaml#/components/schemas/SafeUInt
+        description: Visible live TCP entries matching type and src before limit; zero when type excludes TCP.
       total_udp:
         $ref: ./openapi.yaml#/components/schemas/SafeUInt
+        description: Visible live UDP entries matching type and src before limit; zero when type excludes UDP.
   FlowScope:
     type: string
     enum: [ userspace_tcp, userspace_udp, kernel_direct, kernel_block, dns_intercept, kernel_bypass ]

@@ -76,7 +76,12 @@ and `health_updated: false`, not an unhealthy node.
 `resources.probes.limits` bounds fan-out, projected results, active/queued jobs,
 per-target concurrency, deadline, and principal/global request rates. Reject
 oversized fan-out/results with `413` before dispatch; use `429` for concurrency
-or rate excess and `503` for a full queue, both with `Retry-After`. Enforce one
-job deadline including preparation; cancel and drain started work at expiry.
+or rate excess and the dedicated full-queue `503` response below. Both require
+`Retry-After` as a positive number of seconds. Enforce one job deadline
+including preparation; cancel and drain started work at expiry.
 Already completed real errors keep their native health effects; cancellation
 and never-started candidates are health-neutral.
+
+### Full queue (503)
+
+{% api_example createProbe 503 queue_full http %}

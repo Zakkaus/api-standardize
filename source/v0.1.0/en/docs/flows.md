@@ -43,6 +43,7 @@ Requires `observe`. Returns active **and retained terminal** flows.
 |-----------|---------|---------|
 | network | all | `tcp`, `udp`, or `all`. |
 | state | all | One lifecycle state below, or `all`. |
+| connection_id | absent | Exact opaque connection ID within the current adapter instance; includes retained terminal flows, never tuple matching. |
 | limit | 100 | 1–1000, additionally bounded by the advertised limit. |
 | cursor | absent | Opaque snapshot cursor; includes the original filters. |
 | detail | summary | `full` adds source/destination/domain inputs; not the trace. |
@@ -55,6 +56,10 @@ expired snapshot returns `410 snapshot_expired`; do not silently restart a
 page walk. `pname` is the captured process name or `null`, including for LAN
 traffic without process context. It is available in summary; summary is a
 payload-size tier, **not an authorization or privacy boundary**.
+
+Use `connection_id` to find retained traces after a connection leaves the
+live snapshot. Correlate IDs only within the same `instance_id`; a restart
+does not authorize a tuple-based fallback.
 
 `detail=full` adds an `input` object with `src`, `dst`, `domain`, `domain_source`,
 `pid`, `process_path`, `src_mac`, `ingress`, `domain_rule_ids`, `dscp`, and
@@ -100,14 +105,15 @@ flow revisions and monotonic offsets are bounded JSON integers in
 | `dial_mode` | `configured` (engine-native mode), `effective_target` (`ip`, `domain`, `none`, `unknown`), nullable `domain` and `domain_source`, `verification` (`matched`, `other_family_trusted`, `failed`, `not_required`, `unavailable`), safe `reason`. Rejected SNI remains evidence here, not an accepted routing input. Other-family trust is not an exact IP match. |
 | `dns` | `lookup_id`, nullable `parent_lookup_id`, nullable `attempt_id`, `purpose` (`domain_verification`, `dial_target`, `proxy_server`, `intercepted_query`, `family_preference`, `refresh`), `name`, `qtype`, `source` (`hosts`, `cache`, `upstream`, `coalesced`, `unknown`), nullable `upstream_transport` (`udp`, `tcp`, `dot`, `doh`, `doq`, `doh3`), nullable `carrier_transport` (`tcp`, `udp`), `cache` (`hit`, `miss`, `stale`, `bypass`, `unknown`), nullable `cache_entry_id`, nullable `upstream`, `route_evaluation_ids`, `status`, `addresses`, nullable `selected_ip`, nullable `error`. One step per question/result; include failed and rejected response attempts. |
 | `reroute` | `performed` (bool or null), safe `reason`, nullable `from_evaluation_id` and `to_evaluation_id`. `false` means deliberately not rerouted; `null` means not observed. Examples: final must/block, preserved IP route, verified domain, missing domain. |
-| `outbound` | `attempt_id`, nullable `parent_attempt_id`, `kind` (`leaf`, `transport`), nullable `evaluation_id`, `routing_source` (`evaluation`, `forced`, `builtin`, `unknown`), nullable `routed_outbound` and `effective_outbound`, `mode_override` (`none`, `direct`, `global`, `unknown`), ordered `selection_path`, nullable `leaf_node_id`, nullable `target`, `target_kind` (`ip`, `domain`, `none`, `unknown`), nullable `dial_ip`, nullable `server_addr`, `resolution_location` (`original_ip`, `local_dns`, `outbound_remote`, `not_applicable`, `unknown`), `status` (`started`, `succeeded`, `failed`, `cancelled`), nullable safe `error`. Emit attempt transitions, including failed/cancelled losers, without changing old steps. |
+| `outbound` | `attempt_id`, nullable `parent_attempt_id`, `kind` (`leaf`, `transport`), nullable `evaluation_id`, `routing_source` (`evaluation`, `forced`, `builtin`, `unknown`), nullable `routed_outbound` and `effective_outbound`, `mode_override` (`none`, `direct`, `global`, `unknown`), ordered `selection_path`, nullable `leaf_node_id` and `leaf_node_name`, nullable `target`, `target_kind` (`ip`, `domain`, `none`, `unknown`), nullable `dial_ip`, nullable `server_addr`, `resolution_location` (`original_ip`, `local_dns`, `outbound_remote`, `not_applicable`, `unknown`), `status` (`started`, `succeeded`, `failed`, `cancelled`), nullable safe `error`. Emit attempt transitions, including failed/cancelled losers, without changing old steps. |
 | `connection` | `state`, safe `reason`, `milestone` (`transport_ready`, `target_request_sent`, `target_confirmed`, `first_reply`, `terminal`, `unknown`), nullable `attempt_id`, nullable `reply_received`, nullable safe `error`. Includes failures before registration and terminal cleanup. |
 
-Each selection-path item also has nullable `selection`: a decision-time
-object with nullable `previous_member_id`, `metric`, `tolerance_ms`, and a
-`candidates` array. Each candidate has `member_id`, nullable `leaf_node_id`,
-nullable `eligible`, nullable `sorting_latency_ms`, nullable `score`,
-`selected` (boolean), and safe `reason`. Preserve the actual considered
+Each selection-path item also has nullable `member_name` and `selection`.
+`selection` is a decision-time object with nullable `previous_member_id`,
+`metric`, `tolerance_ms`, and a `candidates` array. Each candidate has
+`member_id`, nullable `member_name`, `leaf_node_id`, `leaf_node_name`,
+`eligible`, `sorting_latency_ms`, and `score`, plus `selected` (boolean)
+and safe `reason`. Preserve the actual considered
 candidates and eligibility/demotion/exploration reasons, not every configured
 node. Manual selection can use null; an automatic decision whose context
 was not captured makes the trace partial. These values come from the actual
@@ -117,6 +123,9 @@ Path `member_id` is nullable when an empty/ineligible group has no selected
 member. Preserve that group and its failure/final-fallback reason. A final
 group adds another path item; a builtin/node terminal uses the outbound/leaf
 fields, not a fabricated declared group member.
+Names are sanitized decision-time captures, required but null when
+unavailable. IDs remain authoritative; never replace a retained name by
+joining the current node or group registry.
 
 DNS `addresses` is the observed IP answer set, not the list of addresses
 actually dialed. A proxy server IP is not the flow's destination IP. Shared

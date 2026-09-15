@@ -46,12 +46,18 @@ it when the adapter can observe it.
 | traffic.scope | string | Scope of the counters, normally `visible`. |
 | traffic.observed_by | string | `userspace`, `ebpf`, or `mixed`. |
 | traffic.counter_since | string or null | Start time of the reported cumulative counters. |
+| traffic.sampled_at | string or null | Required time the traffic sample was taken; null when unavailable, not replaced by the HTTP snapshot time. |
 | traffic.connections | object | Currently visible TCP, UDP, and total connection counts. Each count is a bounded JSON integer or `null` when unobservable. |
 | traffic.bytes | object | Cumulative visible bytes. Each value is a decimal uint64 string or `null` when unobservable. |
 | traffic.rates | object or null | Current rates. `null` when unavailable; `window_seconds` stays numeric and byte rates are decimal uint64 strings or `null`. |
 | process.pid | uint32 or null, optional | Engine process ID with `detail=full`. |
 | process.cpu_percent | number or null | Process CPU usage when available. |
 | last_reload | object or null | Most recent reload operation and its result. |
+
+`traffic.rates.window_seconds` is the duration of the sampling interval
+ending at `traffic.sampled_at`. A cached sample retains its original
+timestamp; `counter_since` instead marks the cumulative counter reset
+boundary. A null sample timestamp does not establish freshness.
 
 The `datapath.ebpf` summary uses these states:
 
@@ -64,12 +70,18 @@ The `datapath.ebpf` summary uses these states:
 | routing.generation_id | string or null | Generation currently published to eBPF. |
 | health | `healthy`, `degraded`, `failed`, `unknown` | Combined operational result. |
 
-`datapath.state` may be `active` only when the required programs, hooks, and
-active routing publication are all valid. A loaded program alone is not an
-active datapath.
+For `datapath.kind: ebpf`, `datapath.state` may be `active` only when the
+required programs, hooks, and active routing publication are all valid.
+A loaded program alone is not an active datapath. Userspace and mock state
+rules are defined in [Datapath](datapath.html).
 
 > **Note:** Per-connection details and byte counters are available from
 > [`GET /api/v1/connections`](connections.html). They carry the same visibility limits.
+
+The draft has no per-outbound cumulative counters or traffic history.
+Summing live connection bytes by `outbound` is only a bounded snapshot
+derivation: it omits closed, truncated, and unobserved connections and is
+not a usage total. SSE invalidations do not recover historical traffic samples.
 
 Memory metrics are intentionally excluded from this snapshot so a dashboard
 can poll [`GET /api/v1/runtime/memory`](runtime-memory.html) without repeatedly fetching

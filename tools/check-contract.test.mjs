@@ -43,6 +43,40 @@ test("the bundled contract and every named example are valid", () => {
   }
 });
 
+test("refined nullable objects stay open for client generators", () => {
+  assert.deepEqual([
+    spec.components.schemas.OperationCommon.properties.result.additionalProperties,
+    spec.components.schemas.RouteStepData.properties.input.additionalProperties,
+  ], [true, true]);
+});
+
+test("connection examples preserve totals and linked flow identity", () => {
+  const connections = example("listConnections:200:visible").body;
+  if (!connections.truncated) {
+    assert.equal(connections.total_tcp, connections.tcp.length);
+    assert.equal(connections.total_udp, connections.udp.length);
+  }
+  const connection = connections.tcp.find((entry) => entry.flow_id !== null);
+  assert.ok(connection);
+  const listed = example("listFlows:200:visible").body;
+  const summary = listed.flows.find((flow) => flow.id === connection.flow_id);
+  assert.ok(summary);
+  const detail = example("getFlow:200:partial_handoff").body;
+  assert.equal(listed.instance_id, connections.instance_id);
+  for (const flow of [summary, detail]) {
+    assert.equal(flow.id, connection.flow_id);
+    assert.equal(flow.instance_id, connections.instance_id);
+    assert.equal(flow.connection_id, connection.id);
+    assert.equal(flow.started_at, connection.started_at);
+  }
+  assert.equal(detail.input.src, connection.src);
+  assert.equal(detail.input.dst, connection.dst);
+  assert.equal(detail.input.domain, connection.domain);
+  const unrelated = example("getFlow:200:interleaved_dns").body;
+  assert.notEqual(unrelated.id, detail.id);
+  assert.notEqual(unrelated.connection_id, connection.id);
+});
+
 test("examples remain bound to their operation schema", () => {
   const changed = structuredClone(spec);
   changed.paths["/api/v1/flows/{flow_id}"].get.responses["200"].content[
@@ -109,6 +143,21 @@ test("202 response headers must be declared, present, typed, and causal", () => 
   const wrongLocation = example("createProbe:202:queued");
   wrongLocation.headers.Location = "/api/v1/operations/different-operation";
   assertInvalid(validateExample(contract, wrongLocation), "unrelated Location passed");
+});
+
+test("probe queue-full responses require a positive Retry-After", () => {
+  const response = example("createProbe:503:queue_full");
+  assertValid(validateExample(contract, response));
+  assert.match(renderExample(response, "http"), /^HTTP\/1\.1 503 Service Unavailable\n/u);
+
+  const missing = structuredClone(response);
+  delete missing.headers["Retry-After"];
+  assertInvalid(validateExample(contract, missing));
+  assert.throws(() => renderExample(missing, "http"));
+
+  const zero = structuredClone(response);
+  zero.headers["Retry-After"] = 0;
+  assertInvalid(validateExample(contract, zero));
 });
 
 test("response status and media type cannot be rebound", () => {

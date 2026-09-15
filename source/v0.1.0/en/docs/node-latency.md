@@ -20,6 +20,11 @@ title: Nodes
 | limit | int | 100 | Maximum nodes to return; capped at 1000. |
 | cursor | string | - | Opaque cursor returned by `next_cursor`. |
 
+Cursors are bound to the running adapter instance, filters, and retained
+snapshot. Restart, changed filters, or snapshot expiry/eviction invalidates
+them. The server rejects unknown or invalidated cursors with
+`400 invalid_request`; discard the cursor and restart the page walk without it.
+
 ## Response
 
 ### Success (200 OK)
@@ -37,7 +42,7 @@ title: Nodes
 | nodes[].protocol | string or null | Protocol label when safely available. |
 | nodes[].subscription_tag | string or null | Current subscription provenance, using the engine's `subtag(...)` name; null for manual nodes or unavailable provenance. Never expose subscription URLs or credentials. |
 | nodes[].group_ids | array | Direct group memberships. |
-| nodes[].health | array | Latest observations keyed by transport, purpose, destination IP family, and warmth. |
+| nodes[].health | array | Latest observations keyed by transport, purpose, measurement, and destination IP family; warmth describes the sample. |
 | next_cursor | string or null | Cursor for the next page. |
 
 Health `state` is `healthy`, `unavailable`, or `unknown`. Failed or unknown
@@ -46,6 +51,12 @@ must not derive node IDs from names.
 Missing measurements and optimistically-alive native state are `unknown`,
 not evidence of a healthy probe. A restored/derived sample retains its source
 label and must not be displayed as a fresh independent measurement.
+
+A single-latency column MUST pick and label one fixed
+`(transport, purpose, measurement, ip_version)` tuple. Show unknown when
+that tuple has no usable sample; observations with other tuples are not
+substitutes. Each tuple is unique within `node.health`, so clients need not
+choose between multiple warmth variants.
 
 ## Shared health dimensions and metrics
 

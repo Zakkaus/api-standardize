@@ -48,6 +48,13 @@ parameters:
   Cursor:
     name: cursor
     in: query
+    description: |
+      Opaque cursor bound to the resource, running adapter instance, filters,
+      and retained snapshot. Restart, changed filters, or snapshot expiry or
+      eviction invalidates it. GET /flows returns 410 snapshot_expired;
+      GET /nodes and GET /dns/cache return 400 invalid_request for a cursor
+      that is unknown or no longer valid. Discard it and restart the page walk
+      without a cursor; never silently continue against a new snapshot.
     schema:
       type: string
       minLength: 1

@@ -20,6 +20,7 @@ network speeds where the observation plane provides them.
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | type | string | all | Filter: `tcp`, `udp`, or `all` |
+| src | string | - | Exact source IP literal without a port; applied with `type` before `limit`. |
 | limit | int | 100 | Max connections to return across both arrays; capped at 1000. |
 | detail | string | summary | `summary` omits `src`, `dst`, and `domain`; `full` includes them when observable. |
 
@@ -36,11 +37,11 @@ network speeds where the observation plane provides them.
 | observed_at | string | Snapshot timestamp (RFC3339). |
 | instance_id | string | Running adapter instance; resets on process restart. |
 | visibility | string | `full`, `partial`, or `none`. |
-| truncated | bool | Whether `limit` omitted visible entries. |
+| truncated | bool | Whether `limit` omitted visible entries matching `type` and `src`. |
 | tcp | array | Active TCP connections |
 | udp | array | Active UDP sessions |
-| total_tcp | int | Total active TCP count |
-| total_udp | int | Total active UDP count |
+| total_tcp | int | Visible active TCP count matching `type` and `src`, before `limit`. |
+| total_udp | int | Visible active UDP count matching `type` and `src`, before `limit`. |
 
 ### Connection Object
 
@@ -65,20 +66,28 @@ network speeds where the observation plane provides them.
 > from [`GET /api/v1/runtime`](runtime-status.html). The datapath may observe only a
 > subset of host traffic.
 
-When both arrays exceed `limit`, the server returns the most recently observed
-entries first with a stable tie-breaker and sets `truncated: true`. Totals are
-the complete counts visible at `observed_at`, not only the returned array sizes.
+When the matching entries across both arrays exceed `limit`, the server
+returns the most recently observed entries first with a stable tie-breaker
+and sets `truncated: true`. Totals are the complete matching counts visible
+at `observed_at`, not only the returned array sizes.
 
 Summary reduces payload; it does not confer less-sensitive access. `pname`,
 addresses and domains all require `observe`. Per-flow DNS provenance, actual
 leaf/member paths, and decision-time inputs are at
 [`GET /api/v1/flows/{flow_id}`](flows.html), not reconstructed from this list.
 
-Totals count visible live entries after the `type` filter (the excluded
-transport has count zero); absence from this snapshot is not evidence of a
-clean close. Failed/blocked attempts and recently terminated flows belong to
-`/flows`. In particular, removing a tracker entry is not a transport
+Totals count visible live entries after the `type` and exact source-IP `src`
+filters (the excluded transport has count zero); absence from this snapshot
+is not evidence of a clean close. `/flows` records failed/blocked attempts
+and recently terminated flows. Removing a tracker entry is not a transport
 cancellation. No native close endpoint is defined by this draft.
+
+The supported client/device view groups the source IP from `src` over
+`detail=full` entries, ignoring the source port. This derivation is bounded
+by `limit`; use the `src` filter for a per-address drill-down, not tuple
+guessing or device identity inference. MAC addresses and client/device
+first-seen timestamps are not on the `/connections` wire. `started_at`
+describes a connection, not when the client/device was first seen.
 
 ## Example
 
