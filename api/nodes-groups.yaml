@@ -37,6 +37,7 @@ paths:
                         name: hk-01
                         protocol: vless
                         subscription_tag: provider-a
+                        provider_id: provider-a
                         group_ids: [ group-proxy ]
                         health:
                           - transport: tcp
@@ -438,6 +439,10 @@ schemas:
         type: [ string, "null" ]
       subscription_tag:
         type: [ string, "null" ]
+      provider_id:
+        type: [ string, "null" ]
+        minLength: 1
+        description: Provider identity from GET /providers; omitted or null when provenance is unavailable. Never infer it from the node name.
       group_ids:
         type: array
         uniqueItems: true

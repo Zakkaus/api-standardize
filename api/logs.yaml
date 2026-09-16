@@ -1,0 +1,260 @@
+paths:
+  /api/v1/logs:
+    get:
+      operationId: streamLogs
+      summary: Follow bounded resumable engine logs
+      description: |
+        Requires resources.logs.available. Emit stream.ready first on every connection,
+        using the shared StreamReadyEvent payload and an opaque replay cursor. On a
+        valid resume, deliver retained matching records strictly after Last-Event-ID,
+        then live records without an unobserved gap. The ready cursor must not skip
+        pending replay; retain the supplied cursor until replay advances it.
+        Each log frame carries an opaque id unique within the running instance.
+        Duplicate delivery is permitted; deduplicate by id, never by message or ts.
+        Cursors are bound to this stream, instance and filters. Unknown, expired,
+        previous-instance or changed-filter cursors return 409 event_cursor_expired
+        before opening the stream. Drop the cursor and reconnect to establish a new
+        baseline; lost history is not recovered. Filtered-out IDs may leave gaps.
+        Retain at most resources.logs.max_buffered_records; this is not durable storage.
+        Close slow clients when their bounded queue fills; never block engine writers.
+        Send heartbeat comments at most 15 seconds apart while idle. Recheck credentials
+        on reconnect and terminate streams when authorization is revoked.
+        Sanitize messages and fields before buffering: no secrets, credentials, raw
+        configuration, stack traces or unredacted local paths. Never forward raw engine output.
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - name: level
+          in: query
+          description: Minimum severity, ordered trace < debug < info < warn < error. Omit for all advertised levels; an unadvertised level returns 400 invalid_request.
+          schema:
+            $ref: ./openapi.yaml#/components/schemas/LogLevel
+          example: info
+        - name: target
+          in: query
+          description: Case-sensitive literal module prefix; omit for all targets.
+          schema:
+            type: string
+            minLength: 1
+          example: honk::routing
+        - $ref: ./openapi.yaml#/components/parameters/LastEventId
+      responses:
+        "200":
+          description: Log stream; stream.ready precedes replay and live log frames. Heartbeat comments have no id or data.
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              x-event-data-schemas:
+                stream.ready: "#/components/schemas/StreamReadyEvent"
+                log: "#/components/schemas/LogRecord"
+              examples:
+                records:
+                  value: |
+                    id: instance-7:logs:123
+                    event: stream.ready
+                    data: {"instance_id":"instance-7","observed_at":"2026-09-14T10:00:00Z"}
+
+                    id: instance-7:logs:124
+                    event: log
+                    data: {"ts":"2026-09-14T10:00:01Z","level":"info","target":"honk::routing","message":"Routing generation published.","fields":{"generation_id":"generation-42"}}
+
+                    : heartbeat
+
+                  x-headers:
+                    Content-Type: text/event-stream
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "409":
+          $ref: ./openapi.yaml#/components/responses/EventCursorExpired
+        "429":
+          $ref: ./openapi.yaml#/components/responses/RateLimited
+        "503":
+          $ref: ./openapi.yaml#/components/responses/Unavailable
+  /api/v1/logs/settings:
+    get:
+      operationId: getLogSettings
+      summary: Read the engine's log level and replay buffer size
+      description: |
+        Requires resources.logs.available. Reports the level the engine currently
+        emits at and how many records the replay ring keeps. Values are the running
+        state, which may differ from the configuration file after a PATCH.
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        "200":
+          description: Current log settings
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/LogSettings
+              examples:
+                current:
+                  value:
+                    observed_at: 2026-08-15T10:00:00Z
+                    level: info
+                    buffered_records: 4096
+                    source: config
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+    patch:
+      operationId: patchLogSettings
+      summary: Change the log level or replay buffer size at runtime
+      description: |
+        Requires control, resources.logs.available and resources.logs.settings.
+        The change applies to the running engine immediately, without a reload, and
+        lasts until the process restarts or the next configuration activation resets
+        it; it is not written back to the configuration file. Both fields are
+        optional; an absent field keeps its value. level must be an advertised level.
+        buffered_records must lie in [64, resources.logs.max_buffered_records];
+        shrinking the ring drops the oldest records and cursors older than the new
+        floor expire. Out-of-range or unadvertised values return 400 invalid_request
+        and change nothing. Follows the shared idempotency rules.
+      x-permission: control
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - $ref: ./openapi.yaml#/components/parameters/IdempotencyKey
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./openapi.yaml#/components/schemas/LogSettingsPatch
+            examples:
+              debug:
+                value:
+                  level: debug
+      responses:
+        "200":
+          description: Settings after the change
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/LogSettings
+              examples:
+                changed:
+                  value:
+                    observed_at: 2026-08-15T10:00:05Z
+                    level: debug
+                    buffered_records: 4096
+                    source: runtime
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          description: Unadvertised level or buffered_records outside the advertised range
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                too_many_records:
+                  value:
+                    error:
+                      code: invalid_request
+                      message: buffered_records exceeds the advertised limit.
+                    request_id: request-3
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+schemas:
+  LogLevel:
+    type: string
+    enum: [ trace, debug, info, warn, error ]
+  LogSettings:
+    type: object
+    required: [ observed_at, level, buffered_records, source ]
+    properties:
+      observed_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      level:
+        $ref: ./openapi.yaml#/components/schemas/LogLevel
+        description: The minimum severity the engine emits; the stream's level filter cannot go below it.
+      buffered_records:
+        $ref: ./openapi.yaml#/components/schemas/SafeUInt
+        minimum: 64
+        description: Replay ring capacity in records, at most resources.logs.max_buffered_records.
+      source:
+        type: string
+        enum: [ config, runtime ]
+        description: config while the values come from the activated configuration; runtime after a PATCH overrode them.
+  LogSettingsPatch:
+    type: object
+    additionalProperties: false
+    minProperties: 1
+    properties:
+      level:
+        $ref: ./openapi.yaml#/components/schemas/LogLevel
+      buffered_records:
+        $ref: ./openapi.yaml#/components/schemas/SafeUInt
+        minimum: 64
+  LogRecord:
+    type: object
+    required: [ ts, level, target, message, fields ]
+    properties:
+      ts:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      level:
+        $ref: ./openapi.yaml#/components/schemas/LogLevel
+      target:
+        type: string
+        minLength: 1
+        description: Engine module name, not a network destination.
+      message:
+        type: string
+        minLength: 1
+        description: Sanitized operator message; no secrets or raw configuration.
+      fields:
+        type: [ object, "null" ]
+        additionalProperties: true
+        description: Sanitized structured fields, or null when unavailable; the message safety rules apply recursively.

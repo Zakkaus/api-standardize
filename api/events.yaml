@@ -49,30 +49,7 @@ paths:
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
         "409":
-          description: >-
-            Last-Event-ID cannot be replayed (event_cursor_expired); sent before any 200
-            stream opens. Drop the cursor, reconnect without it and resnapshot.
-          headers:
-            Cache-Control:
-              $ref: ./openapi.yaml#/components/headers/NoStore
-            X-Content-Type-Options:
-              $ref: ./openapi.yaml#/components/headers/NoSniff
-          content:
-            application/json:
-              schema:
-                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
-              examples:
-                event_cursor_expired:
-                  value:
-                    error:
-                      code: event_cursor_expired
-                      message: Event cursor is older than the retained window; reconnect without it.
-                      details: null
-                    request_id: request-01HZX4K8W6
-                  x-headers:
-                    Content-Type: application/json
-                    Cache-Control: no-store
-                    X-Content-Type-Options: nosniff
+          $ref: ./openapi.yaml#/components/responses/EventCursorExpired
         "429":
           $ref: ./openapi.yaml#/components/responses/RateLimited
         "503":

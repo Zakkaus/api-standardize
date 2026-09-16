@@ -6,7 +6,7 @@ title: Capabilities
 
 > Draft endpoint. This is the authoritative coarse-grained feature declaration
 > for the running adapter. Resource responses may further narrow capabilities
-> for an individual node or group.
+> for an individual node or group; provider refresh support may vary by kind.
 
 ## Request
 
@@ -62,6 +62,16 @@ not just the returned `closed` count. Exceeding it returns
 truncate the selected set. An unfiltered bulk close separately requires
 `all=true`, or returns `400 invalid_request`.
 
+`logs` advertises supported `levels` and `max_buffered_records`. Its bounded
+SSE feed carries sanitized log records, separately from invalidation events.
+`providers` advertises `can_refresh` and `max_page_size` (1–1000); refresh
+requires `control` and the operation resource. `rules` advertises `max_rules`,
+including the fallback entry, for a complete running-generation dictionary.
+These three resources require `observe` for reads. When available, each
+resource must include its advertised fields; buffer and rule limits are
+positive safe integers. See [logs](logs.html), [providers](providers.html),
+and [rules](rules.html).
+
 ## Conformance profiles
 
 `profiles` is an array, not a feature inferred from engine identity. The
@@ -94,3 +104,11 @@ Clash connection list, log parser, or map snapshot cannot satisfy it.
 ```bash
 curl http://localhost:9527/api/v1/capabilities
 ```
+
+`logs.available` declares the bounded log stream; when true, `levels`,
+`max_buffered_records` and `settings` are required. `settings` says whether
+the level and ring size can be changed at runtime through
+`PATCH /api/v1/logs/settings`.
+
+`dns_log.available` declares the ring of recent client resolutions; when
+true, `max_records` and `max_page_size` are required positive safe integers.

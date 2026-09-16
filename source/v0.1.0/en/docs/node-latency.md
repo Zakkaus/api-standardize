@@ -41,6 +41,7 @@ them. The server rejects unknown or invalidated cursors with
 | nodes[].name | string | Engine-visible node name. |
 | nodes[].protocol | string or null | Protocol label when safely available. |
 | nodes[].subscription_tag | string or null | Current subscription provenance, using the engine's `subtag(...)` name; null for manual nodes or unavailable provenance. Never expose subscription URLs or credentials. |
+| nodes[].provider_id | string or null, optional | Identity from [providers](providers.html), for grouping nodes. Omitted or null when provenance is unavailable; never infer it from names or URLs. |
 | nodes[].group_ids | array | Direct group memberships. |
 | nodes[].health | array | Latest observations keyed by transport, purpose, measurement, destination IP family, and warmth. |
 | next_cursor | string or null | Cursor for the next page. |

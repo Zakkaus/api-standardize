@@ -77,132 +77,6 @@ test("connection examples preserve totals and linked flow identity", () => {
   assert.notEqual(unrelated.connection_id, connection.id);
 });
 
-test("connection close renders a header-only 204 and rejects content", () => {
-  const response = example("closeConnection:204:closed");
-  assert.equal(response.body, undefined);
-  assert.equal(response.mediaType, undefined);
-  assertValid(validateExample(contract, response));
-  const [head, body] = renderExample(response, "http").split("\n\n");
-  assert.equal(body, "");
-  assert.equal(head.split("\n")[0], "HTTP/1.1 204 No Content");
-  assert.match(head, /(?:^|\n)Cache-Control: no-store(?:\n|$)/u);
-  assert.match(head, /(?:^|\n)X-Content-Type-Options: nosniff(?:\n|$)/u);
-  assert.equal(renderExample(response, "json"), "");
-
-  for (const name of ["Cache-Control", "X-Content-Type-Options"]) {
-    const missing = structuredClone(response);
-    delete missing.headers[name];
-    assertInvalid(validateExample(contract, missing));
-    assert.throws(() => renderExample(missing, "http"));
-  }
-  for (const mutate of [
-    (value) => { value.body = null; },
-    (value) => { value.mediaType = "application/json"; },
-    (value) => { value.headers["Content-Type"] = "application/json"; },
-  ]) {
-    const invalid = structuredClone(response);
-    mutate(invalid);
-    assertInvalid(validateExample(contract, invalid));
-    assert.throws(() => renderExample(invalid, "http"));
-  }
-});
-
-test("204 example carriers cannot declare content or a value", () => {
-  for (const mutate of [
-    (response) => { response.content = { "application/json": { schema: { type: "null" } } }; },
-    (response) => { response["x-examples"].closed.value = null; },
-  ]) {
-    const changed = structuredClone(spec);
-    mutate(changed.paths["/api/v1/connections/{connection_id}"].delete.responses["204"]);
-    assertInvalid(createContract(changed).errors);
-  }
-});
-
-test("bulk connection close counts are required bounded JSON integers", () => {
-  const response = example("closeConnections:200:closed");
-  const limit = example("getCapabilities:200:available").body.resources.connections.max_bulk_close;
-  assert.ok(response.body.closed + response.body.skipped <= limit);
-  for (const field of ["closed", "skipped"]) {
-    const original = response.body[field];
-    for (const value of [0, 9007199254740991]) {
-      response.body[field] = value;
-      assertValid(validateExample(contract, response));
-    }
-    for (const value of ["1", 0.5, -1, 9007199254740992, null]) {
-      response.body[field] = value;
-      assertInvalid(validateExample(contract, response), `${field} accepted ${JSON.stringify(value)}`);
-    }
-    delete response.body[field];
-    assertInvalid(validateExample(contract, response));
-    response.body[field] = original;
-  }
-});
-
-test("connection capabilities advertise close support and a positive safe limit", () => {
-  const response = example("getCapabilities:200:available");
-  const connections = response.body.resources.connections;
-  for (const field of ["can_close", "max_bulk_close"]) {
-    const original = connections[field];
-    delete connections[field];
-    assertInvalid(validateExample(contract, response));
-    connections[field] = original;
-  }
-  for (const value of [0, -1, 0.5, "1000", 9007199254740992]) {
-    connections.max_bulk_close = value;
-    assertInvalid(validateExample(contract, response));
-  }
-  connections.max_bulk_close = 9007199254740991;
-  connections.can_close = false;
-  assertValid(validateExample(contract, response));
-  connections.can_close = "false";
-  assertInvalid(validateExample(contract, response));
-  response.body.resources.connections = { available: false };
-  assertValid(validateExample(contract, response));
-});
-
-test("connection close errors distinguish gone, non-closable, unsupported, and unsafe requests", () => {
-  for (const [key, code] of [
-    ["closeConnection:404:gone", "resource_not_found"],
-    ["closeConnection:409:not_closable", "state_conflict"],
-    ["closeConnection:404:unsupported", "capability_not_supported"],
-    ["closeConnections:404:unsupported", "capability_not_supported"],
-    ["closeConnections:400:unfiltered", "invalid_request"],
-  ]) {
-    const response = example(key);
-    assert.equal(response.body.error.code, code);
-    assertValid(validateExample(contract, response));
-  }
-});
-
-test("bulk close reuses list filters without list presentation parameters", () => {
-  const list = spec.paths["/api/v1/connections"].get;
-  const bulk = spec.paths["/api/v1/connections"].delete;
-  const parameters = (operation) => operation.parameters.map((parameter) => parameter.$ref
-    ? parameter.$ref.slice(2).split("/").reduce((owner, key) => owner[key.replace(/~1/gu, "/").replace(/~0/gu, "~")], spec)
-    : parameter);
-  const filters = parameters(list).filter((parameter) => ["type", "src", "outbound", "domain"].includes(parameter.name));
-  assert.deepEqual(parameters(bulk).filter((parameter) => parameter.in === "query" && parameter.name !== "all"), filters);
-  assert.equal(bulk["x-permission"], "control");
-  assert.equal(spec.paths["/api/v1/connections/{connection_id}"].delete["x-permission"], "control");
-  assert.match(renderExample(example("closeConnection:request"), "http"),
-    /^DELETE \/api\/v1\/connections\/tcp-01HZX4K8W5 HTTP\/1\.1\n/u);
-
-  const changed = structuredClone(spec);
-  changed.components.parameters.IdempotencyKey.example = "close-request-1";
-  changed.paths["/api/v1/connections"].delete.parameters.find((parameter) => parameter.name === "all").example = true;
-  const withOptionalParameters = createContract(changed);
-  const request = structuredClone(withOptionalParameters.examples.get("closeConnections:request"));
-  assertValid(validateExample(withOptionalParameters, request));
-  request.parameters.find((parameter) => parameter.definition.name === "all").value = "true";
-  assertInvalid(validateExample(withOptionalParameters, request));
-  for (const operation of ["closeConnection", "closeConnections"]) {
-    const keyed = structuredClone(withOptionalParameters.examples.get(`${operation}:request`));
-    assertValid(validateExample(withOptionalParameters, keyed));
-    keyed.headers["Idempotency-Key"] = "";
-    assertInvalid(validateExample(withOptionalParameters, keyed));
-  }
-});
-
 test("connection and flow-summary examples carry required list-view evidence", () => {
   const fields = ["chain", "chain_source", "rule_id", "rule_expression", "rule_source", "ingress", "domain_source"];
   const sources = {
@@ -335,6 +209,59 @@ test("traffic history advertises usable limits and rejects invalid query shapes"
     assert.equal(rejected.body.error.code, "invalid_request");
     assertValid(validateExample(contract, rejected));
   }
+});
+
+test("log settings stay inside the advertised levels and ring size", () => {
+  const capabilities = example("getCapabilities:200:available");
+  const logs = capabilities.body.resources.logs;
+  assert.equal(logs.settings, true);
+  delete logs.settings;
+  assertInvalid(validateExample(contract, capabilities), "settings must be advertised when logs are available");
+  logs.settings = true;
+  const current = example("getLogSettings:200:current");
+  assert.ok(logs.levels.includes(current.body.level));
+  assert.ok(current.body.buffered_records <= logs.max_buffered_records);
+  assertValid(validateExample(contract, current));
+  current.body.buffered_records = 63;
+  assertInvalid(validateExample(contract, current), "the ring cannot be smaller than 64 records");
+  current.body.buffered_records = 4096;
+  current.body.source = "file";
+  assertInvalid(validateExample(contract, current), "source is config or runtime");
+  const patch = example("patchLogSettings:request:debug");
+  assertValid(validateExample(contract, patch));
+  patch.body = {};
+  assertInvalid(validateExample(contract, patch), "an empty patch changes nothing and is rejected");
+  patch.body = {level: "verbose"};
+  assertInvalid(validateExample(contract, patch), "levels come from the enum");
+  patch.body = {source: "runtime"};
+  assertInvalid(validateExample(contract, patch), "source is read-only");
+  const rejected = example("patchLogSettings:400:too_many_records");
+  assert.equal(rejected.body.error.code, "invalid_request");
+  assertValid(validateExample(contract, rejected));
+});
+
+test("DNS log records keep client evidence and page inside the advertised size", () => {
+  const capabilities = example("getCapabilities:200:available");
+  const log = capabilities.body.resources.dns_log;
+  assert.equal(log.available, true);
+  for (const field of ["max_records", "max_page_size"]) {
+    const value = log[field];
+    delete log[field];
+    assertInvalid(validateExample(contract, capabilities), `${field} must be advertised when available`);
+    log[field] = value;
+  }
+  const page = example("listDnsLog:200:recent");
+  assertValid(validateExample(contract, page));
+  assert.ok(page.body.records.length <= log.max_page_size);
+  const [live, cached] = page.body.records;
+  assert.equal(cached.cached, true);
+  assert.equal(cached.upstream, null);
+  assert.match(cached.src, /^\[[0-9a-f:]+\]:\d+$/);
+  assert.ok(live.answers.length > 0);
+  live.src = null;
+  assertValid(validateExample(contract, page));
+  delete live.route;
+  assertInvalid(validateExample(contract, page), "the routing decision is part of the record");
 });
 
 test("memory history mirrors traffic history: gaps, uint64 boundaries, limits and query shapes", () => {
@@ -833,4 +760,257 @@ test("partial reroutes may report an uncaptured source", () => {
   mode.data.reason = "sniffed_domain";
   assertValid(validateExample(contract, response));
   assertValid(validateFlowTrace(response.body));
+});
+
+test("observability resources expose discovery, permissions and examples for every response", () => {
+  const links = example("getDiscovery:200:draft").body.links;
+  for (const resource of ["logs", "providers", "rules"]) {
+    assert.equal(links[resource], `/api/v1/${resource}`);
+  }
+  for (const [path, method, permission] of [
+    ["/api/v1/logs", "get", "observe"],
+    ["/api/v1/providers", "get", "observe"],
+    ["/api/v1/providers/{id}", "get", "observe"],
+    ["/api/v1/providers/{id}/refresh", "post", "control"],
+    ["/api/v1/rules", "get", "observe"],
+  ]) {
+    const item = spec.paths[path];
+    const operation = item[method];
+    assert.equal(operation["x-permission"], permission);
+    assert.deepEqual(Object.keys(item).filter((key) => key !== "parameters"), [method]);
+    for (const status of Object.keys(operation.responses)) {
+      const responses = [...contract.examples.values()].filter((value) =>
+        value.operationId === operation.operationId && String(value.status) === status);
+      assert.ok(responses.length > 0, `${path}:${status} has no response example`);
+      for (const response of responses) {
+        assertValid(validateExample(contract, response));
+        assert.equal(response.headers["Cache-Control"], "no-store");
+        assert.equal(response.headers["X-Content-Type-Options"], "nosniff");
+      }
+    }
+  }
+  assert.equal(spec.paths["/api/v1/rules"].get.responses["410"], undefined);
+});
+
+test("observability capabilities require usable bounds only when available", () => {
+  for (const [resource, fields] of [
+    ["logs", ["levels", "max_buffered_records"]],
+    ["providers", ["can_refresh", "max_page_size"]],
+    ["rules", ["max_rules"]],
+  ]) {
+    const response = example("getCapabilities:200:available");
+    const advertised = response.body.resources[resource];
+    for (const field of fields) {
+      const saved = advertised[field];
+      delete advertised[field];
+      assertInvalid(validateExample(contract, response), `${resource}.${field} was optional`);
+      advertised[field] = saved;
+    }
+    const bound = fields.at(-1);
+    for (const invalid of [0, 1.5, 9007199254740992]) {
+      advertised[bound] = invalid;
+      assertInvalid(validateExample(contract, response));
+    }
+    response.body.resources[resource] = { available: false };
+    assertValid(validateExample(contract, response));
+    delete response.body.resources[resource];
+    assertInvalid(validateExample(contract, response), `${resource} declaration was optional`);
+  }
+  const response = example("getCapabilities:200:available");
+  for (const levels of [[], ["info", "info"], ["fatal"]]) {
+    response.body.resources.logs.levels = levels;
+    assertInvalid(validateExample(contract, response));
+  }
+});
+
+test("log payloads and filters preserve typed records and the shared cursor error", () => {
+  const stream = example("streamLogs:200:records");
+  const bindings = spec.paths["/api/v1/logs"].get.responses["200"].content[
+    "text/event-stream"
+  ]["x-event-data-schemas"];
+  const frames = stream.body.trim().split(/\n\n+/u).filter((frame) => !frame.startsWith(":"));
+  const records = frames.map((frame) => {
+    const lines = Object.fromEntries(frame.split("\n").map((line) => {
+      const colon = line.indexOf(":");
+      return [line.slice(0, colon), line.slice(colon + 1).trimStart()];
+    }));
+    assert.ok(lines.id);
+    const body = JSON.parse(lines.data);
+    assertValid(contract.validate({ $ref: bindings[lines.event] }, body));
+    return { ...lines, body };
+  });
+  assert.deepEqual(records.map((record) => record.event), ["stream.ready", "log"]);
+  assert.equal(new Set(records.map((record) => record.id)).size, records.length);
+  const record = records[1].body;
+  const schema = { $ref: bindings.log };
+  record.fields = null;
+  assertValid(contract.validate(schema, record));
+  for (const [field, invalid] of [["ts", "yesterday"], ["level", "fatal"], ["fields", []]]) {
+    const changed = { ...record, [field]: invalid };
+    assertInvalid(contract.validate(schema, changed));
+  }
+  const request = example("streamLogs:request");
+  request.parameters.find((item) => item.definition.name === "level").value = "fatal";
+  assertInvalid(validateExample(contract, request));
+  const target = example("streamLogs:request");
+  target.parameters.find((item) => item.definition.name === "target").value = "";
+  assertInvalid(validateExample(contract, target));
+  const expired = example("streamLogs:409:event_cursor_expired");
+  assert.deepEqual(expired.body, example("streamEvents:409:event_cursor_expired").body);
+  assert.equal(expired.mediaType, "application/json");
+});
+
+test("native EventSource receives log readiness, record IDs and heartbeat framing", { timeout: 3_000 }, async () => {
+  const response = example("streamLogs:200:records");
+  const server = createServer((_request, outgoing) => {
+    outgoing.writeHead(response.status, response.headers);
+    outgoing.end(response.body);
+  });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  let source;
+  try {
+    source = new EventSource(`http://127.0.0.1:${server.address().port}/api/v1/logs`);
+    const received = await new Promise((resolve, reject) => {
+      const values = [];
+      const timer = setTimeout(() => reject(new Error("timed out waiting for log frames")), 2_000);
+      for (const event of ["stream.ready", "log"]) {
+        source.addEventListener(event, (message) => {
+          values.push({ event, id: message.lastEventId, body: JSON.parse(message.data) });
+          if (values.length === 2) {
+            clearTimeout(timer);
+            source.close();
+            resolve(values);
+          }
+        });
+      }
+      source.addEventListener("error", (error) => {
+        clearTimeout(timer);
+        reject(error);
+      }, { once: true });
+    });
+    assert.deepEqual(received.map(({ event }) => event), ["stream.ready", "log"]);
+    assert.deepEqual(received.map(({ id }) => id), ["instance-7:logs:123", "instance-7:logs:124"]);
+    assert.equal(received[1].body.level, "info");
+    assert.equal(received[1].body.fields.generation_id, "generation-42");
+  } finally {
+    source?.close();
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("provider examples join nodes by identity and preserve nullable exact usage", () => {
+  const page = example("listProviders:200:providers");
+  const provider = example("getProvider:200:subscription");
+  assert.deepEqual(page.body.providers, [provider.body]);
+  const nodes = example("listNodes:200:nodes");
+  for (const node of nodes.body.nodes) {
+    assert.equal(node.provider_id, provider.body.id);
+    node.provider_id = null;
+    assertValid(validateExample(contract, nodes));
+    delete node.provider_id;
+    assertValid(validateExample(contract, nodes));
+    node.provider_id = 1;
+    assertInvalid(validateExample(contract, nodes));
+    delete node.provider_id;
+  }
+  for (const field of ["upload_bytes", "download_bytes", "total_bytes"]) {
+    provider.body.traffic[field] = "18446744073709551615";
+    assertValid(validateExample(contract, provider));
+    for (const invalid of [9007199254740992, "18446744073709551616", "01"]) {
+      provider.body.traffic[field] = invalid;
+      assertInvalid(validateExample(contract, provider), `${field} lost its uint64 contract`);
+    }
+    provider.body.traffic[field] = null;
+    assertValid(validateExample(contract, provider));
+  }
+  Object.assign(provider.body, {
+    kind: "file", url_redacted: null, updated_at: null, expires_at: null, traffic: null,
+    status: "error", last_error: { code: "source_unreadable", message: "Provider source is unavailable." },
+  });
+  assertValid(validateExample(contract, provider));
+  provider.body.kind = "inline";
+  assertValid(validateExample(contract, provider));
+  provider.body.kind = "remote";
+  assertInvalid(validateExample(contract, provider));
+  const request = example("listProviders:request");
+  const limit = request.parameters.find((item) => item.definition.name === "limit");
+  for (const invalid of [0, 1001]) {
+    limit.value = invalid;
+    assertInvalid(validateExample(contract, request));
+  }
+});
+
+test("provider refresh preserves acceptance, polling and terminal operation contracts", () => {
+  const accepted = example("refreshProvider:202:queued");
+  assert.equal(accepted.body.kind, "provider_refresh");
+  const wrongKind = structuredClone(accepted);
+  wrongKind.body.kind = "reload";
+  assertInvalid(validateExample(contract, wrongKind));
+  assert.equal(example("refreshProvider:409:in_flight").body.error.code, "state_conflict");
+  const full = example("refreshProvider:503:queue_full");
+  assert.equal(full.body.error.code, "temporarily_unavailable");
+  for (const response of [accepted, full]) {
+    delete response.headers["Retry-After"];
+    assertInvalid(validateExample(contract, response));
+    response.headers["Retry-After"] = 0;
+    assertInvalid(validateExample(contract, response));
+  }
+  const operation = example("getOperation:200:reload_running");
+  Object.assign(operation.body, {
+    operation_id: accepted.body.operation_id,
+    kind: "provider_refresh", status: "queued", started_at: null, finished_at: null,
+    result: null, error: null,
+  });
+  assertValid(validateExample(contract, operation));
+  operation.body.status = "running";
+  operation.body.started_at = "2026-08-15T10:00:00Z";
+  assertValid(validateExample(contract, operation));
+  operation.body.status = "succeeded";
+  operation.body.finished_at = "2026-08-15T10:00:01Z";
+  assertInvalid(validateExample(contract, operation), "successful refresh accepted a null result");
+  operation.body.result = example("getProvider:200:subscription").body;
+  assertValid(validateExample(contract, operation));
+  operation.body.status = "failed";
+  assertInvalid(validateExample(contract, operation), "failed refresh retained a success result");
+  operation.body.result = null;
+  operation.body.error = { code: "fetch_failed", message: "The provider could not be refreshed." };
+  assertValid(validateExample(contract, operation));
+});
+
+test("rule examples share routing-trace identities, order and fallback within one generation", () => {
+  const listed = example("listRules:200:running").body;
+  const trace = example("traceRouting:200:indeterminate").body;
+  assert.equal(listed.generation_id, trace.generation_id);
+  assert.equal(new Set(listed.rules.map((rule) => rule.rule_id)).size, listed.rules.length);
+  assert.deepEqual(listed.rules.map((rule) => rule.index), listed.rules.map((_, index) => index));
+  for (const rule of listed.rules) {
+    const evaluated = trace.evaluations[0].rules.find((item) => item.rule_id === rule.rule_id);
+    assert.ok(evaluated, `${rule.rule_id} has no matching trace example`);
+    assert.equal(rule.expression, evaluated.expression);
+  }
+  const fallback = listed.rules.at(-1);
+  assert.equal(fallback.kind, "fallback");
+  assert.deepEqual(listed.fallback, { outbound: fallback.outbound, source: fallback.source });
+  assert.ok(listed.rules.length <= example("getCapabilities:200:available").body.resources.rules.max_rules);
+});
+
+test("rule schemas require generation, typed source locations and one fallback", () => {
+  const response = example("listRules:200:running");
+  for (const [field, invalid] of [["index", -1], ["must", "false"], ["kind", "policy"]]) {
+    const changed = structuredClone(response);
+    changed.body.rules[0][field] = invalid;
+    assertInvalid(validateExample(contract, changed));
+  }
+  response.body.rules[0].source.line = 0;
+  assertInvalid(validateExample(contract, response));
+  response.body.rules[0].source = null;
+  assertValid(validateExample(contract, response));
+  delete response.body.generation_id;
+  assertInvalid(validateExample(contract, response));
+  response.body.generation_id = "generation-42";
+  response.body.rules[0].kind = "fallback";
+  assertInvalid(validateExample(contract, response), "multiple fallback entries passed");
+  response.body.rules = response.body.rules.filter((rule) => rule.kind !== "fallback");
+  assertInvalid(validateExample(contract, response), "missing fallback passed");
 });

@@ -151,3 +151,35 @@ curl -X DELETE \
 curl -X POST \
   "http://localhost:9527/api/v1/dns/cache/flush"
 ```
+
+# GET /api/v1/dns/log
+
+Requires `observe` and `resources.dns_log.available`. The engine records
+every resolution it performs for clients into a ring of at most
+`dns_log.max_records`, newest first; diagnostic `/dns/query` calls are not
+recorded. The ring is not durable and clears on restart.
+
+{% api_request listDnsLog %}
+
+| Parameter | Meaning |
+|-----------|---------|
+| name | Case-insensitive substring of the question name. |
+| type | One record type. |
+| src | Client source IP literal, IPv4 or IPv6. |
+| limit | Page size, at most `dns_log.max_page_size`; above it returns `400 invalid_request`. |
+| cursor | Opaque cursor from `next_cursor`; older records follow it. |
+
+{% api_example listDnsLog 200 recent %}
+
+| Field | Meaning |
+|-------|---------|
+| records[].src | Client socket address, IPv6 in brackets; null when the resolver asked on its own behalf. |
+| records[].status | RCODE name (`NOERROR`, `NXDOMAIN`, …) or an engine outcome such as `TIMEOUT`. |
+| records[].cached | True when the cache answered; `upstream` is then null and `elapsed_ms` is the lookup time. |
+| records[].route | The DNS routing decision, the same shape `/dns/query` reports. |
+| records[].answers | Answers as returned; empty on a negative or failed resolution. |
+| total | Records in the ring at `observed_at`, before filters. |
+
+A record is evidence of what the resolver did for a client at that moment;
+it is not the cache entry, which `/dns/cache` lists and may already have
+expired or been replaced.

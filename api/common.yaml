@@ -53,9 +53,9 @@ parameters:
       Opaque cursor bound to the resource, running adapter instance, filters,
       and retained snapshot. Restart, changed filters, or snapshot expiry or
       eviction invalidates it. GET /flows returns 410 snapshot_expired;
-      GET /nodes and GET /dns/cache return 400 invalid_request for a cursor
-      that is unknown or no longer valid. Discard it and restart the page walk
-      without a cursor; never silently continue against a new snapshot.
+      GET /nodes, GET /providers and GET /dns/cache return 400 invalid_request
+      for a cursor that is unknown or no longer valid. Discard it and restart
+      the page walk without a cursor; never silently continue against a new snapshot.
     schema:
       type: string
       minLength: 1
@@ -122,6 +122,14 @@ parameters:
       type: string
       minLength: 1
     example: instance-7:123
+  ProviderId:
+    name: id
+    in: path
+    required: true
+    schema:
+      type: string
+      minLength: 1
+    example: provider-a
 responses:
   OperationAccepted:
     description: Operation accepted
@@ -147,17 +155,108 @@ responses:
         schema:
           $ref: ./openapi.yaml#/components/schemas/OperationAccepted
   BadRequest:
-    $ref: ./openapi.yaml#/components/responses/ErrorResponseCommon
     description: Malformed parameters or request shape
+    headers:
+      Cache-Control:
+        $ref: ./openapi.yaml#/components/headers/NoStore
+      X-Content-Type-Options:
+        $ref: ./openapi.yaml#/components/headers/NoSniff
+    content:
+      application/json:
+        schema:
+          $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+        examples:
+          invalid_request:
+            value:
+              error:
+                code: invalid_request
+                message: A request parameter is invalid.
+                details: null
+              request_id: request-01HZX4K8W6
+            x-headers:
+              Content-Type: application/json
+              Cache-Control: no-store
+              X-Content-Type-Options: nosniff
   Unauthorized:
-    $ref: ./openapi.yaml#/components/responses/ErrorResponseCommon
     description: Credentials are missing or invalid
+    headers:
+      Cache-Control:
+        $ref: ./openapi.yaml#/components/headers/NoStore
+      X-Content-Type-Options:
+        $ref: ./openapi.yaml#/components/headers/NoSniff
+    content:
+      application/json:
+        schema:
+          $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+        examples:
+          authentication_required:
+            value:
+              error:
+                code: authentication_required
+                message: Valid bearer credentials are required.
+                details: null
+              request_id: request-01HZX4K8W6
+            x-headers:
+              Content-Type: application/json
+              Cache-Control: no-store
+              X-Content-Type-Options: nosniff
   Forbidden:
-    $ref: ./openapi.yaml#/components/responses/ErrorResponseCommon
     description: Authenticated caller lacks the required permission
+    headers:
+      Cache-Control:
+        $ref: ./openapi.yaml#/components/headers/NoStore
+      X-Content-Type-Options:
+        $ref: ./openapi.yaml#/components/headers/NoSniff
+    content:
+      application/json:
+        schema:
+          $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+        examples:
+          permission_denied:
+            value:
+              error:
+                code: permission_denied
+                message: The caller lacks the required permission.
+                details: null
+              request_id: request-01HZX4K8W6
+            x-headers:
+              Content-Type: application/json
+              Cache-Control: no-store
+              X-Content-Type-Options: nosniff
   NotFound:
-    $ref: ./openapi.yaml#/components/responses/ErrorResponseCommon
     description: Resource/action unavailable, absent, expired, or concealed
+    headers:
+      Cache-Control:
+        $ref: ./openapi.yaml#/components/headers/NoStore
+      X-Content-Type-Options:
+        $ref: ./openapi.yaml#/components/headers/NoSniff
+    content:
+      application/json:
+        schema:
+          $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+        examples:
+          resource_not_found:
+            value:
+              error:
+                code: resource_not_found
+                message: The requested resource was not found.
+                details: null
+              request_id: request-01HZX4K8W6
+            x-headers:
+              Content-Type: application/json
+              Cache-Control: no-store
+              X-Content-Type-Options: nosniff
+          capability_not_supported:
+            value:
+              error:
+                code: capability_not_supported
+                message: The requested resource or action is unavailable.
+                details: null
+              request_id: request-01HZX4K8W6
+            x-headers:
+              Content-Type: application/json
+              Cache-Control: no-store
+              X-Content-Type-Options: nosniff
   Conflict:
     $ref: ./openapi.yaml#/components/responses/ErrorResponseCommon
     description: State, idempotency, cursor, or coherent-snapshot conflict
@@ -196,6 +295,19 @@ responses:
       application/json:
         schema:
           $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+        examples:
+          rate_limited:
+            value:
+              error:
+                code: rate_limited
+                message: The request rate limit was reached.
+                details: null
+              request_id: request-01HZX4K8W6
+            x-headers:
+              Content-Type: application/json
+              Retry-After: 1
+              Cache-Control: no-store
+              X-Content-Type-Options: nosniff
   Unavailable:
     description: Bounded queue or required runtime component unavailable
     headers:
@@ -212,6 +324,19 @@ responses:
       application/json:
         schema:
           $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+        examples:
+          temporarily_unavailable:
+            value:
+              error:
+                code: temporarily_unavailable
+                message: A required runtime component is unavailable.
+                details: null
+              request_id: request-01HZX4K8W6
+            x-headers:
+              Content-Type: application/json
+              Retry-After: 1
+              Cache-Control: no-store
+              X-Content-Type-Options: nosniff
   ErrorResponseCommon:
     description: Native API error
     headers:
@@ -223,6 +348,31 @@ responses:
       application/json:
         schema:
           $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+  EventCursorExpired:
+    description: >-
+      Last-Event-ID cannot be replayed (event_cursor_expired); sent before any 200
+      stream opens. Drop the cursor, reconnect without it and establish a new baseline.
+    headers:
+      Cache-Control:
+        $ref: ./openapi.yaml#/components/headers/NoStore
+      X-Content-Type-Options:
+        $ref: ./openapi.yaml#/components/headers/NoSniff
+    content:
+      application/json:
+        schema:
+          $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+        examples:
+          event_cursor_expired:
+            value:
+              error:
+                code: event_cursor_expired
+                message: Event cursor is older than the retained window; reconnect without it.
+                details: null
+              request_id: request-01HZX4K8W6
+            x-headers:
+              Content-Type: application/json
+              Cache-Control: no-store
+              X-Content-Type-Options: nosniff
 schemas:
   EmptyObject:
     type: object

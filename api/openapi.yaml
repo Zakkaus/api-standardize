@@ -32,6 +32,12 @@ paths:
     $ref: ./runtime.yaml#/paths/~1api~1v1~1datapath
   /api/v1/nodes:
     $ref: ./nodes-groups.yaml#/paths/~1api~1v1~1nodes
+  /api/v1/providers:
+    $ref: ./providers.yaml#/paths/~1api~1v1~1providers
+  /api/v1/providers/{id}:
+    $ref: ./providers.yaml#/paths/~1api~1v1~1providers~1{id}
+  /api/v1/providers/{id}/refresh:
+    $ref: ./providers.yaml#/paths/~1api~1v1~1providers~1{id}~1refresh
   /api/v1/groups:
     $ref: ./nodes-groups.yaml#/paths/~1api~1v1~1groups
   /api/v1/groups/{groupId}:
@@ -50,10 +56,18 @@ paths:
     $ref: ./flows.yaml#/paths/~1api~1v1~1flows~1{flow_id}
   /api/v1/routing/trace:
     $ref: ./routing.yaml#/paths/~1api~1v1~1routing~1trace
+  /api/v1/rules:
+    $ref: ./rules.yaml#/paths/~1api~1v1~1rules
   /api/v1/events:
     $ref: ./events.yaml#/paths/~1api~1v1~1events
+  /api/v1/logs:
+    $ref: ./logs.yaml#/paths/~1api~1v1~1logs
+  /api/v1/logs/settings:
+    $ref: ./logs.yaml#/paths/~1api~1v1~1logs~1settings
   /api/v1/dns/query:
     $ref: ./dns.yaml#/paths/~1api~1v1~1dns~1query
+  /api/v1/dns/log:
+    $ref: ./dns.yaml#/paths/~1api~1v1~1dns~1log
   /api/v1/dns/cache:
     $ref: ./dns.yaml#/paths/~1api~1v1~1dns~1cache
   /api/v1/dns/cache/{entry_id}:
@@ -102,6 +116,8 @@ components:
       $ref: ./common.yaml#/parameters/IdempotencyKey
     LastEventId:
       $ref: ./common.yaml#/parameters/LastEventId
+    ProviderId:
+      $ref: ./common.yaml#/parameters/ProviderId
   responses:
     OperationAccepted:
       $ref: ./common.yaml#/responses/OperationAccepted
@@ -133,6 +149,8 @@ components:
       $ref: ./common.yaml#/responses/Unavailable
     ErrorResponseCommon:
       $ref: ./common.yaml#/responses/ErrorResponseCommon
+    EventCursorExpired:
+      $ref: ./common.yaml#/responses/EventCursorExpired
   schemas:
     EmptyObject:
       $ref: ./common.yaml#/schemas/EmptyObject
@@ -222,6 +240,16 @@ components:
       $ref: ./nodes-groups.yaml#/schemas/Node
     NodeList:
       $ref: ./nodes-groups.yaml#/schemas/NodeList
+    Provider:
+      $ref: ./providers.yaml#/schemas/Provider
+    ProviderTraffic:
+      $ref: ./providers.yaml#/schemas/ProviderTraffic
+    ProviderList:
+      $ref: ./providers.yaml#/schemas/ProviderList
+    ProviderRefreshAccepted:
+      $ref: ./providers.yaml#/schemas/ProviderRefreshAccepted
+    ProviderRefreshSucceededOperation:
+      $ref: ./providers.yaml#/schemas/ProviderRefreshSucceededOperation
     GroupPolicy:
       $ref: ./nodes-groups.yaml#/schemas/GroupPolicy
     GroupPolicyRequest:
@@ -388,6 +416,14 @@ components:
       $ref: ./routing.yaml#/schemas/SimulationDnsData
     RoutingTraceResponse:
       $ref: ./routing.yaml#/schemas/RoutingTraceResponse
+    RuleSource:
+      $ref: ./rules.yaml#/schemas/RuleSource
+    RoutingRule:
+      $ref: ./rules.yaml#/schemas/RoutingRule
+    RuleFallback:
+      $ref: ./rules.yaml#/schemas/RuleFallback
+    RuleList:
+      $ref: ./rules.yaml#/schemas/RuleList
     DnsRecordType:
       $ref: ./dns.yaml#/schemas/DnsRecordType
     DnsAnswer:
@@ -406,16 +442,30 @@ components:
       $ref: ./dns.yaml#/schemas/DnsCacheEntry
     DnsCacheList:
       $ref: ./dns.yaml#/schemas/DnsCacheList
+    DnsLogRecord:
+      $ref: ./dns.yaml#/schemas/DnsLogRecord
+    DnsLogList:
+      $ref: ./dns.yaml#/schemas/DnsLogList
     DeleteCount:
       $ref: ./dns.yaml#/schemas/DeleteCount
     DeleteMatchingCount:
       $ref: ./dns.yaml#/schemas/DeleteMatchingCount
     OperationKind:
-      $ref: ./operations-probes.yaml#/schemas/OperationKind
+      type: string
+      enum: [ probe, reload, suspend, resume, group_update, provider_refresh ]
     OperationAccepted:
       $ref: ./operations-probes.yaml#/schemas/OperationAccepted
     Operation:
-      $ref: ./operations-probes.yaml#/schemas/Operation
+      oneOf:
+        - $ref: ./openapi.yaml#/components/schemas/QueuedOperation
+        - $ref: ./openapi.yaml#/components/schemas/RunningOperation
+        - $ref: ./openapi.yaml#/components/schemas/FailedOperation
+        - $ref: ./openapi.yaml#/components/schemas/ProbeSucceededOperation
+        - $ref: ./openapi.yaml#/components/schemas/ReloadSucceededOperation
+        - $ref: ./openapi.yaml#/components/schemas/SuspendSucceededOperation
+        - $ref: ./openapi.yaml#/components/schemas/ResumeSucceededOperation
+        - $ref: ./openapi.yaml#/components/schemas/GroupUpdateSucceededOperation
+        - $ref: ./openapi.yaml#/components/schemas/ProviderRefreshSucceededOperation
     QueuedOperation:
       $ref: ./operations-probes.yaml#/schemas/QueuedOperation
     RunningOperation:
@@ -438,6 +488,14 @@ components:
       $ref: ./operations-probes.yaml#/schemas/GroupUpdateResult
     EventKind:
       $ref: ./events.yaml#/schemas/EventKind
+    LogLevel:
+      $ref: ./logs.yaml#/schemas/LogLevel
+    LogRecord:
+      $ref: ./logs.yaml#/schemas/LogRecord
+    LogSettings:
+      $ref: ./logs.yaml#/schemas/LogSettings
+    LogSettingsPatch:
+      $ref: ./logs.yaml#/schemas/LogSettingsPatch
     StreamReadyEvent:
       $ref: ./events.yaml#/schemas/StreamReadyEvent
     RuntimeUpdatedEvent:
