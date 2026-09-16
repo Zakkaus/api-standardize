@@ -138,6 +138,8 @@ paths:
                           global_requests_per_minute: 240
                       connections:
                         available: true
+                        can_close: true
+                        max_bulk_close: 1000
                       flows:
                         available: true
                         recording: on
@@ -432,7 +434,24 @@ schemas:
               limits:
                 $ref: ./openapi.yaml#/components/schemas/ProbeLimits
           connections:
-            $ref: ./openapi.yaml#/components/schemas/AvailableResource
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ can_close, max_bulk_close ]
+            properties:
+              available:
+                type: boolean
+              can_close:
+                type: boolean
+                description: Whether userspace-owned connections can be closed; false makes both connection DELETE endpoints return 404 capability_not_supported.
+              max_bulk_close:
+                $ref: ./openapi.yaml#/components/schemas/SafeUInt
+                minimum: 1
+                description: Maximum matching live entries, including non-closable entries, per bulk close; used only when can_close is true. Excess returns 413 request_too_large before any connection is closed.
           flows:
             type: object
             required: [ available ]

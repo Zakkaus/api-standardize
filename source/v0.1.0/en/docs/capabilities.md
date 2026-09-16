@@ -46,6 +46,21 @@ when true, `max_window_seconds` and `max_points` are required positive safe
 integers. They bound the look-back window and returned sample count, not a
 retention guarantee. Both resources are optional and require `observe`.
 
+`connections.available` declares the live connection list. When true,
+`can_close` and `max_bulk_close` are required. `can_close` is a boolean:
+when false, both connection DELETE endpoints return
+`404 capability_not_supported`, even though listing may remain available.
+When true, closing still requires `control` permission and userspace ownership
+of a cancellable TCP transport or a retireable UDP session; observation alone
+does not make a connection closable.
+
+`max_bulk_close` is a positive safe JSON integer, used only when `can_close`
+is true. It caps all selected live entries, including non-closable entries,
+not just the returned `closed` count. Exceeding it returns
+`413 request_too_large` before any connection is closed; the server does not
+truncate the selected set. An unfiltered bulk close separately requires
+`all=true`, or returns `400 invalid_request`.
+
 ## Conformance profiles
 
 `profiles` is an array, not a feature inferred from engine identity. The

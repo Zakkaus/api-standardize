@@ -40,6 +40,8 @@ paths:
     $ref: ./operations-probes.yaml#/paths/~1api~1v1~1probes
   /api/v1/connections:
     $ref: ./flows.yaml#/paths/~1api~1v1~1connections
+  /api/v1/connections/{connection_id}:
+    $ref: ./flows.yaml#/paths/~1api~1v1~1connections~1{connection_id}
   /api/v1/flows:
     $ref: ./flows.yaml#/paths/~1api~1v1~1flows
   /api/v1/flows/{flow_id}:
@@ -84,6 +86,8 @@ components:
       $ref: ./common.yaml#/parameters/Cursor
     GroupId:
       $ref: ./common.yaml#/parameters/GroupId
+    ConnectionId:
+      $ref: ./common.yaml#/parameters/ConnectionId
     FlowId:
       $ref: ./common.yaml#/parameters/FlowId
     DnsEntryId:
@@ -294,6 +298,8 @@ components:
       $ref: ./flows.yaml#/schemas/Connection
     ConnectionList:
       $ref: ./flows.yaml#/schemas/ConnectionList
+    BulkCloseResult:
+      $ref: ./flows.yaml#/schemas/BulkCloseResult
     FlowScope:
       $ref: ./flows.yaml#/schemas/FlowScope
     TraceStatus:

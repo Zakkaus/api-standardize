@@ -94,9 +94,9 @@ Inbound identity beyond `ingress` is out of scope for this draft.
 Totals count visible live entries after the `type` and exact source-IP `src`
 filters (the excluded transport has count zero); absence from this snapshot
 is not evidence of a clean close. `/flows` records failed/blocked attempts
-and recently terminated flows. This draft has no close/terminate action
-because [tracker deletion](honk-mapping.html#tracker-deletion) removes an
-observation, not proof that the transport was cancelled.
+and recently terminated flows. [Closing](#Closing) requires actual transport
+cancellation or session retirement; [tracker deletion](honk-mapping.html#tracker-deletion)
+alone only removes an observation.
 
 The supported client/device view groups the source IP from `src` over
 `detail=full` entries, ignoring the source port. This derivation is bounded
@@ -110,3 +110,94 @@ describes a connection, not when the client/device was first seen.
 ```bash
 curl "http://localhost:9527/api/v1/connections?type=tcp&limit=10&detail=full"
 ```
+
+## Closing
+
+Both DELETE endpoints require `control` permission and
+`resources.connections.available: true` with `can_close: true`. Otherwise,
+they return `404 capability_not_supported`. The list still requires only
+`observe`; availability of the list does not imply permission or support
+for closing.
+
+### What is closable
+
+The userspace datapath must own the TCP transport or UDP session and be able
+to cancel the transport or retire the session. Removing a tracker entry is
+not sufficient. `observed_by` identifies the observation plane, not ownership:
+`userspace` or `mixed` evidence alone does not guarantee that closing is possible.
+Kernel-direct and kernel-bypassed flows (`kernel_direct` and `kernel_bypass`
+scopes, including `ebpf`-only observations) are not closable. An outbound
+named `direct` alone does not determine ownership.
+
+### Single connection
+
+`DELETE /api/v1/connections/{connection_id}` uses the opaque ID from the list,
+not a tuple or a recorded-flow ID. It returns `204` only after cancellation
+or retirement, with no response body or `Content-Type`. The cache and nosniff
+headers remain mandatory.
+
+{% api_request closeConnection %}
+
+{% api_example closeConnection 204 closed http %}
+
+An unknown or already-gone ID returns `404 resource_not_found`:
+
+{% api_example closeConnection 404 gone %}
+
+An observed connection that is not closable returns `409 state_conflict`:
+
+{% api_example closeConnection 409 not_closable %}
+
+Both DELETE endpoints accept `Idempotency-Key`, as other control calls do.
+These synchronous calls evaluate current live state even with a repeated key;
+they do not replay an earlier result or return a retained operation.
+Closing the same ID twice therefore returns `404 resource_not_found` on
+the second call, including when the key is repeated.
+
+### Bulk close
+
+`DELETE /api/v1/connections` closes every closable match and skips observed
+matches that are not closable. It accepts the same `type` and exact source-IP
+`src` filters as the list, combined with AND. Neither `outbound` nor `domain`
+is a list filter in this revision. `limit` and `detail` affect list presentation
+and are not accepted by bulk close.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| type | string | all | Match `tcp`, `udp`, or `all`. |
+| src | string | - | Match an exact source IP literal without a port. |
+| all | boolean | false | Explicitly permit an unfiltered close; supplied filters still apply. |
+
+Without `type=tcp`, `type=udp`, or `src`, the request must include `all=true`.
+Missing `type` and `type=all` are both unfiltered. Otherwise, return
+`400 invalid_request` before closing anything. This safety rule prevents a
+missing filter from disconnecting every userspace connection.
+
+{% api_request closeConnections %}
+
+{% api_example closeConnections 200 closed %}
+
+`closed` counts connections actually cancelled or retired; `skipped` counts
+selected connections that were observed but not closable. Both are JSON integers
+from 0 through 9007199254740991, not decimal strings. An empty match returns
+`{"closed": 0, "skipped": 0}`.
+
+Select matching live entries once, before closing. If that count, including
+non-closable entries, exceeds `resources.connections.max_bulk_close`, return
+`413 request_too_large` before closing any connection; do not truncate the set.
+`closed + skipped` cannot exceed that limit. New arrivals are outside the selected
+set; selected entries that disappear before cancellation contribute to neither count.
+
+Unfiltered request without explicit consent:
+
+{% api_example closeConnections 400 unfiltered %}
+
+### Events
+
+Closing a recorded flow advances its terminal state and emits the existing
+`flow.updated` invalidation when advertised. Its `resource_id` is the flow ID,
+not the connection ID; fetch `href` for the retained flow and refresh the
+connection list. Changed runtime counters use `runtime.updated`. Both retain
+the existing coalescing and replay rules. An unrecorded connection does not
+gain a fabricated flow ID or flow event; refresh the list after success.
+There is no new close event kind.

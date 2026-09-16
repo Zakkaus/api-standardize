@@ -156,14 +156,14 @@ function normalizeParameters(spec, record, errors) {
   return normalized;
 }
 
-function normalizeExample(spec, raw, label, errors) {
+function normalizeExample(spec, raw, label, errors, hasBody = true) {
   const example = resolve(spec, raw, errors, label);
   if (!isObject(example)) {
     errors.push(`${label}: invalid Example Object`);
     return undefined;
   }
-  if (!own(example, "value")) {
-    errors.push(`${label}: Example Object must contain value`);
+  if (own(example, "value") !== hasBody) {
+    errors.push(`${label}: Example Object ${hasBody ? "must contain" : "must not contain"} value`);
     return undefined;
   }
   return example;
@@ -283,6 +283,28 @@ function normalizeResponses(spec, record, examples, errors) {
     if (!isObject(response)) continue;
     const headerDefinitions = responseHeaderDefinitions(spec, response, label, errors);
     checkAcceptedResponse(record, statusKey, headerDefinitions, errors);
+    if (statusKey === "204") {
+      if (response.content !== undefined) errors.push(`${label}: 204 must not declare content`);
+      if (response["x-examples"] !== undefined && !isObject(response["x-examples"])) {
+        errors.push(`${label}: x-examples must be an object`);
+        continue;
+      }
+      // OpenAPI has no standard example carrier for a response without content.
+      for (const [name, rawExample] of Object.entries(response["x-examples"] ?? {})) {
+        const id = `${label}:${name}`;
+        const example = normalizeExample(spec, rawExample, id, errors, false);
+        if (!example) continue;
+        addCase(examples, {
+          id,
+          kind: "response",
+          operationId: record.operationId,
+          status: 204,
+          headers: readHeaders(example, id, errors),
+          headerDefinitions,
+        }, errors);
+      }
+      continue;
+    }
     if (response.content !== undefined && !isObject(response.content)) {
       errors.push(`${label}: response content must be an object`);
       continue;
@@ -355,6 +377,10 @@ function responseBinding(spec, example, errors) {
   if (!isObject(response)) {
     errors.push(`response status ${status} is not declared by ${record.operationId}`);
     return undefined;
+  }
+  if (example.status === 204) {
+    if (response.content !== undefined) errors.push("204 must not declare content");
+    return { headerDefinitions: responseHeaderDefinitions(spec, response, `${record.operationId}:${status}`, errors) };
   }
   const media = resolve(spec, response.content?.[example.mediaType], errors, `${record.operationId}:${status} media ${example.mediaType}`);
   if (!isObject(media)) {
@@ -563,7 +589,11 @@ export function validateExample(context, example) {
     }
     for (const message of safeHeaders(example.headers)) fail(message);
     const contentType = headerEntry(example.headers, "Content-Type")?.[1];
-    if (contentType === undefined) fail("response example is missing Content-Type");
+    if (example.status === 204) {
+      if (example.body !== undefined || example.mediaType !== undefined || contentType !== undefined) {
+        fail("204 must not have a body, media type, or Content-Type");
+      }
+    } else if (contentType === undefined) fail("response example is missing Content-Type");
     else if (typeof example.mediaType !== "string" || mediaTypeOf(contentType) !== example.mediaType.toLowerCase()) {
       fail(`Content-Type ${contentType} does not match ${example.mediaType}`);
     }
@@ -653,7 +683,11 @@ function renderedHeaders(headers) {
 function responseRenderErrors(example) {
   const errors = safeHeaders(example.headers);
   const contentType = headerEntry(example.headers, "Content-Type")?.[1];
-  if (contentType === undefined) errors.push("response example is missing Content-Type");
+  if (example.status === 204) {
+    if (example.body !== undefined || example.mediaType !== undefined || contentType !== undefined) {
+      errors.push("204 must not have a body, media type, or Content-Type");
+    }
+  } else if (contentType === undefined) errors.push("response example is missing Content-Type");
   for (const [name, definition] of Object.entries(example.headerDefinitions ?? {})) {
     if (definition.required === true && !headerEntry(example.headers, name)) {
       errors.push(`missing required response header ${name}`);
@@ -700,5 +734,6 @@ export function renderExample(example, format = "json") {
     throw new TypeError("HTTP response status must be an integer from 100 to 599");
   }
   const reason = STATUS_CODES[example.status] ?? "";
-  return `HTTP/1.1 ${example.status}${reason ? ` ${reason}` : ""}\n${renderedHeaders(example.headers)}\n\n${JSON.stringify(example.body, null, 2)}`;
+  const body = example.body === undefined ? "" : JSON.stringify(example.body, null, 2);
+  return `HTTP/1.1 ${example.status}${reason ? ` ${reason}` : ""}\n${renderedHeaders(example.headers)}\n\n${body}`;
 }

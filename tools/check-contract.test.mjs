@@ -77,6 +77,132 @@ test("connection examples preserve totals and linked flow identity", () => {
   assert.notEqual(unrelated.connection_id, connection.id);
 });
 
+test("connection close renders a header-only 204 and rejects content", () => {
+  const response = example("closeConnection:204:closed");
+  assert.equal(response.body, undefined);
+  assert.equal(response.mediaType, undefined);
+  assertValid(validateExample(contract, response));
+  const [head, body] = renderExample(response, "http").split("\n\n");
+  assert.equal(body, "");
+  assert.equal(head.split("\n")[0], "HTTP/1.1 204 No Content");
+  assert.match(head, /(?:^|\n)Cache-Control: no-store(?:\n|$)/u);
+  assert.match(head, /(?:^|\n)X-Content-Type-Options: nosniff(?:\n|$)/u);
+  assert.equal(renderExample(response, "json"), "");
+
+  for (const name of ["Cache-Control", "X-Content-Type-Options"]) {
+    const missing = structuredClone(response);
+    delete missing.headers[name];
+    assertInvalid(validateExample(contract, missing));
+    assert.throws(() => renderExample(missing, "http"));
+  }
+  for (const mutate of [
+    (value) => { value.body = null; },
+    (value) => { value.mediaType = "application/json"; },
+    (value) => { value.headers["Content-Type"] = "application/json"; },
+  ]) {
+    const invalid = structuredClone(response);
+    mutate(invalid);
+    assertInvalid(validateExample(contract, invalid));
+    assert.throws(() => renderExample(invalid, "http"));
+  }
+});
+
+test("204 example carriers cannot declare content or a value", () => {
+  for (const mutate of [
+    (response) => { response.content = { "application/json": { schema: { type: "null" } } }; },
+    (response) => { response["x-examples"].closed.value = null; },
+  ]) {
+    const changed = structuredClone(spec);
+    mutate(changed.paths["/api/v1/connections/{connection_id}"].delete.responses["204"]);
+    assertInvalid(createContract(changed).errors);
+  }
+});
+
+test("bulk connection close counts are required bounded JSON integers", () => {
+  const response = example("closeConnections:200:closed");
+  const limit = example("getCapabilities:200:available").body.resources.connections.max_bulk_close;
+  assert.ok(response.body.closed + response.body.skipped <= limit);
+  for (const field of ["closed", "skipped"]) {
+    const original = response.body[field];
+    for (const value of [0, 9007199254740991]) {
+      response.body[field] = value;
+      assertValid(validateExample(contract, response));
+    }
+    for (const value of ["1", 0.5, -1, 9007199254740992, null]) {
+      response.body[field] = value;
+      assertInvalid(validateExample(contract, response), `${field} accepted ${JSON.stringify(value)}`);
+    }
+    delete response.body[field];
+    assertInvalid(validateExample(contract, response));
+    response.body[field] = original;
+  }
+});
+
+test("connection capabilities advertise close support and a positive safe limit", () => {
+  const response = example("getCapabilities:200:available");
+  const connections = response.body.resources.connections;
+  for (const field of ["can_close", "max_bulk_close"]) {
+    const original = connections[field];
+    delete connections[field];
+    assertInvalid(validateExample(contract, response));
+    connections[field] = original;
+  }
+  for (const value of [0, -1, 0.5, "1000", 9007199254740992]) {
+    connections.max_bulk_close = value;
+    assertInvalid(validateExample(contract, response));
+  }
+  connections.max_bulk_close = 9007199254740991;
+  connections.can_close = false;
+  assertValid(validateExample(contract, response));
+  connections.can_close = "false";
+  assertInvalid(validateExample(contract, response));
+  response.body.resources.connections = { available: false };
+  assertValid(validateExample(contract, response));
+});
+
+test("connection close errors distinguish gone, non-closable, unsupported, and unsafe requests", () => {
+  for (const [key, code] of [
+    ["closeConnection:404:gone", "resource_not_found"],
+    ["closeConnection:409:not_closable", "state_conflict"],
+    ["closeConnection:404:unsupported", "capability_not_supported"],
+    ["closeConnections:404:unsupported", "capability_not_supported"],
+    ["closeConnections:400:unfiltered", "invalid_request"],
+  ]) {
+    const response = example(key);
+    assert.equal(response.body.error.code, code);
+    assertValid(validateExample(contract, response));
+  }
+});
+
+test("bulk close reuses list filters without list presentation parameters", () => {
+  const list = spec.paths["/api/v1/connections"].get;
+  const bulk = spec.paths["/api/v1/connections"].delete;
+  const parameters = (operation) => operation.parameters.map((parameter) => parameter.$ref
+    ? parameter.$ref.slice(2).split("/").reduce((owner, key) => owner[key.replace(/~1/gu, "/").replace(/~0/gu, "~")], spec)
+    : parameter);
+  const filters = parameters(list).filter((parameter) => ["type", "src", "outbound", "domain"].includes(parameter.name));
+  assert.deepEqual(parameters(bulk).filter((parameter) => parameter.in === "query" && parameter.name !== "all"), filters);
+  assert.equal(bulk["x-permission"], "control");
+  assert.equal(spec.paths["/api/v1/connections/{connection_id}"].delete["x-permission"], "control");
+  assert.match(renderExample(example("closeConnection:request"), "http"),
+    /^DELETE \/api\/v1\/connections\/tcp-01HZX4K8W5 HTTP\/1\.1\n/u);
+
+  const changed = structuredClone(spec);
+  changed.components.parameters.IdempotencyKey.example = "close-request-1";
+  changed.paths["/api/v1/connections"].delete.parameters.find((parameter) => parameter.name === "all").example = true;
+  const withOptionalParameters = createContract(changed);
+  const request = structuredClone(withOptionalParameters.examples.get("closeConnections:request"));
+  assertValid(validateExample(withOptionalParameters, request));
+  request.parameters.find((parameter) => parameter.definition.name === "all").value = "true";
+  assertInvalid(validateExample(withOptionalParameters, request));
+  for (const operation of ["closeConnection", "closeConnections"]) {
+    const keyed = structuredClone(withOptionalParameters.examples.get(`${operation}:request`));
+    assertValid(validateExample(withOptionalParameters, keyed));
+    keyed.headers["Idempotency-Key"] = "";
+    assertInvalid(validateExample(withOptionalParameters, keyed));
+  }
+});
+
 test("connection and flow-summary examples carry required list-view evidence", () => {
   const fields = ["chain", "chain_source", "rule_id", "rule_expression", "rule_source", "ingress", "domain_source"];
   const sources = {

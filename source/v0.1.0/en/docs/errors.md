@@ -46,3 +46,21 @@ adapter-defined code.
 Responses with `429` or retryable `503` include `Retry-After`. Errors must not
 contain bearer secrets, proxy credentials, private keys, raw configuration,
 stack traces, local file paths, or unredacted chained engine errors.
+
+## Connection closing
+
+Both connection DELETE endpoints require `control` permission. Closing uses
+the existing error codes:
+
+| Status | Code | Closing condition |
+|--------|------|-------------------|
+| 400 | `invalid_request` | Bulk close has no restricting `type` or `src` filter and lacks `all=true`, or parameters are malformed. No connections are closed. |
+| 404 | `resource_not_found` | Single-close ID is unknown or already gone, including a second close of the same ID. |
+| 404 | `capability_not_supported` | `resources.connections.available` or `can_close` is false; applies to both DELETE endpoints. |
+| 409 | `state_conflict` | The single-close target is observed but not closable by the userspace datapath, including kernel-direct/bypassed flows. Bulk close counts such matches as `skipped` instead. |
+| 413 | `request_too_large` | Selected live entries exceed `resources.connections.max_bulk_close`, including non-closable matches. Reject before closing anything. |
+
+`type=all` is not a restricting filter. The explicit `all=true` requirement
+prevents an omitted filter from disconnecting every userspace connection.
+`Idempotency-Key` does not replay a previous synchronous DELETE result:
+closing an already-gone ID still returns `404 resource_not_found`.

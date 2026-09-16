@@ -67,6 +67,14 @@ parameters:
       type: string
       minLength: 1
     example: group-proxy
+  ConnectionId:
+    name: connection_id
+    in: path
+    required: true
+    schema:
+      type: string
+      minLength: 1
+    example: tcp-01HZX4K8W5
   FlowId:
     name: flow_id
     in: path
