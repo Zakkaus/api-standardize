@@ -42,6 +42,7 @@ paths:
                       runtime: /api/v1/runtime
                       runtime_outbounds: /api/v1/runtime/outbounds
                       traffic_history: /api/v1/runtime/traffic/history
+                      memory_history: /api/v1/runtime/memory/history
                       operations: /api/v1/operations/{id}
                   x-headers:
                     Content-Type: application/json
@@ -129,6 +130,10 @@ paths:
                         available: true
                         max_window_seconds: 3600
                         max_points: 360
+                      memory_history:
+                        available: true
+                        max_window_seconds: 3600
+                        max_points: 720
                       datapath:
                         available: true
                         kinds:
@@ -497,6 +502,110 @@ paths:
                         upload_bytes_per_second: '4096'
                         download_bytes_per_second: '32768'
                         connections: 170
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        '400':
+          description: Invalid query or window_seconds/max_points above the advertised limit
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/NoStore'
+            X-Content-Type-Options:
+              $ref: '#/components/headers/NoSniff'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                window_too_large:
+                  value:
+                    error:
+                      code: invalid_request
+                      message: window_seconds exceeds the advertised limit.
+                    request_id: request-1
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+                too_many_points:
+                  value:
+                    error:
+                      code: invalid_request
+                      message: max_points exceeds the advertised limit.
+                    request_id: request-2
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /api/v1/runtime/memory/history:
+    get:
+      operationId: getMemoryHistory
+      summary: Read bounded memory history
+      description: |
+        Reads a bounded in-memory ring of memory samples without starting
+        sampling on GET. Same shape and rules as traffic history: the producer
+        samples independently of readers, SSE does not replay it, and a query
+        above either advertised limit returns 400 invalid_request rather than a
+        clamped result. Requires resources.memory_history.available.
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - name: window_seconds
+          in: query
+          description: Look-back window ending at observed_at; defaults to resources.memory_history.max_window_seconds.
+          schema:
+            $ref: '#/components/schemas/SafeUInt'
+            minimum: 1
+          example: 300
+        - name: max_points
+          in: query
+          description: Maximum returned samples; defaults to resources.memory_history.max_points.
+          schema:
+            $ref: '#/components/schemas/SafeUInt'
+            minimum: 1
+          example: 3
+      responses:
+        '200':
+          description: Retained memory samples, oldest first
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/NoStore'
+            X-Content-Type-Options:
+              $ref: '#/components/headers/NoSniff'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryHistory'
+              examples:
+                recent:
+                  value:
+                    observed_at: '2026-08-15T10:00:00Z'
+                    window_seconds: 300
+                    sampled_every_seconds: 5
+                    samples:
+                      - sampled_at: '2026-08-15T09:59:50Z'
+                        rss_bytes: '48234496'
+                        cgroup_current_bytes: '67108864'
+                        kernel_ebpf_bytes: '18874368'
+                      - sampled_at: '2026-08-15T09:59:55Z'
+                        rss_bytes: null
+                        cgroup_current_bytes: null
+                        kernel_ebpf_bytes: null
+                      - sampled_at: '2026-08-15T10:00:00Z'
+                        rss_bytes: '48762880'
+                        cgroup_current_bytes: '67371008'
+                        kernel_ebpf_bytes: '18874368'
                   x-headers:
                     Content-Type: application/json
                     Cache-Control: no-store
@@ -3212,6 +3321,7 @@ components:
             - runtime
             - runtime_outbounds
             - traffic_history
+            - memory_history
             - operations
           properties:
             version:
@@ -3229,6 +3339,9 @@ components:
             traffic_history:
               type: string
               const: /api/v1/runtime/traffic/history
+            memory_history:
+              type: string
+              const: /api/v1/runtime/memory/history
             operations:
               type: string
               const: /api/v1/operations/{id}
@@ -3333,6 +3446,7 @@ components:
             - runtime_memory
             - runtime_outbounds
             - traffic_history
+            - memory_history
             - datapath
             - nodes
             - groups
@@ -3380,6 +3494,29 @@ components:
             runtime_outbounds:
               $ref: '#/components/schemas/AvailableResource'
             traffic_history:
+              type: object
+              required:
+                - available
+              if:
+                properties:
+                  available:
+                    const: true
+              then:
+                required:
+                  - max_window_seconds
+                  - max_points
+              properties:
+                available:
+                  type: boolean
+                max_window_seconds:
+                  $ref: '#/components/schemas/SafeUInt'
+                  minimum: 1
+                  description: Maximum look-back window in seconds; not a guarantee against bounded-ring eviction.
+                max_points:
+                  $ref: '#/components/schemas/SafeUInt'
+                  minimum: 1
+                  description: Maximum returned samples per history request.
+            memory_history:
               type: object
               required:
                 - available
@@ -4116,6 +4253,53 @@ components:
         connections:
           $ref: '#/components/schemas/NullableSafeUInt'
           description: Visible active TCP and UDP connections at sampled_at, or null when unavailable.
+    MemoryHistory:
+      type: object
+      required:
+        - observed_at
+        - window_seconds
+        - sampled_every_seconds
+        - samples
+      description: |
+        Samples lie in (observed_at - window_seconds, observed_at], oldest first,
+        with the same retention, thinning and gap rules as TrafficHistory.
+        Each sample carries the metrics advertised under resources.runtime_memory.metrics;
+        an unadvertised or unobservable metric is null.
+      properties:
+        observed_at:
+          $ref: '#/components/schemas/Timestamp'
+        window_seconds:
+          $ref: '#/components/schemas/SafeUInt'
+          minimum: 1
+          description: Requested look-back window, not the age of the oldest retained sample.
+        sampled_every_seconds:
+          type: number
+          exclusiveMinimum: 0
+          description: Nominal interval between returned samples after thinning, or the recorder interval for an empty result.
+        samples:
+          type: array
+          description: At most max_points retained samples; missed intervals remain gaps.
+          items:
+            $ref: '#/components/schemas/MemoryHistorySample'
+    MemoryHistorySample:
+      type: object
+      required:
+        - sampled_at
+        - rss_bytes
+        - cgroup_current_bytes
+      properties:
+        sampled_at:
+          $ref: '#/components/schemas/Timestamp'
+          description: Original sample timestamp, never the HTTP snapshot time.
+        rss_bytes:
+          $ref: '#/components/schemas/NullableUInt64'
+          description: Process resident set at sampled_at, or null when unavailable.
+        cgroup_current_bytes:
+          $ref: '#/components/schemas/NullableUInt64'
+          description: cgroup memory.current at sampled_at, or null when unavailable.
+        kernel_ebpf_bytes:
+          $ref: '#/components/schemas/NullableUInt64'
+          description: Kernel eBPF memory at sampled_at; omitted or null when unadvertised.
     DatapathKind:
       type: string
       enum:

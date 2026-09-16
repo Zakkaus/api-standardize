@@ -26,6 +26,8 @@ paths:
     $ref: ./runtime.yaml#/paths/~1api~1v1~1runtime~1outbounds
   /api/v1/runtime/traffic/history:
     $ref: ./runtime.yaml#/paths/~1api~1v1~1runtime~1traffic~1history
+  /api/v1/runtime/memory/history:
+    $ref: ./runtime.yaml#/paths/~1api~1v1~1runtime~1memory~1history
   /api/v1/datapath:
     $ref: ./runtime.yaml#/paths/~1api~1v1~1datapath
   /api/v1/nodes:
@@ -182,6 +184,10 @@ components:
       $ref: ./runtime.yaml#/schemas/TrafficHistory
     TrafficHistorySample:
       $ref: ./runtime.yaml#/schemas/TrafficHistorySample
+    MemoryHistory:
+      $ref: ./runtime.yaml#/schemas/MemoryHistory
+    MemoryHistorySample:
+      $ref: ./runtime.yaml#/schemas/MemoryHistorySample
     DatapathKind:
       $ref: ./runtime.yaml#/schemas/DatapathKind
     DatapathState:

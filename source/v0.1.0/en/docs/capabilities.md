@@ -44,7 +44,8 @@ be read and mutated without silently hiding another cache class.
 snapshot. `traffic_history.available` declares the bounded traffic ring;
 when true, `max_window_seconds` and `max_points` are required positive safe
 integers. They bound the look-back window and returned sample count, not a
-retention guarantee. Both resources are optional and require `observe`.
+retention guarantee. `memory_history` declares the bounded memory ring with
+the same two limits. All three resources are optional and require `observe`.
 
 `connections.available` declares the live connection list. When true,
 `can_close` and `max_bulk_close` are required. `can_close` is a boolean:

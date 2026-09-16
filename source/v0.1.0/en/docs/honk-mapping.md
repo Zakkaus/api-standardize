@@ -35,6 +35,7 @@ must not be advertised as a shared dae guarantee.
 | Connection/flow list columns | Denormalise the application chain, rule ID/expression, ingress and domain provenance onto both summaries. Current handoff/tracking omits deciding-rule context; producers must retain selection IDs and label evaluation, reconstruction and recomputation honestly. |
 | Per-outbound usage | Add `/runtime/outbounds`, mirroring the current Clash `/stats` counters. Producers must retain outbound kind and a shared reset timestamp, and serialize full-width counters without the current snapshot's uint32 narrowing. |
 | Traffic history | Add `/runtime/traffic/history` with advertised window/point ceilings. Current Clash traffic streaming supplies live rate deltas, not timestamped queryable history; producers must sample into a bounded ring independently of subscribers and preserve gaps/reset boundaries. |
+| Memory history | Add `/runtime/memory/history` on the same ring design: sample the advertised `runtime_memory` metrics on a fixed cadence, keep age/capacity eviction and restart clearing, and enforce the advertised limits before reading. |
 | Connection closing | Add single and filtered bulk DELETE actions under `control`, gated by `connections.can_close`. Close userspace-owned transports/sessions, not tracker entries; skip non-closable bulk matches. Require `all=true` for an unfiltered bulk close and enforce `max_bulk_close` before cancellation. |
 
 ## What the current code actually retains

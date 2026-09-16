@@ -193,7 +193,8 @@ not a negative rate or a fabricated spike.
 The ring is bounded by age and capacity and is cleared on process restart.
 It may return fewer samples than requested, or an empty array before
 sampling; a requested window is not a retention guarantee.
-This is the only sampled-metric history the native API serves; retained
+Together with [memory history](runtime-memory.html#get-apiv1runtimememoryhistory)
+this is the only sampled-metric history the native API serves; retained
 flow traces and operation results remain separate records. SSE does not
 replay traffic history, even with `Last-Event-ID`; fetch this resource on
 first open or reconnect rather than treating invalidations as samples.

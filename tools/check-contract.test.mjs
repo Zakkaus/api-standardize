@@ -337,6 +337,60 @@ test("traffic history advertises usable limits and rejects invalid query shapes"
   }
 });
 
+test("memory history mirrors traffic history: gaps, uint64 boundaries, limits and query shapes", () => {
+  const response = example("getMemoryHistory:200:recent");
+  const sample = response.body.samples[0];
+  sample.rss_bytes = null;
+  sample.cgroup_current_bytes = null;
+  delete sample.kernel_ebpf_bytes;
+  assertValid(validateExample(contract, response));
+  sample.rss_bytes = "18446744073709551615";
+  sample.cgroup_current_bytes = "18446744073709551615";
+  assertValid(validateExample(contract, response));
+  for (const field of ["rss_bytes", "cgroup_current_bytes"]) {
+    const valid = sample[field];
+    sample[field] = 0;
+    assertInvalid(validateExample(contract, response), `${field} accepted a JSON number`);
+    delete sample[field];
+    assertInvalid(validateExample(contract, response), `${field} is required`);
+    sample[field] = valid;
+  }
+  delete sample.sampled_at;
+  assertInvalid(validateExample(contract, response));
+  response.body.samples = [];
+  assertValid(validateExample(contract, response));
+  response.body.sampled_every_seconds = 0;
+  assertInvalid(validateExample(contract, response));
+
+  const capabilities = example("getCapabilities:200:available");
+  const limits = capabilities.body.resources.memory_history;
+  assert.equal(limits.available, true);
+  for (const field of ["max_window_seconds", "max_points"]) {
+    const value = limits[field];
+    delete limits[field];
+    assertInvalid(validateExample(contract, capabilities), `${field} must be advertised when available`);
+    limits[field] = value;
+  }
+  const request = example("getMemoryHistory:request");
+  for (const name of ["window_seconds", "max_points"]) {
+    const parameter = request.parameters.find((item) => item.definition.name === name);
+    assert.ok(parameter, `missing ${name} query parameter`);
+    const value = parameter.value;
+    parameter.value = 0;
+    assertInvalid(validateExample(contract, request));
+    parameter.value = value;
+  }
+  const history = example("getMemoryHistory:200:recent").body;
+  assert.ok(history.window_seconds <= limits.max_window_seconds);
+  assert.ok(history.samples.length <= limits.max_points);
+  for (const key of ["window_too_large", "too_many_points"]) {
+    const rejected = example(`getMemoryHistory:400:${key}`);
+    assert.equal(rejected.body.error.code, "invalid_request");
+    assertValid(validateExample(contract, rejected));
+  }
+  assert.equal(example("getDiscovery:200:draft").body.links.memory_history, "/api/v1/runtime/memory/history");
+});
+
 test("examples remain bound to their operation schema", () => {
   const changed = structuredClone(spec);
   changed.paths["/api/v1/flows/{flow_id}"].get.responses["200"].content[

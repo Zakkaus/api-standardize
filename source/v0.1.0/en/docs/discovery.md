@@ -29,6 +29,7 @@ title: Discovery
 | links | object | Stable bootstrap links. This is not a capability declaration. |
 | links.runtime_outbounds | string | Stable `/api/v1/runtime/outbounds` link; availability is declared by capabilities. |
 | links.traffic_history | string | Stable `/api/v1/runtime/traffic/history` link; availability and limits are declared by capabilities. |
+| links.memory_history | string | Stable `/api/v1/runtime/memory/history` link; availability and limits are declared by capabilities. |
 
 Clients use `links.version` for engine identity and `links.capabilities` to
 discover which optional resources and actions the running adapter implements.
