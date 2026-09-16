@@ -1,0 +1,527 @@
+paths:
+  /api/v1/config:
+    get:
+      operationId: getConfig
+      summary: Read the effective configuration
+      description: |
+        Requires resources.config.available. Returns one coherent snapshot of the
+        accepted sources and retained diagnostics for generation_id and revision,
+        not a fresh read of files that may have changed since loading. The source
+        set is complete and bounded by resources.config.max_sources; never truncate it.
+        Omit source content unless resources.config.content is true. Apply visibility
+        filters to paths, content and diagnostics; observe never grants raw secrets.
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        "200":
+          description: Effective configuration snapshot
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/EffectiveConfig
+              examples:
+                redacted:
+                  summary: Content withheld; the SHA-256 value is an illustrative placeholder.
+                  value:
+                    generation_id: generation-42
+                    revision: "17"
+                    sources:
+                      - id: source-main
+                        path: <redacted>
+                        kind: main
+                        content_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+                        bytes: 128
+                        loaded_at: 2026-08-15T09:30:00Z
+                        line_count: 8
+                    diagnostics:
+                      - level: warning
+                        source_id: source-main
+                        line: null
+                        column: null
+                        span: null
+                        code: deprecated_setting
+                        message: A deprecated setting was accepted.
+                    secrets_redacted: true
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "401":
+          description: Credentials are missing or invalid
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                authentication_required:
+                  value:
+                    error: { code: authentication_required, message: Credentials are required. }
+                    request_id: request-config-1
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "403":
+          description: Authenticated caller lacks observe permission
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                permission_denied:
+                  value:
+                    error: { code: permission_denied, message: Observe permission is required. }
+                    request_id: request-config-2
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "404":
+          description: Configuration readback is unavailable
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                capability_not_supported:
+                  value:
+                    error: { code: capability_not_supported, message: Configuration readback is unavailable. }
+                    request_id: request-config-3
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "429":
+          description: Advertised request rate exceeded
+          headers:
+            Retry-After:
+              description: Retry delay in seconds.
+              required: true
+              schema:
+                type: integer
+                minimum: 1
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                rate_limited:
+                  value:
+                    error: { code: rate_limited, message: Request rate exceeded. }
+                    request_id: request-config-4
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+                    Retry-After: 1
+  /api/v1/config/validate:
+    post:
+      operationId: validateConfig
+      summary: Validate candidate configuration without applying it
+      description: |
+        Requires resources.config_validate.available and control because the body
+        may contain secrets. Syntax mode parses only submitted text. Full mode also
+        checks semantics and resolves includes/subscriptions from submitted sources
+        or adapter-authorized local files and cached data, never from the network.
+        A missing or inaccessible dependency produces an error diagnostic, not a
+        successful partial validation. Neither mode writes files, refreshes caches,
+        applies configuration, publishes a generation, or starts an operation.
+        Return 200 for completed validation, including invalid candidates. Malformed
+        JSON/request shape or duplicate effective source IDs returns 400; an
+        unadvertised mode returns 422 unsupported_value. Enforce max_bytes over the
+        sum of UTF-8 source bytes and max_sources over the source count, including
+        locally resolved dependencies in full mode; exceeding either returns 413.
+        The shared max_json_body_bytes limit applies independently to the HTTP body.
+        Never echo candidate text, secrets, or private paths in diagnostics or errors.
+      x-permission: control
+      security:
+        - bearerAuth: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./openapi.yaml#/components/schemas/ConfigValidationRequest
+            examples:
+              syntax_error:
+                value:
+                  sources:
+                    - id: candidate-main
+                      content: "global {\n"
+                  mode: syntax
+              full:
+                value:
+                  sources:
+                    - content: "routing {\n  fallback: direct\n}\n"
+                  mode: full
+      responses:
+        "200":
+          description: Completed dry-run validation; valid is not an apply guarantee
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ConfigValidationResult
+              examples:
+                invalid:
+                  value:
+                    valid: false
+                    diagnostics:
+                      - level: error
+                        source_id: candidate-main
+                        line: 1
+                        column: 8
+                        span: { start_line: 1, start_column: 8, end_line: 1, end_column: 9 }
+                        code: unclosed_block
+                        message: Block is not closed.
+                    generation_id: generation-42
+                    validated_at: 2026-08-15T10:00:00Z
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+                valid:
+                  value:
+                    valid: true
+                    diagnostics: []
+                    generation_id: generation-42
+                    validated_at: 2026-08-15T10:00:00Z
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          description: Malformed JSON, invalid request shape, or duplicate effective source IDs
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                invalid_request:
+                  value:
+                    error: { code: invalid_request, message: Source IDs must be unique. }
+                    request_id: request-validate-1
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "401":
+          description: Credentials are missing or invalid
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                authentication_required:
+                  value:
+                    error: { code: authentication_required, message: Credentials are required. }
+                    request_id: request-validate-2
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "403":
+          description: Authenticated caller lacks control permission
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                permission_denied:
+                  value:
+                    error: { code: permission_denied, message: Control permission is required. }
+                    request_id: request-validate-3
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "404":
+          description: Configuration validation is unavailable
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                capability_not_supported:
+                  value:
+                    error: { code: capability_not_supported, message: Configuration validation is unavailable. }
+                    request_id: request-validate-4
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "413":
+          description: Source bytes, source count, or JSON body exceeds an advertised limit
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                too_many_bytes:
+                  value:
+                    error: { code: request_too_large, message: Source bytes exceed the advertised max_bytes. }
+                    request_id: request-validate-5
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+                too_many_sources:
+                  value:
+                    error: { code: request_too_large, message: Source count exceeds the advertised max_sources. }
+                    request_id: request-validate-6
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "415":
+          description: Unsupported request Content-Type
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                unsupported_media_type:
+                  value:
+                    error: { code: unsupported_media_type, message: Content-Type must be application/json. }
+                    request_id: request-validate-7
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "422":
+          description: Requested mode is not advertised by resources.config_validate.modes
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                unsupported_value:
+                  value:
+                    error: { code: unsupported_value, message: Requested validation mode is unsupported. }
+                    request_id: request-validate-8
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "429":
+          description: Advertised request rate exceeded
+          headers:
+            Retry-After:
+              description: Retry delay in seconds.
+              required: true
+              schema:
+                type: integer
+                minimum: 1
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                rate_limited:
+                  value:
+                    error: { code: rate_limited, message: Request rate exceeded. }
+                    request_id: request-validate-9
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+                    Retry-After: 1
+schemas:
+  EffectiveConfig:
+    type: object
+    required: [ generation_id, revision, sources, diagnostics, secrets_redacted ]
+    properties:
+      generation_id:
+        type: string
+        minLength: 1
+        description: Running generation whose accepted sources and diagnostics are returned.
+      revision:
+        type: string
+        minLength: 1
+        description: Opaque configuration revision used by Runtime.generation.config_revision and GroupSummary.config_revision; preserve without numeric parsing.
+      sources:
+        type: array
+        items:
+          $ref: ./openapi.yaml#/components/schemas/ConfigSource
+      diagnostics:
+        type: array
+        items:
+          $ref: ./openapi.yaml#/components/schemas/ConfigDiagnostic
+      secrets_redacted:
+        type: boolean
+        description: True when content is withheld or paths, text, or diagnostic messages are redacted under visibility policy.
+  ConfigSource:
+    type: object
+    required: [ id, path, kind, content_sha256, bytes, loaded_at, line_count ]
+    properties:
+      id:
+        type: string
+        minLength: 1
+        description: Unique opaque source ID within this configuration snapshot; never a credential-bearing path or URL.
+      path:
+        type: string
+        minLength: 1
+        description: Display path only, replaced with <redacted> when hidden by visibility policy; not a file-access capability.
+      kind:
+        type: string
+        enum: [ main, include, subscription, generated ]
+      content_sha256:
+        type: string
+        pattern: ^[0-9a-f]{64}$
+        minLength: 64
+        maxLength: 64
+        description: Lowercase SHA-256 of the accepted source bytes before redaction; not necessarily the digest of displayed content.
+      bytes:
+        $ref: ./openapi.yaml#/components/schemas/SafeUInt
+        description: Accepted source size in bytes before redaction.
+      loaded_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+        description: Time these source bytes were accepted, not the current file modification time.
+      content:
+        type: string
+        description: Optional engine-native text, only when resources.config.content is true; still subject to secret redaction. Not a round-trippable editing representation.
+      line_count:
+        $ref: ./openapi.yaml#/components/schemas/SafeUInt
+        description: Lines in the accepted source before redaction; empty text has zero lines, and a final newline does not add an empty line.
+  ConfigValidationMode:
+    type: string
+    enum: [ syntax, full ]
+  ConfigValidationSource:
+    type: object
+    additionalProperties: false
+    required: [ content ]
+    properties:
+      id:
+        type: string
+        minLength: 1
+        description: Request-local diagnostic ID. If omitted, use source-N where N is the one-based array index; all effective IDs must be unique. Never put secrets in IDs.
+      path:
+        type: string
+        minLength: 1
+        description: Optional engine-native source name and include-resolution base within the adapter's authorized local roots; never grants arbitrary file access.
+      content:
+        type: string
+        description: Candidate engine-native source text; empty text is a candidate, not a malformed request.
+  ConfigValidationRequest:
+    type: object
+    additionalProperties: false
+    required: [ sources, mode ]
+    properties:
+      sources:
+        type: array
+        minItems: 1
+        description: Ordered candidate sources; the first is the main source. Supplied content takes precedence over local files at the same resolved path.
+        items:
+          $ref: ./openapi.yaml#/components/schemas/ConfigValidationSource
+      mode:
+        $ref: ./openapi.yaml#/components/schemas/ConfigValidationMode
+  ConfigValidationResult:
+    type: object
+    required: [ valid, diagnostics, generation_id, validated_at ]
+    properties:
+      valid:
+        type: boolean
+        description: True exactly when validation completed without error diagnostics; warnings and info do not invalidate the candidate. No promise that a later apply will succeed.
+      diagnostics:
+        type: array
+        description: Source IDs identify submitted sources. Attribute a dependency failure to the referring submitted source and its include/subscription location, not an undisclosed local path.
+        items:
+          $ref: ./openapi.yaml#/components/schemas/ConfigDiagnostic
+      generation_id:
+        type: string
+        minLength: 1
+        description: Running generation captured when validation starts, for context only; not a new candidate generation or an apply precondition.
+      validated_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+        description: Time validation completed.
+    if:
+      properties:
+        valid:
+          const: true
+    then:
+      properties:
+        diagnostics:
+          not:
+            contains:
+              properties:
+                level:
+                  const: error
+              required: [ level ]
+    else:
+      properties:
+        diagnostics:
+          contains:
+            properties:
+              level:
+                const: error
+            required: [ level ]

@@ -26,6 +26,8 @@ paths:
                     links:
                       version: /api/v1/version
                       capabilities: /api/v1/capabilities
+                      config: /api/v1/config
+                      config_validate: /api/v1/config/validate
                       runtime: /api/v1/runtime
                       runtime_outbounds: /api/v1/runtime/outbounds
                       traffic_history: /api/v1/runtime/traffic/history
@@ -98,6 +100,15 @@ paths:
                       max_header_bytes: 16384
                       max_json_body_bytes: 65536
                     resources:
+                      config:
+                        available: true
+                        content: false
+                        max_sources: 32
+                      config_validate:
+                        available: true
+                        modes: [ syntax, full ]
+                        max_bytes: 65536
+                        max_sources: 32
                       runtime:
                         available: true
                       runtime_memory:
@@ -210,7 +221,7 @@ schemas:
         const: /api/v1
       links:
         type: object
-        required: [ version, capabilities, runtime, runtime_outbounds, traffic_history, operations ]
+        required: [ version, capabilities, config, config_validate, runtime, runtime_outbounds, traffic_history, operations ]
         properties:
           version:
             type: string
@@ -218,6 +229,12 @@ schemas:
           capabilities:
             type: string
             const: /api/v1/capabilities
+          config:
+            type: string
+            const: /api/v1/config
+          config_validate:
+            type: string
+            const: /api/v1/config/validate
           runtime:
             type: string
             const: /api/v1/runtime
@@ -302,8 +319,54 @@ schemas:
             minimum: 1
       resources:
         type: object
-        required: [ runtime, runtime_memory, runtime_outbounds, traffic_history, datapath, nodes, groups, probes, connections, flows, routing_trace, events, dns_query, dns_cache, operations, reload, suspend, resume ]
+        required: [ config, config_validate, runtime, runtime_memory, runtime_outbounds, traffic_history, datapath, nodes, groups, probes, connections, flows, routing_trace, events, dns_query, dns_cache, operations, reload, suspend, resume ]
         properties:
+          config:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ content, max_sources ]
+            properties:
+              available:
+                type: boolean
+              content:
+                type: boolean
+                default: false
+                description: Visibility flag permitting optional source text; not permission to disclose secrets. False by default.
+              max_sources:
+                $ref: ./openapi.yaml#/components/schemas/SafeUInt
+                minimum: 1
+                description: Maximum complete effective source set the adapter can expose; never silently truncate it.
+          config_validate:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ modes, max_bytes, max_sources ]
+            properties:
+              available:
+                type: boolean
+              modes:
+                type: array
+                minItems: 1
+                uniqueItems: true
+                items:
+                  $ref: ./openapi.yaml#/components/schemas/ConfigValidationMode
+              max_bytes:
+                $ref: ./openapi.yaml#/components/schemas/SafeUInt
+                minimum: 1
+                description: Maximum total UTF-8 source bytes, including local dependencies in full mode; the shared JSON body ceiling also applies.
+              max_sources:
+                $ref: ./openapi.yaml#/components/schemas/SafeUInt
+                minimum: 1
+                description: Maximum sources per validation, including local dependencies in full mode.
           runtime:
             $ref: ./openapi.yaml#/components/schemas/AvailableResource
           runtime_memory:

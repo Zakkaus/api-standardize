@@ -7,11 +7,45 @@ import { validateFlowTrace } from "./validate-flow.mjs";
 
 const OPENAPI_FILE = new URL("../source/openapi.yaml", import.meta.url);
 
+function validateConfigExample(example) {
+  const errors = [];
+  const body = example.body;
+  if (example.operationId === "getConfig" || example.kind === "request") {
+    const ids = new Set();
+    for (const [index, source] of body.sources.entries()) {
+      const id = source.id ?? `source-${index + 1}`;
+      if (ids.has(id)) errors.push(`duplicate source ID ${id}`);
+      ids.add(id);
+    }
+    for (const diagnostic of body.diagnostics ?? []) {
+      if (!ids.has(diagnostic.source_id)) errors.push(`unknown diagnostic source ${diagnostic.source_id}`);
+    }
+  }
+  for (const diagnostic of body.diagnostics ?? []) {
+    const span = diagnostic.span;
+    if (span === null) continue;
+    if (span.end_line < span.start_line ||
+        (span.end_line === span.start_line && span.end_column < span.start_column)) {
+      errors.push("diagnostic span ends before its start");
+    }
+    if ((diagnostic.line !== null && diagnostic.line !== span.start_line) ||
+        (diagnostic.column !== null && diagnostic.column !== span.start_column)) {
+      errors.push("diagnostic location differs from its span start");
+    }
+  }
+  return errors;
+}
+
 export function checkContract(spec) {
   const context = createContract(spec);
   const errors = [...context.errors];
   let flowCount = 0;
   for (const example of context.examples.values()) {
+    if (context.errors.length === 0 &&
+        ((example.operationId === "getConfig" && example.status === 200) ||
+         (example.operationId === "validateConfig" && (example.kind === "request" || example.status === 200)))) {
+      for (const error of validateConfigExample(example)) errors.push(`${example.id}: ${error}`);
+    }
     if (example.kind !== "response" || example.operationId !== "getFlow" || example.status !== 200) continue;
     flowCount += 1;
     for (const error of validateFlowTrace(example.body)) errors.push(`${example.id}: ${error}`);

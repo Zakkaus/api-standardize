@@ -27,6 +27,8 @@ title: Discovery
 | api_major | integer | Selected wire major, currently 1; independent of document/engine version. |
 | base_path | string | Versioned native resource prefix. |
 | links | object | Stable bootstrap links. This is not a capability declaration. |
+| links.config | string | Stable `/api/v1/config` link; capabilities declare availability, content visibility, and source limits. |
+| links.config_validate | string | Stable `/api/v1/config/validate` link for POST; capabilities declare availability, modes, and limits. |
 | links.runtime_outbounds | string | Stable `/api/v1/runtime/outbounds` link; availability is declared by capabilities. |
 | links.traffic_history | string | Stable `/api/v1/runtime/traffic/history` link; availability and limits are declared by capabilities. |
 

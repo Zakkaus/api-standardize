@@ -6,6 +6,7 @@ import { test } from "node:test";
 import { parse } from "yaml";
 import { createContract, renderExample, validateExample } from "./contract.mjs";
 import { validateFlowTrace } from "./validate-flow.mjs";
+import { checkContract } from "./check-contract.mjs";
 
 const spec = parse(await readFile(new URL("../source/openapi.yaml", import.meta.url), "utf8"));
 const contract = createContract(spec);
@@ -209,6 +210,183 @@ test("traffic history advertises usable limits and rejects invalid query shapes"
     assert.equal(rejected.body.error.code, "invalid_request");
     assertValid(validateExample(contract, rejected));
   }
+});
+
+test("effective configuration preserves opaque revisions and source metadata types", () => {
+  const response = example("getConfig:200:redacted");
+  response.body.revision = "revision:not-a-number";
+  response.body.sources[0].content = "";
+  response.body.extension = { supported: true };
+  assertValid(validateExample(contract, response));
+  for (const [field, invalid] of [
+    ["content_sha256", "sha256:not-a-digest"],
+    ["bytes", "128"],
+    ["line_count", -1],
+    ["loaded_at", "yesterday"],
+    ["kind", "remote"],
+  ]) {
+    const changed = example("getConfig:200:redacted");
+    changed.body.sources[0][field] = invalid;
+    assertInvalid(validateExample(contract, changed), `invalid ${field} passed`);
+  }
+  delete response.body.revision;
+  assertInvalid(validateExample(contract, response));
+});
+
+test("both configuration results allow unknown locations but reject zero-based positions", () => {
+  for (const key of ["getConfig:200:redacted", "validateConfig:200:invalid"]) {
+    const response = example(key);
+    const diagnostic = response.body.diagnostics[0];
+    diagnostic.code = "adapter_specific_diagnostic";
+    diagnostic.line = null;
+    diagnostic.column = null;
+    diagnostic.span = null;
+    assertValid(validateExample(contract, response));
+    diagnostic.line = 0;
+    assertInvalid(validateExample(contract, response));
+    diagnostic.line = 1;
+    diagnostic.column = 0;
+    assertInvalid(validateExample(contract, response));
+    diagnostic.column = 1;
+    diagnostic.span = { start_line: 1, start_column: 1, end_line: 1, end_column: 1 };
+    assertValid(validateExample(contract, response));
+    delete diagnostic.span.end_column;
+    assertInvalid(validateExample(contract, response));
+  }
+});
+
+test("validation validity distinguishes errors from warnings and info", () => {
+  const response = example("validateConfig:200:invalid");
+  response.body.valid = true;
+  assertInvalid(validateExample(contract, response), "errors cannot be valid");
+  for (const level of ["warning", "info"]) {
+    response.body.diagnostics[0].level = level;
+    assertValid(validateExample(contract, response));
+  }
+  response.body.valid = false;
+  assertInvalid(validateExample(contract, response), "invalid candidates need an error diagnostic");
+  response.body.diagnostics = [];
+  assertInvalid(validateExample(contract, response));
+  response.body.valid = true;
+  assertValid(validateExample(contract, response));
+});
+
+test("validation accepts unnamed and empty text candidates but closes request objects", () => {
+  const request = example("validateConfig:request:syntax_error");
+  request.body.sources = [{ content: "" }];
+  assertValid(validateExample(contract, request));
+  request.body.mode = "full";
+  request.body.sources[0].path = "<redacted>";
+  assertValid(validateExample(contract, request));
+  request.body.sources[0].apply = true;
+  assertInvalid(validateExample(contract, request));
+  delete request.body.sources[0].apply;
+  request.body.apply = true;
+  assertInvalid(validateExample(contract, request));
+  delete request.body.apply;
+  request.body.mode = "live";
+  assertInvalid(validateExample(contract, request));
+  request.body.mode = "syntax";
+  request.body.sources = [];
+  assertInvalid(validateExample(contract, request));
+});
+
+test("configuration capabilities require usable limits only when available", () => {
+  for (const [resource, fields] of [
+    ["config", ["content", "max_sources"]],
+    ["config_validate", ["modes", "max_bytes", "max_sources"]],
+  ]) {
+    const response = example("getCapabilities:200:available");
+    for (const field of fields) {
+      const changed = structuredClone(response);
+      delete changed.body.resources[resource][field];
+      assertInvalid(validateExample(contract, changed), `missing ${resource}.${field} passed`);
+      if (field.startsWith("max_")) {
+        for (const invalid of [0, 9007199254740992]) {
+          changed.body.resources[resource][field] = invalid;
+          assertInvalid(validateExample(contract, changed));
+        }
+      }
+    }
+    response.body.resources[resource] = { available: false };
+    assertValid(validateExample(contract, response));
+    delete response.body.resources[resource];
+    assertInvalid(validateExample(contract, response), "unavailable resource keys must still be present");
+  }
+  const response = example("getCapabilities:200:available");
+  for (const modes of [[], ["syntax", "syntax"], ["live"]]) {
+    response.body.resources.config_validate.modes = modes;
+    assertInvalid(validateExample(contract, response));
+  }
+});
+
+test("configuration examples obey visibility, runtime identity, and advertised limits", () => {
+  const resources = example("getCapabilities:200:available").body.resources;
+  const runtime = example("getRuntime:200:snapshot").body;
+  const config = example("getConfig:200:redacted").body;
+  assert.equal(config.generation_id, runtime.generation.active_id);
+  assert.equal(config.revision, runtime.generation.config_revision);
+  assert.ok(config.sources.length <= resources.config.max_sources);
+  for (const source of config.sources) {
+    if (!resources.config.content) {
+      assert.equal(Object.hasOwn(source, "content"), false);
+      assert.equal(config.secrets_redacted, true);
+    }
+    assert.ok(Date.parse(source.loaded_at) >= Date.parse(runtime.lifecycle.started_at));
+  }
+  for (const value of contract.examples.values()) {
+    if (value.operationId !== "validateConfig") continue;
+    if (value.kind === "request") {
+      assert.ok(resources.config_validate.modes.includes(value.body.mode));
+      assert.ok(value.body.sources.length <= resources.config_validate.max_sources);
+      const bytes = value.body.sources.reduce((sum, source) => sum + Buffer.byteLength(source.content, "utf8"), 0);
+      assert.ok(bytes <= resources.config_validate.max_bytes);
+    } else if (value.status === 200) {
+      assert.equal(value.body.generation_id, runtime.generation.active_id);
+      assert.ok(Date.parse(value.body.validated_at) >= Date.parse(runtime.generation.activated_at));
+    }
+  }
+  const request = example("validateConfig:request:syntax_error").body;
+  const result = example("validateConfig:200:invalid").body;
+  for (const diagnostic of result.diagnostics) {
+    assert.ok(request.sources.some((source, index) => (source.id ?? `source-${index + 1}`) === diagnostic.source_id));
+  }
+  for (const name of ["too_many_bytes", "too_many_sources"]) {
+    const rejected = example(`validateConfig:413:${name}`);
+    assert.equal(rejected.body.error.code, "request_too_large");
+    assertValid(validateExample(contract, rejected));
+  }
+});
+
+test("configuration checker rejects duplicate source IDs and dangling diagnostic references", () => {
+  for (const [mutate, message] of [
+    [(body) => body.sources.push({ ...body.sources[0], path: "<redacted-include>" }), /duplicate source ID/],
+    [(body) => { body.diagnostics[0].source_id = "absent"; }, /unknown diagnostic source/],
+  ]) {
+    const changed = structuredClone(spec);
+    mutate(changed.paths["/api/v1/config"].get.responses["200"].content["application/json"].examples.redacted.value);
+    assert.ok(checkContract(changed).errors.some((error) => message.test(error)));
+  }
+  const changed = structuredClone(spec);
+  changed.paths["/api/v1/config/validate"].post.requestBody.content["application/json"].examples.full.value.sources =
+    [{ id: "source-2", content: "" }, { content: "" }];
+  assert.ok(checkContract(changed).errors.some((error) => /duplicate source ID source-2/.test(error)));
+});
+
+test("configuration checker preserves ordered spans and their point locations", () => {
+  const changed = structuredClone(spec);
+  const diagnostic = changed.paths["/api/v1/config/validate"].post.responses["200"]
+    .content["application/json"].examples.invalid.value.diagnostics[0];
+  diagnostic.span.end_column = diagnostic.span.start_column;
+  assertValid(checkContract(changed).errors, "zero-width span rejected");
+  diagnostic.span.end_line = 2;
+  diagnostic.span.end_column = 1;
+  assertValid(checkContract(changed).errors, "multiline span rejected");
+  diagnostic.span.end_line = 1;
+  assert.ok(checkContract(changed).errors.some((error) => /span ends before/.test(error)));
+  diagnostic.span.end_column = 9;
+  diagnostic.column = 7;
+  assert.ok(checkContract(changed).errors.some((error) => /location differs/.test(error)));
 });
 
 test("examples remain bound to their operation schema", () => {

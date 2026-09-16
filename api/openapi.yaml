@@ -18,6 +18,10 @@ paths:
     $ref: ./discovery.yaml#/paths/~1api~1v1~1version
   /api/v1/capabilities:
     $ref: ./discovery.yaml#/paths/~1api~1v1~1capabilities
+  /api/v1/config:
+    $ref: ./config.yaml#/paths/~1api~1v1~1config
+  /api/v1/config/validate:
+    $ref: ./config.yaml#/paths/~1api~1v1~1config~1validate
   /api/v1/runtime:
     $ref: ./runtime.yaml#/paths/~1api~1v1~1runtime
   /api/v1/runtime/memory:
@@ -158,6 +162,22 @@ components:
       $ref: ./discovery.yaml#/schemas/AvailableResource
     Capabilities:
       $ref: ./discovery.yaml#/schemas/Capabilities
+    EffectiveConfig:
+      $ref: ./config.yaml#/schemas/EffectiveConfig
+    ConfigSource:
+      $ref: ./config.yaml#/schemas/ConfigSource
+    ConfigDiagnostic:
+      $ref: ./common.yaml#/schemas/ConfigDiagnostic
+    ConfigDiagnosticSpan:
+      $ref: ./common.yaml#/schemas/ConfigDiagnosticSpan
+    ConfigValidationMode:
+      $ref: ./config.yaml#/schemas/ConfigValidationMode
+    ConfigValidationSource:
+      $ref: ./config.yaml#/schemas/ConfigValidationSource
+    ConfigValidationRequest:
+      $ref: ./config.yaml#/schemas/ConfigValidationRequest
+    ConfigValidationResult:
+      $ref: ./config.yaml#/schemas/ConfigValidationResult
     ProbeLimits:
       $ref: ./operations-probes.yaml#/schemas/ProbeLimits
     DnsQueryLimits:

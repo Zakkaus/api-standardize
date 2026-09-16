@@ -300,6 +300,61 @@ schemas:
         $ref: ./openapi.yaml#/components/schemas/ApiError
       request_id:
         type: [ string, "null" ]
+  ConfigDiagnostic:
+    type: object
+    required: [ level, source_id, line, column, span, code, message ]
+    description: |
+      Safe diagnostic for an accepted or candidate source, never raw parser output.
+      Coordinates refer to the original source before redaction. Use null for
+      unknown locations; do not fabricate positions from setting names.
+    properties:
+      level:
+        type: string
+        enum: [ error, warning, info ]
+      source_id:
+        type: string
+        minLength: 1
+        description: Source ID in the effective snapshot or validation request.
+      line:
+        $ref: ./openapi.yaml#/components/schemas/NullableSafeUInt
+        minimum: 1
+        description: One-based line, or null if unknown.
+      column:
+        $ref: ./openapi.yaml#/components/schemas/NullableSafeUInt
+        minimum: 1
+        description: One-based UTF-8 byte column, or null if unknown; not a character or UTF-16 offset.
+      span:
+        oneOf:
+          - type: "null"
+          - $ref: ./openapi.yaml#/components/schemas/ConfigDiagnosticSpan
+      code:
+        type: string
+        minLength: 1
+        description: Adapter-defined diagnostic code, independent of the HTTP ErrorCode catalogue.
+      message:
+        type: string
+        minLength: 1
+        description: Safe operator-facing description; never source excerpts, credentials, private paths, or raw engine errors.
+  ConfigDiagnosticSpan:
+    type: object
+    required: [ start_line, start_column, end_line, end_column ]
+    description: |
+      One-based lines and UTF-8 byte columns; start inclusive, end exclusive.
+      The end must not precede the start. A zero-width span is permitted.
+      When line and column are known, they equal the span start.
+    properties:
+      start_line:
+        $ref: ./openapi.yaml#/components/schemas/SafeUInt
+        minimum: 1
+      start_column:
+        $ref: ./openapi.yaml#/components/schemas/SafeUInt
+        minimum: 1
+      end_line:
+        $ref: ./openapi.yaml#/components/schemas/SafeUInt
+        minimum: 1
+      end_column:
+        $ref: ./openapi.yaml#/components/schemas/SafeUInt
+        minimum: 1
   Visibility:
     type: string
     enum: [ full, partial, none ]
