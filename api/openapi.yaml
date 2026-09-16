@@ -22,6 +22,8 @@ paths:
     $ref: ./config.yaml#/paths/~1api~1v1~1config
   /api/v1/config/validate:
     $ref: ./config.yaml#/paths/~1api~1v1~1config~1validate
+  /api/v1/config/sources/{source_id}:
+    $ref: ./config.yaml#/paths/~1api~1v1~1config~1sources~1{source_id}
   /api/v1/runtime:
     $ref: ./runtime.yaml#/paths/~1api~1v1~1runtime
   /api/v1/runtime/memory:

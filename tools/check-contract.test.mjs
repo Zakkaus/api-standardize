@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { createServer } from "node:http";
 import { once } from "node:events";
 import { readFile } from "node:fs/promises";
@@ -224,6 +225,7 @@ test("effective configuration preserves opaque revisions and source metadata typ
     ["line_count", -1],
     ["loaded_at", "yesterday"],
     ["kind", "remote"],
+    ["writable", "true"],
   ]) {
     const changed = example("getConfig:200:redacted");
     changed.body.sources[0][field] = invalid;
@@ -293,7 +295,7 @@ test("validation accepts unnamed and empty text candidates but closes request ob
 
 test("configuration capabilities require usable limits only when available", () => {
   for (const [resource, fields] of [
-    ["config", ["content", "max_sources"]],
+    ["config", ["content", "writable", "max_bytes", "max_sources"]],
     ["config_validate", ["modes", "max_bytes", "max_sources"]],
   ]) {
     const response = example("getCapabilities:200:available");
@@ -357,6 +359,120 @@ test("configuration examples obey visibility, runtime identity, and advertised l
     assertValid(validateExample(contract, rejected));
   }
 });
+test("source editing examples preserve exact bytes and use the accepted hash as a precondition", () => {
+  const snapshot = example("getConfig:200:editable").body;
+  const source = example("getConfigSource:200:editable").body;
+  const request = example("replaceConfigSource:request:replacement");
+  assert.deepEqual(source, snapshot.sources.find(({ id }) => id === source.id));
+  assert.equal(createHash("sha256").update(source.content, "utf8").digest("hex"), source.content_sha256);
+  assert.equal(Buffer.byteLength(source.content, "utf8"), source.bytes);
+  assert.equal(request.parameters.find(({ definition }) => definition.name === "source_id").value, source.id);
+  assert.equal(request.headers["If-Match"], `"${source.content_sha256}"`);
+  assert.equal(
+    createHash("sha256").update(request.body.content, "utf8").digest("hex"),
+    "92fe71cacbc73458f2da2a62363cec2e1cfae3ee0e3838acd7a90562e64f242a",
+  );
+  assert.ok(Buffer.byteLength(request.body.content, "utf8") <=
+    example("getCapabilities:200:available").body.resources.config.max_bytes);
+  assert.match(renderExample(request, "http"), /^PUT \/api\/v1\/config\/sources\/source-main HTTP\/1\.1/m);
+});
+
+test("source replacement accepts only complete text with a single hash precondition", () => {
+  const request = example("replaceConfigSource:request:replacement");
+  request.body.content = "";
+  assertValid(validateExample(contract, request));
+  for (const body of [{}, { content: null }, { content: "", path: "other.dae" },
+    { content: "", mode: "syntax" }, { sources: [{ content: "" }] }, [{ op: "replace", path: "/content", value: "" }]]) {
+    const changed = structuredClone(request);
+    changed.body = body;
+    assertInvalid(validateExample(contract, changed));
+  }
+  const missing = structuredClone(request);
+  delete missing.headers["If-Match"];
+  assertInvalid(validateExample(contract, missing));
+  for (const value of ["*", `W/${request.headers["If-Match"]}`, '"17"', request.headers["If-Match"].slice(1, -1),
+    `${request.headers["If-Match"]}, ${request.headers["If-Match"]}`]) {
+    const changed = structuredClone(request);
+    changed.headers["If-Match"] = value;
+    assertInvalid(validateExample(contract, changed));
+  }
+});
+
+test("source readback permits withheld text but never advertises writable engine output", () => {
+  const source = example("getConfigSource:200:redacted");
+  assert.equal(Object.hasOwn(source.body, "content"), false);
+  assertValid(validateExample(contract, source));
+  for (const kind of ["subscription", "generated"]) {
+    source.body.kind = kind;
+    source.body.writable = false;
+    assertValid(validateExample(contract, source));
+    source.body.writable = true;
+    assertInvalid(validateExample(contract, source));
+  }
+  delete source.body.writable;
+  assertInvalid(validateExample(contract, source));
+  const unavailable = example("getConfigSource:404:resource_not_found");
+  assert.equal(unavailable.body.error.code, "resource_not_found");
+  assertValid(validateExample(contract, unavailable));
+});
+
+test("rejected source writes carry structured errors without pretending validation succeeded", () => {
+  for (const [status, name, code] of [
+    [403, "permission_denied", "permission_denied"],
+    [412, "stale_revision", "stale_revision"],
+    [428, "precondition_required", "precondition_required"],
+  ]) {
+    const response = example(`replaceConfigSource:${status}:${name}`);
+    assert.equal(response.body.error.code, code);
+    assertValid(validateExample(contract, response));
+  }
+  const rejected = example("replaceConfigSource:422:invalid");
+  assert.equal(rejected.body.error.code, "unsupported_value");
+  assert.equal(rejected.body.error.details.diagnostics[0].source_id,
+    example("getConfigSource:200:editable").body.id);
+  for (const mutate of [
+    (body) => { delete body.request_id; },
+    (body) => { delete body.error.details; },
+    (body) => { body.error.details.diagnostics = []; },
+    (body) => { body.error.details.diagnostics[0].level = "warning"; },
+    (body) => { body.error.details.diagnostics[0].column = 0; },
+    (body) => { body.error.code = "invalid_request"; },
+  ]) {
+    const changed = structuredClone(rejected);
+    mutate(changed.body);
+    assertInvalid(validateExample(contract, changed));
+  }
+});
+
+test("source writes accept only reload operations with causal polling headers", () => {
+  const accepted = example("replaceConfigSource:202:queued");
+  assert.equal(accepted.body.kind, "reload");
+  assertValid(validateExample(contract, accepted));
+  for (const mutate of [
+    (value) => { value.body.kind = "group_update"; },
+    (value) => { value.body.status = "succeeded"; },
+    (value) => { delete value.headers.Location; },
+    (value) => { value.headers.Location = "/api/v1/operations/other"; },
+    (value) => { delete value.headers["Retry-After"]; },
+    (value) => { value.headers["Retry-After"] = 0; },
+  ]) {
+    const changed = structuredClone(accepted);
+    mutate(changed);
+    assertInvalid(validateExample(contract, changed));
+  }
+});
+
+test("rejected-write diagnostics retain ordered source coordinates", () => {
+  const changed = structuredClone(spec);
+  const diagnostic = changed.paths["/api/v1/config/sources/{source_id}"].put.responses["422"]
+    .content["application/json"].examples.invalid.value.error.details.diagnostics[0];
+  diagnostic.span.end_column = diagnostic.span.start_column - 1;
+  assert.ok(checkContract(changed).errors.some((error) => /span ends before/.test(error)));
+  diagnostic.span.end_column = diagnostic.span.start_column;
+  diagnostic.column += 1;
+  assert.ok(checkContract(changed).errors.some((error) => /location differs/.test(error)));
+});
+
 
 test("configuration checker rejects duplicate source IDs and dangling diagnostic references", () => {
   for (const [mutate, message] of [

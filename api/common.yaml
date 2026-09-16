@@ -158,7 +158,7 @@ responses:
     description: Flow or paginated snapshot retention expired
   PreconditionFailed:
     $ref: ./openapi.yaml#/components/responses/ErrorResponseCommon
-    description: If-Match does not equal the current configuration revision
+    description: If-Match does not equal the current configuration revision or on-disk source content hash
   TooLarge:
     $ref: ./openapi.yaml#/components/responses/ErrorResponseCommon
     description: Request size or advertised fan-out limit exceeded
@@ -167,7 +167,7 @@ responses:
     description: Unsupported request Content-Type
   Unprocessable:
     $ref: ./openapi.yaml#/components/responses/ErrorResponseCommon
-    description: Syntactically valid but unsupported field, value, or transition
+    description: Unsupported field, value, or transition, or error diagnostics from configuration replacement validation
   PreconditionRequired:
     $ref: ./openapi.yaml#/components/responses/ErrorResponseCommon
     description: Required If-Match is absent
@@ -314,7 +314,7 @@ schemas:
       source_id:
         type: string
         minLength: 1
-        description: Source ID in the effective snapshot or validation request.
+        description: Source ID in the effective snapshot, validation request, or source set being validated for replacement.
       line:
         $ref: ./openapi.yaml#/components/schemas/NullableSafeUInt
         minimum: 1

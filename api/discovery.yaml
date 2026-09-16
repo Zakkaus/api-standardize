@@ -103,6 +103,8 @@ paths:
                       config:
                         available: true
                         content: false
+                        writable: true
+                        max_bytes: 65536
                         max_sources: 32
                       config_validate:
                         available: true
@@ -329,7 +331,7 @@ schemas:
                 available:
                   const: true
             then:
-              required: [ content, max_sources ]
+              required: [ content, writable, max_bytes, max_sources ]
             properties:
               available:
                 type: boolean
@@ -337,6 +339,18 @@ schemas:
                 type: boolean
                 default: false
                 description: Visibility flag permitting optional source text; not permission to disclose secrets. False by default.
+              writable:
+                type: boolean
+                description: |
+                  Server-wide switch for replacing accepted sources under control;
+                  individual sources may still be read-only. True requires full
+                  validation and reload operations, including resources.reload.available
+                  and resources.operations.available. Independent of content visibility
+                  and the optional dry-run endpoint.
+              max_bytes:
+                $ref: ./openapi.yaml#/components/schemas/SafeUInt
+                minimum: 1
+                description: Maximum UTF-8 bytes in replacement content; the shared JSON body ceiling applies independently.
               max_sources:
                 $ref: ./openapi.yaml#/components/schemas/SafeUInt
                 minimum: 1

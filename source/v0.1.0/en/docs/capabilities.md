@@ -49,11 +49,25 @@ retention guarantee. Both resources are optional and require `observe`.
 ## Configuration visibility
 
 `resources.config.available` gates effective configuration readback under
-`observe`. When available, the adapter must declare `content` and `max_sources`.
+`observe`, including single-source GET. When available, the adapter must declare
+`content`, `writable`, `max_bytes`, and `max_sources`.
 `content` is a visibility flag, false by default: false forbids source text in
 the response; true permits optional text subject to secret redaction. It does
 not grant access to raw secrets. `max_sources` is a positive safe-integer bound
 on the complete source set, not permission to truncate it.
+
+`writable` is the server-wide switch for source replacement under `control`.
+A source's own `writable` field can further restrict writes. A false switch or
+read-only source returns `403 permission_denied`; neither grants write access
+through `observe`. Generated and subscription sources are never writable.
+`max_bytes` is a positive safe-integer limit on UTF-8 replacement content, not
+character count. The shared JSON body limit also applies; excess returns
+`413 request_too_large`.
+
+Advertising `writable: true` requires full validation and asynchronous reload
+support, with `resources.reload.available` and `resources.operations.available`
+both true. Editing is independent of the optional dry-run endpoint and of
+content visibility. It does not grant permission to read secrets.
 
 Path redaction follows the [shared visibility rules](api-config.html#Permissions).
 Use `<redacted>` for hidden display paths. Apply privacy filters consistently

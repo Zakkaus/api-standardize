@@ -10,6 +10,7 @@ const OPENAPI_FILE = new URL("../source/openapi.yaml", import.meta.url);
 function validateConfigExample(example) {
   const errors = [];
   const body = example.body;
+  const diagnostics = body.diagnostics ?? body.error?.details?.diagnostics ?? [];
   if (example.operationId === "getConfig" || example.kind === "request") {
     const ids = new Set();
     for (const [index, source] of body.sources.entries()) {
@@ -21,7 +22,7 @@ function validateConfigExample(example) {
       if (!ids.has(diagnostic.source_id)) errors.push(`unknown diagnostic source ${diagnostic.source_id}`);
     }
   }
-  for (const diagnostic of body.diagnostics ?? []) {
+  for (const diagnostic of diagnostics) {
     const span = diagnostic.span;
     if (span === null) continue;
     if (span.end_line < span.start_line ||
@@ -43,7 +44,8 @@ export function checkContract(spec) {
   for (const example of context.examples.values()) {
     if (context.errors.length === 0 &&
         ((example.operationId === "getConfig" && example.status === 200) ||
-         (example.operationId === "validateConfig" && (example.kind === "request" || example.status === 200)))) {
+         (example.operationId === "validateConfig" && (example.kind === "request" || example.status === 200)) ||
+         (example.operationId === "replaceConfigSource" && example.status === 422))) {
       for (const error of validateConfigExample(example)) errors.push(`${example.id}: ${error}`);
     }
     if (example.kind !== "response" || example.operationId !== "getFlow" || example.status !== 200) continue;
