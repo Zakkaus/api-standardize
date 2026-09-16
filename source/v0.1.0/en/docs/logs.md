@@ -59,35 +59,17 @@ The server reauthorizes each reconnect and closes streams after revocation.
 
 ## Settings
 
-`GET /api/v1/logs/settings` reports what the engine emits at and how many
-records the replay ring keeps. `PATCH /api/v1/logs/settings` changes either
-at runtime when capabilities advertise `logs.settings: true`; it requires
-`control`.
-
-{% api_request patchLogSettings %}
-
-| Field | Meaning |
-|-------|---------|
-| level | Minimum severity the engine emits, one of the advertised `levels`. The stream's `level` query filters above this floor, never below it. |
-| buffered_records | Replay ring capacity, from 64 up to the advertised `max_buffered_records`. Shrinking drops the oldest records; cursors older than the new floor expire. |
-| source | `config` while the values come from the activated configuration, `runtime` after a PATCH overrode them. Read-only. |
-
-{% api_example patchLogSettings 200 changed %}
-
-A change applies immediately and needs no reload. It is not written back to
-the configuration file: a restart or the next configuration activation returns
-both fields to the configured values, and `source` reads `config` again. An
-unadvertised level or an out-of-range size returns `400 invalid_request` and
-changes nothing.
-
-{% api_example patchLogSettings 400 too_many_records %}
+The level the engine emits at and the replay ring size are runtime settings;
+see [`/runtime/settings`](runtime-status.html#get-apiv1runtimesettings).
+The stream's `level` query filters above the engine's level, never below it.
 
 ## What is retained, and for how long
 
 | Record | Where | Bound | Adjustable at runtime |
 |--------|-------|-------|-----------------------|
-| Log records | replay ring | `buffered_records`, at most `logs.max_buffered_records` | yes, this endpoint |
-| Retained flows | flow store | `flows.max_flows` and `flows.retention_seconds` | no, configuration |
+| Log records | replay ring | `log.buffered_records`, at most `logs.max_buffered_records` | yes, `/runtime/settings` |
+| Retained flows | flow store | `flows.max_flows` and `flows.retention_seconds` ceilings | yes, `/runtime/settings` |
+| DNS resolutions | DNS log ring | `dns_log.max_records` ceiling | yes, `/runtime/settings` |
 | Traffic samples | traffic ring | `traffic_history.max_window_seconds`, `max_points` | no, configuration |
 | Memory samples | memory ring | `memory_history.max_window_seconds`, `max_points` | no, configuration |
 | Operations | operation store | shared operation retention rules | no |

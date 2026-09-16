@@ -197,3 +197,38 @@ This is the only sampled-metric history the native API serves; retained
 flow traces and operation results remain separate records. SSE does not
 replay traffic history, even with `Last-Event-ID`; fetch this resource on
 first open or reconnect rather than treating invalidations as samples.
+
+## GET /api/v1/runtime/settings
+
+Requires `observe` and `resources.runtime_settings.available`. Reports the
+values the running engine uses for what a panel may tune without a reload:
+the log level and replay ring, the DNS log ring, and flow retention.
+
+{% api_example getRuntimeSettings 200 current %}
+
+| Field | Ceiling | Meaning |
+|-------|---------|---------|
+| log.level | `logs.levels` | Minimum severity the engine emits. |
+| log.buffered_records | `logs.max_buffered_records` | Log replay ring capacity, at least 64. |
+| dns_log.max_records | `dns_log.max_records` | DNS log ring capacity, at least 64. |
+| flows.max_flows | `flows.max_flows` | Retained flows, at least 64. |
+| flows.retention_seconds | `flows.retention_seconds` | How long a terminal flow stays. |
+| source | | `config` while every value comes from the activated configuration, `runtime` once a PATCH overrode one. |
+
+## PATCH /api/v1/runtime/settings
+
+Requires `control`. Only the fields listed in `resources.runtime_settings.fields`
+may appear; the body merges, an absent field keeps its value.
+
+{% api_request patchRuntimeSettings %}
+
+{% api_example patchRuntimeSettings 200 changed %}
+
+Every value is checked against its ceiling before anything changes: an
+unadvertised level, a ring below 64 records, or a value above its ceiling
+returns `400 invalid_request` and changes nothing. Shrinking a ring drops its
+oldest records and expires cursors older than the new floor. The change
+applies immediately, is not written to the configuration file, and lasts
+until the process restarts or the next configuration activation resets it.
+
+{% api_example patchRuntimeSettings 400 above_ceiling %}

@@ -89,10 +89,11 @@ Clash connection list, log parser, or map snapshot cannot satisfy it.
 curl http://localhost:9527/api/v1/capabilities
 ```
 
-`logs.available` declares the bounded log stream; when true, `levels`,
-`max_buffered_records` and `settings` are required. `settings` says whether
-the level and ring size can be changed at runtime through
-`PATCH /api/v1/logs/settings`.
+`logs.available` declares the bounded log stream; when true, `levels` and
+`max_buffered_records` are required.
+
+`runtime_settings.available` declares `GET`/`PATCH /api/v1/runtime/settings`;
+when true, `fields` lists which settings the PATCH accepts on this backend.
 
 `dns_log.available` declares the ring of recent client resolutions; when
 true, `max_records` and `max_page_size` are required positive safe integers.

@@ -211,31 +211,33 @@ test("traffic history advertises usable limits and rejects invalid query shapes"
   }
 });
 
-test("log settings stay inside the advertised levels and ring size", () => {
+test("runtime settings stay inside their capability ceilings and advertised fields", () => {
   const capabilities = example("getCapabilities:200:available");
-  const logs = capabilities.body.resources.logs;
-  assert.equal(logs.settings, true);
-  delete logs.settings;
-  assertInvalid(validateExample(contract, capabilities), "settings must be advertised when logs are available");
-  logs.settings = true;
-  const current = example("getLogSettings:200:current");
-  assert.ok(logs.levels.includes(current.body.level));
-  assert.ok(current.body.buffered_records <= logs.max_buffered_records);
-  assertValid(validateExample(contract, current));
-  current.body.buffered_records = 63;
-  assertInvalid(validateExample(contract, current), "the ring cannot be smaller than 64 records");
-  current.body.buffered_records = 4096;
-  current.body.source = "file";
-  assertInvalid(validateExample(contract, current), "source is config or runtime");
-  const patch = example("patchLogSettings:request:debug");
+  const resources = capabilities.body.resources;
+  assert.equal(resources.runtime_settings.available, true);
+  delete resources.runtime_settings.fields;
+  assertInvalid(validateExample(contract, capabilities), "fields must be advertised when available");
+  resources.runtime_settings.fields = ["log.level"];
+  assertValid(validateExample(contract, capabilities));
+  resources.runtime_settings.fields = ["log.colour"];
+  assertInvalid(validateExample(contract, capabilities), "fields come from the enum");
+  const current = example("getRuntimeSettings:200:current").body;
+  assert.ok(resources.logs.levels.includes(current.log.level));
+  assert.ok(current.log.buffered_records <= resources.logs.max_buffered_records);
+  assert.ok(current.dns_log.max_records <= resources.dns_log.max_records);
+  assert.ok(current.flows.max_flows <= resources.flows.max_flows);
+  assert.ok(current.flows.retention_seconds <= resources.flows.retention_seconds);
+  const patch = example("patchRuntimeSettings:request:debug");
   assertValid(validateExample(contract, patch));
   patch.body = {};
-  assertInvalid(validateExample(contract, patch), "an empty patch changes nothing and is rejected");
-  patch.body = {level: "verbose"};
+  assertInvalid(validateExample(contract, patch), "an empty patch is rejected");
+  patch.body = {log: {level: "verbose"}};
   assertInvalid(validateExample(contract, patch), "levels come from the enum");
   patch.body = {source: "runtime"};
   assertInvalid(validateExample(contract, patch), "source is read-only");
-  const rejected = example("patchLogSettings:400:too_many_records");
+  patch.body = {dns_log: {max_records: 63}};
+  assertInvalid(validateExample(contract, patch), "rings keep at least 64 records");
+  const rejected = example("patchRuntimeSettings:400:above_ceiling");
   assert.equal(rejected.body.error.code, "invalid_request");
   assertValid(validateExample(contract, rejected));
 });

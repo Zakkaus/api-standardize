@@ -1,0 +1,208 @@
+paths:
+  /api/v1/runtime/settings:
+    get:
+      operationId: getRuntimeSettings
+      summary: Read the runtime-adjustable settings
+      description: |
+        Requires resources.runtime_settings.available. Reports the values the running
+        engine uses for the things a panel may tune without a reload: the log level and
+        replay ring, the DNS log ring, and flow retention. Ceilings come from the
+        matching capability (logs.max_buffered_records, dns_log.max_records,
+        flows.max_flows, flows.retention_seconds); a value never exceeds its ceiling.
+        source says whether the values still come from the activated configuration
+        or were overridden at runtime.
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        "200":
+          description: Current runtime settings
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/RuntimeSettings
+              examples:
+                current:
+                  value:
+                    observed_at: 2026-08-15T10:00:00Z
+                    source: config
+                    log: { level: info, buffered_records: 4096 }
+                    dns_log: { max_records: 2048 }
+                    flows: { max_flows: 10000, retention_seconds: 300 }
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+    patch:
+      operationId: patchRuntimeSettings
+      summary: Change runtime-adjustable settings without a reload
+      description: |
+        Requires control and resources.runtime_settings.available; only the fields
+        listed in resources.runtime_settings.fields may appear, others return 400
+        invalid_request. The body is a merge: an absent field keeps its value. Every
+        value is checked against its ceiling before anything changes; an unadvertised
+        log level, a ring below 64 records, or a value above the ceiling returns 400
+        and changes nothing. Shrinking a ring drops its oldest records and expires
+        cursors older than the new floor. The change applies immediately and lasts
+        until the process restarts or the next configuration activation resets it; it
+        is not written to the configuration file. Follows the shared idempotency rules.
+      x-permission: control
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - $ref: ./openapi.yaml#/components/parameters/IdempotencyKey
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./openapi.yaml#/components/schemas/RuntimeSettingsPatch
+            examples:
+              debug:
+                value:
+                  log: { level: debug }
+                  dns_log: { max_records: 4096 }
+      responses:
+        "200":
+          description: Settings after the change
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/RuntimeSettings
+              examples:
+                changed:
+                  value:
+                    observed_at: 2026-08-15T10:00:05Z
+                    source: runtime
+                    log: { level: debug, buffered_records: 4096 }
+                    dns_log: { max_records: 4096 }
+                    flows: { max_flows: 10000, retention_seconds: 300 }
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          description: A field outside resources.runtime_settings.fields, an unadvertised level, or a value outside its range
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                above_ceiling:
+                  value:
+                    error:
+                      code: invalid_request
+                      message: dns_log.max_records exceeds the advertised ceiling.
+                    request_id: request-3
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+schemas:
+  RuntimeSettingField:
+    type: string
+    enum: [ log.level, log.buffered_records, dns_log.max_records, flows.max_flows, flows.retention_seconds ]
+  RuntimeSettings:
+    type: object
+    required: [ observed_at, source, log, dns_log, flows ]
+    properties:
+      observed_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      source:
+        type: string
+        enum: [ config, runtime ]
+        description: config while every value comes from the activated configuration; runtime once any PATCH overrode one.
+      log:
+        type: object
+        required: [ level, buffered_records ]
+        properties:
+          level:
+            $ref: ./openapi.yaml#/components/schemas/LogLevel
+            description: The minimum severity the engine emits; the stream's level filter cannot go below it.
+          buffered_records:
+            $ref: ./openapi.yaml#/components/schemas/SafeUInt
+            minimum: 64
+            description: Log replay ring capacity, at most logs.max_buffered_records.
+      dns_log:
+        type: object
+        required: [ max_records ]
+        properties:
+          max_records:
+            $ref: ./openapi.yaml#/components/schemas/SafeUInt
+            minimum: 64
+            description: DNS log ring capacity, at most dns_log.max_records.
+      flows:
+        type: object
+        required: [ max_flows, retention_seconds ]
+        properties:
+          max_flows:
+            $ref: ./openapi.yaml#/components/schemas/SafeUInt
+            minimum: 64
+            description: Retained flows, at most flows.max_flows.
+          retention_seconds:
+            $ref: ./openapi.yaml#/components/schemas/SafeUInt
+            minimum: 1
+            description: How long a terminal flow stays, at most flows.retention_seconds.
+  RuntimeSettingsPatch:
+    type: object
+    additionalProperties: false
+    minProperties: 1
+    properties:
+      log:
+        type: object
+        additionalProperties: false
+        minProperties: 1
+        properties:
+          level:
+            $ref: ./openapi.yaml#/components/schemas/LogLevel
+          buffered_records:
+            $ref: ./openapi.yaml#/components/schemas/SafeUInt
+            minimum: 64
+      dns_log:
+        type: object
+        additionalProperties: false
+        minProperties: 1
+        properties:
+          max_records:
+            $ref: ./openapi.yaml#/components/schemas/SafeUInt
+            minimum: 64
+      flows:
+        type: object
+        additionalProperties: false
+        minProperties: 1
+        properties:
+          max_flows:
+            $ref: ./openapi.yaml#/components/schemas/SafeUInt
+            minimum: 64
+          retention_seconds:
+            $ref: ./openapi.yaml#/components/schemas/SafeUInt
+            minimum: 1
