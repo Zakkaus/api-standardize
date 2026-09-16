@@ -19,8 +19,8 @@ All native API errors use one JSON envelope:
 
 The `ErrorCode` schema in the OpenAPI document enumerates exactly the codes below
 for HTTP error bodies (`ApiError`); adding one is a contract change. Errors embedded
-in resources (`operation.error`, `datapath.errors`, `lifecycle.last_error`) carry an
-adapter-defined code.
+in resources (`operation.error`, `datapath.errors`, `lifecycle.last_error`,
+`provider.last_error`) carry an adapter-defined code.
 
 | Status | Typical code | Meaning |
 |--------|--------------|---------|
@@ -31,8 +31,8 @@ adapter-defined code.
 | 404 | `capability_not_supported` | The running adapter does not expose the resource or action. |
 | 409 | `state_conflict` | Current runtime state prevents the requested transition. |
 | 409 | `idempotency_conflict` | An idempotency key was reused with a different request body. |
-| 409 | `event_cursor_expired` | SSE cursor cannot be replayed; open a fresh stream and resnapshot. |
-| 409 | `snapshot_unavailable` | Routing simulation could not pin a consistent generation. |
+| 409 | `event_cursor_expired` | Event or log SSE cursor cannot be replayed; open a fresh stream and establish a new baseline. |
+| 409 | `snapshot_unavailable` | Routing simulation or the running rule list could not pin a consistent generation. |
 | 410 | `snapshot_expired` | Paginated flow snapshot expired; restart the page walk. |
 | 410 | `flow_expired` | Flow evidence was evicted/expired and a tombstone still exists. |
 | 412 | `stale_revision` | `If-Match` does not match the current resource revision. |
@@ -46,3 +46,9 @@ adapter-defined code.
 Responses with `429` or retryable `503` include `Retry-After`. Errors must not
 contain bearer secrets, proxy credentials, private keys, raw configuration,
 stack traces, local file paths, or unredacted chained engine errors.
+
+Provider refresh returns `409 state_conflict` while another refresh for that
+provider is queued or running, and `503 temporarily_unavailable` with
+`Retry-After` when its queue is full. Provider page cursors use
+`400 invalid_request` when invalidated; the generation-scoped rule list does
+not use `410 snapshot_expired`.

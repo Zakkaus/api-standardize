@@ -6,7 +6,7 @@ title: Capabilities
 
 > Draft endpoint. This is the authoritative coarse-grained feature declaration
 > for the running adapter. Resource responses may further narrow capabilities
-> for an individual node or group.
+> for an individual node or group; provider refresh support may vary by kind.
 
 ## Request
 
@@ -45,6 +45,16 @@ snapshot. `traffic_history.available` declares the bounded traffic ring;
 when true, `max_window_seconds` and `max_points` are required positive safe
 integers. They bound the look-back window and returned sample count, not a
 retention guarantee. Both resources are optional and require `observe`.
+
+`logs` advertises supported `levels` and `max_buffered_records`. Its bounded
+SSE feed carries sanitized log records, separately from invalidation events.
+`providers` advertises `can_refresh` and `max_page_size` (1–1000); refresh
+requires `control` and the operation resource. `rules` advertises `max_rules`,
+including the fallback entry, for a complete running-generation dictionary.
+These three resources require `observe` for reads. When available, each
+resource must include its advertised fields; buffer and rule limits are
+positive safe integers. See [logs](logs.html), [providers](providers.html),
+and [rules](rules.html).
 
 ## Conformance profiles
 

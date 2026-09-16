@@ -29,6 +29,9 @@ paths:
                       runtime: /api/v1/runtime
                       runtime_outbounds: /api/v1/runtime/outbounds
                       traffic_history: /api/v1/runtime/traffic/history
+                      logs: /api/v1/logs
+                      providers: /api/v1/providers
+                      rules: /api/v1/rules
                       operations: /api/v1/operations/{id}
                   x-headers:
                     Content-Type: application/json
@@ -115,6 +118,10 @@ paths:
                         details: [ attachments, maps ]
                       nodes:
                         available: true
+                      providers:
+                        available: true
+                        can_refresh: true
+                        max_page_size: 1000
                       groups:
                         available: true
                         config_patch: true
@@ -155,6 +162,9 @@ paths:
                         timeout_ms: 5000
                         per_principal_requests_per_minute: 30
                         global_requests_per_minute: 120
+                      rules:
+                        available: true
+                        max_rules: 4096
                       events:
                         available: true
                         kinds: [ stream.ready, runtime.updated, flow.updated, flow.gap, operation.updated, generation.changed ]
@@ -162,6 +172,10 @@ paths:
                         max_buffered_events: 4096
                         max_clients: 16
                         heartbeat_seconds: 15
+                      logs:
+                        available: true
+                        levels: [ trace, debug, info, warn, error ]
+                        max_buffered_records: 4096
                       dns_query:
                         available: true
                         record_types: [ A, AAAA, HTTPS ]
@@ -210,7 +224,7 @@ schemas:
         const: /api/v1
       links:
         type: object
-        required: [ version, capabilities, runtime, runtime_outbounds, traffic_history, operations ]
+        required: [ version, capabilities, runtime, runtime_outbounds, traffic_history, logs, providers, rules, operations ]
         properties:
           version:
             type: string
@@ -227,6 +241,15 @@ schemas:
           traffic_history:
             type: string
             const: /api/v1/runtime/traffic/history
+          logs:
+            type: string
+            const: /api/v1/logs
+          providers:
+            type: string
+            const: /api/v1/providers
+          rules:
+            type: string
+            const: /api/v1/rules
           operations:
             type: string
             const: /api/v1/operations/{id}
@@ -302,7 +325,7 @@ schemas:
             minimum: 1
       resources:
         type: object
-        required: [ runtime, runtime_memory, runtime_outbounds, traffic_history, datapath, nodes, groups, probes, connections, flows, routing_trace, events, dns_query, dns_cache, operations, reload, suspend, resume ]
+        required: [ runtime, runtime_memory, runtime_outbounds, traffic_history, datapath, nodes, providers, groups, probes, connections, flows, routing_trace, rules, events, logs, dns_query, dns_cache, operations, reload, suspend, resume ]
         properties:
           runtime:
             $ref: ./openapi.yaml#/components/schemas/AvailableResource
@@ -371,6 +394,25 @@ schemas:
                   enum: [ attachments, maps ]
           nodes:
             $ref: ./openapi.yaml#/components/schemas/AvailableResource
+          providers:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ can_refresh, max_page_size ]
+            properties:
+              available:
+                type: boolean
+              can_refresh:
+                type: boolean
+                description: Refresh is implemented; individual provider kinds may still be unsupported. Requires operations.available.
+              max_page_size:
+                $ref: ./openapi.yaml#/components/schemas/SafeUInt
+                minimum: 1
+                maximum: 1000
           groups:
             type: object
             required: [ available ]
@@ -502,6 +544,22 @@ schemas:
               global_requests_per_minute:
                 type: integer
                 minimum: 1
+          rules:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ max_rules ]
+            properties:
+              available:
+                type: boolean
+              max_rules:
+                $ref: ./openapi.yaml#/components/schemas/SafeUInt
+                minimum: 1
+                description: Maximum complete rule dictionary size, including the fallback entry; never a truncation limit.
           events:
             type: object
             required: [ available ]
@@ -532,6 +590,28 @@ schemas:
                 type: integer
                 minimum: 1
                 maximum: 15
+          logs:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ levels, max_buffered_records ]
+            properties:
+              available:
+                type: boolean
+              levels:
+                type: array
+                minItems: 1
+                uniqueItems: true
+                items:
+                  $ref: ./openapi.yaml#/components/schemas/LogLevel
+              max_buffered_records:
+                $ref: ./openapi.yaml#/components/schemas/SafeUInt
+                minimum: 1
+                description: Bounded replay buffer capacity, not a durable retention guarantee.
           dns_query:
             type: object
             required: [ available ]

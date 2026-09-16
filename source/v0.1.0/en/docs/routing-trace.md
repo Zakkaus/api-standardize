@@ -49,6 +49,10 @@ through AND/OR/negation; a missing input irrelevant to a proven decision need
 not make the result indeterminate. Do not convert `indeterminate` to a miss
 and continue as though every input were known.
 
+[GET /rules](rules.html) uses these same `rule_id` values for the same
+`generation_id`, including fallback. It lists the running dictionary without
+evaluating inputs; do not join a trace to a different generation's dictionary.
+
 `dns` contains the same data objects as recorded `dns` steps, with
 `purpose: dial_target`; their lookup IDs are simulation-only and never link
 this request to a live flow. A `200` response can contain DNS errors or
@@ -65,7 +69,7 @@ node, reroute, connection success, or actual kernel short-circuit path.
 Capabilities under `routing_trace` advertise `resolve_modes`, `max_addresses`,
 `max_rule_steps`, `timeout_ms`, and per-principal/global requests per minute.
 Enforce limits before fan-out, stop at the common deadline, and reject a
-result exceeding address/rule bounds with `413 trace_limit_exceeded` instead
+result exceeding address/rule bounds with `413 request_too_large` instead
 of truncating into a determinate answer. Timeout returns `503` with
 `Retry-After`; rate excess returns `429`. Incompatible input/resolve mode or
 unadvertised modes return `422 unsupported_value`.

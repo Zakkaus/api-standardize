@@ -1,0 +1,328 @@
+paths:
+  /api/v1/providers:
+    get:
+      operationId: listProviders
+      summary: List provider metadata without credentials
+      description: |
+        Read current subscription, file and inline provider metadata; never fetch a
+        subscription while serving a GET. Use the shared snapshot cursor semantics.
+        The effective default limit is min(100, resources.providers.max_page_size).
+        A limit above the advertised maximum returns 400 invalid_request, as does an
+        unknown, expired or invalidated cursor. Restart the page walk without it.
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - $ref: ./openapi.yaml#/components/parameters/Limit1000
+        - $ref: ./openapi.yaml#/components/parameters/Cursor
+      responses:
+        "200":
+          description: Provider page
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ProviderList
+              examples:
+                providers:
+                  value:
+                    providers:
+                      - id: provider-a
+                        name: provider-a
+                        kind: subscription
+                        url_redacted: https://subscriptions.example.com/[redacted]
+                        node_count: 1
+                        updated_at: 2026-08-15T10:00:00Z
+                        expires_at: 2026-10-01T00:00:00Z
+                        traffic:
+                          upload_bytes: "1048576"
+                          download_bytes: "2097152"
+                          total_bytes: "107374182400"
+                        status: ok
+                        last_error: null
+                    next_cursor: null
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+  /api/v1/providers/{id}:
+    parameters:
+      - $ref: ./openapi.yaml#/components/parameters/ProviderId
+    get:
+      operationId: getProvider
+      summary: Read one provider's current metadata
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        "200":
+          description: Provider metadata; reading does not refresh it
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/Provider
+              examples:
+                subscription:
+                  value:
+                    id: provider-a
+                    name: provider-a
+                    kind: subscription
+                    url_redacted: https://subscriptions.example.com/[redacted]
+                    node_count: 1
+                    updated_at: 2026-08-15T10:00:00Z
+                    expires_at: 2026-10-01T00:00:00Z
+                    traffic:
+                      upload_bytes: "1048576"
+                      download_bytes: "2097152"
+                      total_bytes: "107374182400"
+                    status: ok
+                    last_error: null
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+  /api/v1/providers/{id}/refresh:
+    parameters:
+      - $ref: ./openapi.yaml#/components/parameters/ProviderId
+    post:
+      operationId: refreshProvider
+      summary: Queue a provider refresh
+      description: |
+        Requires resources.providers.can_refresh. This action takes no request body
+        and never changes the provider's configured source. Unsupported provider kinds
+        or refresh actions return 404 capability_not_supported. Follow the shared
+        operation ownership, retention and idempotency rules. Replaying an accepted
+        Idempotency-Key returns its original operation before checking for an in-flight
+        refresh; a distinct refresh for the same provider returns 409 state_conflict.
+        A full bounded queue returns 503 temporarily_unavailable with Retry-After.
+        A successful provider_refresh operation returns the refreshed Provider in result;
+        failure uses SafeError and leaves the last successfully loaded nodes intact.
+      x-permission: control
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - $ref: ./openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        "202":
+          description: Provider refresh accepted
+          headers:
+            Location:
+              description: Operation status URL; equal to body href.
+              required: true
+              schema:
+                type: string
+                pattern: ^/api/v1/operations/[^/]+$
+            Retry-After:
+              description: Positive polling floor in seconds.
+              required: true
+              schema:
+                type: integer
+                minimum: 1
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ProviderRefreshAccepted
+              examples:
+                queued:
+                  value:
+                    operation_id: op-provider-a
+                    kind: provider_refresh
+                    status: queued
+                    href: /api/v1/operations/op-provider-a
+                  x-headers:
+                    Content-Type: application/json
+                    Location: /api/v1/operations/op-provider-a
+                    Retry-After: 1
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "409":
+          description: Another refresh for this provider is queued or running, or an idempotency key conflicts
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                in_flight:
+                  value:
+                    error:
+                      code: state_conflict
+                      message: A refresh for this provider is already queued or running.
+                      details: null
+                    request_id: request-01HZX4K8W6
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+                idempotency_conflict:
+                  value:
+                    error:
+                      code: idempotency_conflict
+                      message: The idempotency key was used with a different request.
+                      details: null
+                    request_id: request-01HZX4K8W6
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "429":
+          $ref: ./openapi.yaml#/components/responses/RateLimited
+        "503":
+          description: Provider refresh queue is full
+          headers:
+            Retry-After:
+              description: Retry delay in seconds.
+              required: true
+              schema:
+                type: integer
+                minimum: 1
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                queue_full:
+                  value:
+                    error:
+                      code: temporarily_unavailable
+                      message: The provider refresh queue is full.
+                      details: null
+                    request_id: request-01HZX4K8W6
+                  x-headers:
+                    Content-Type: application/json
+                    Retry-After: 1
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+schemas:
+  Provider:
+    type: object
+    required: [ id, name, kind, url_redacted, node_count, updated_at, expires_at, traffic, status, last_error ]
+    properties:
+      id:
+        type: string
+        minLength: 1
+        description: Opaque provider identity, shared with Node.provider_id; not a URL or display name.
+      name:
+        type: string
+        minLength: 1
+      kind:
+        type: string
+        enum: [ subscription, file, inline ]
+      url_redacted:
+        type: [ string, "null" ]
+        minLength: 1
+        description: Display-only source URL with userinfo, query, fragment and secret-bearing path segments removed or redacted. Null for file/inline sources or when safe display is impossible. Never a fetchable credential source.
+      node_count:
+        $ref: ./openapi.yaml#/components/schemas/SafeUInt
+      updated_at:
+        $ref: ./openapi.yaml#/components/schemas/NullableTimestamp
+        description: Last successful load or refresh, or null if unknown or never loaded.
+      expires_at:
+        $ref: ./openapi.yaml#/components/schemas/NullableTimestamp
+        description: Provider-reported expiry, or null when unavailable.
+      traffic:
+        oneOf:
+          - type: "null"
+          - $ref: ./openapi.yaml#/components/schemas/ProviderTraffic
+      status:
+        type: string
+        enum: [ ok, stale, error ]
+        description: ok has usable current data; stale retains older usable data; error has no usable data after a failure.
+      last_error:
+        oneOf:
+          - type: "null"
+          - $ref: ./openapi.yaml#/components/schemas/SafeError
+    description: Safe metadata only. Names, URLs and last_error must not contain secrets, raw configuration or unredacted local paths.
+  ProviderTraffic:
+    type: object
+    required: [ upload_bytes, download_bytes, total_bytes ]
+    properties:
+      upload_bytes:
+        $ref: ./openapi.yaml#/components/schemas/NullableUInt64
+      download_bytes:
+        $ref: ./openapi.yaml#/components/schemas/NullableUInt64
+      total_bytes:
+        $ref: ./openapi.yaml#/components/schemas/NullableUInt64
+        description: Provider-reported total traffic allowance, not upload plus download. Null if unknown or unlimited.
+    description: Provider-reported usage, not runtime counters. Each unavailable quantity is null; traffic itself may be null when no usage metadata exists.
+  ProviderList:
+    type: object
+    required: [ providers, next_cursor ]
+    properties:
+      providers:
+        type: array
+        items:
+          $ref: ./openapi.yaml#/components/schemas/Provider
+      next_cursor:
+        type: [ string, "null" ]
+        minLength: 1
+  ProviderRefreshAccepted:
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/OperationAccepted
+      - type: object
+        properties:
+          kind:
+            const: provider_refresh
+  ProviderRefreshSucceededOperation:
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/OperationCommon
+      - type: object
+        properties:
+          kind:
+            const: provider_refresh
+          status:
+            const: succeeded
+          finished_at:
+            $ref: ./openapi.yaml#/components/schemas/Timestamp
+          result:
+            $ref: ./openapi.yaml#/components/schemas/Provider
+          error:
+            type: "null"

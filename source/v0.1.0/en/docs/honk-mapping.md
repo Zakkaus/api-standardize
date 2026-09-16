@@ -26,7 +26,7 @@ must not be advertised as a shared dae guarantee.
 | JSON versus GraphQL | Keep native HTTP JSON, HTTP status/preconditions and operation envelopes. No second query language. |
 | Separate panel, embedded deployment | Keep API independent of asset packaging. An embedded/static UI and LuCI can share it; preserve Clash compatibility rather than replace it. No UI repository/build pipeline is added here. |
 | Machine-readable contract | Resource-owned OpenAPI sources publish one generated bundle; native named examples also render the documentation snippets. Standard schema/example validation and focused header, framing and flow-invariant tests replace reverse-parsing Markdown; semantic narrative remains hand-authored. |
-| Streaming | One bounded SSE feed with resume, authorization, loss and resnapshot rules. Flow details remain GET resources, not duplicated into every event. |
+| Streaming | Bounded invalidation SSE with resume, authorization, loss and resnapshot rules. Flow details remain GET resources, not duplicated into every event; engine logs use a separate feed. |
 | Version path | `/api/v1` for resources, `/api` for discovery; document revision and engine version are independent. No unversioned resource aliases. |
 | Raw config and validation | Correct the claim about current `/configs`; defer native editing/readback until source ownership, credential privilege, includes and revision semantics are designed. Do not expose raw secrets under `observe`. |
 | Probe overlap | One `/probes` resource, explicit `tcp_connect`/`http`/`dns` semantics and health dimensions; `/nodes` is read-only. |
@@ -35,6 +35,9 @@ must not be advertised as a shared dae guarantee.
 | Connection/flow list columns | Denormalise the application chain, rule ID/expression, ingress and domain provenance onto both summaries. Current handoff/tracking omits deciding-rule context; producers must retain selection IDs and label evaluation, reconstruction and recomputation honestly. |
 | Per-outbound usage | Add `/runtime/outbounds`, mirroring the current Clash `/stats` counters. Producers must retain outbound kind and a shared reset timestamp, and serialize full-width counters without the current snapshot's uint32 narrowing. |
 | Traffic history | Add `/runtime/traffic/history` with advertised window/point ceilings. Current Clash traffic streaming supplies live rate deltas, not timestamped queryable history; producers must sample into a bounded ring independently of subscribers and preserve gaps/reset boundaries. |
+| Engine logs | Add read-only `/logs` SSE with typed, sanitized records, minimum-level/module-prefix filters and bounded cursor replay. Logs are not recorded-flow evidence; redact before buffering rather than forwarding raw engine output. |
+| Providers | Add paginated provider metadata, optional `Node.provider_id`, and a control-only refresh operation. Preserve native subscription/file/inline provenance, redact source URLs, and keep provider usage separate from runtime counters. These rows define the proposed contract, not verified current endpoints. |
+| Running rules | Add a read-only generation-scoped dictionary with the same rule IDs as routing simulation and flow summaries. Retain fallback identity, redact source paths, and refetch on generation publication; no rule-editing or raw-config endpoint. |
 
 ## What the current code actually retains
 

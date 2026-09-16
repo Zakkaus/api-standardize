@@ -4,8 +4,8 @@ title: Operations
 
 # GET /api/v1/operations/{id}
 
-> Draft endpoint. Reload, suspend, resume, probes, and asynchronous group
-> updates use one operation envelope.
+> Draft endpoint. Reload, suspend, resume, probes, asynchronous group updates,
+> and provider refreshes use one operation envelope.
 
 An operation ID is opaque, unguessable, and unique for the lifetime of the
 running adapter. Clients must not derive its kind or creation time from the ID.
@@ -40,7 +40,7 @@ too soon may return `429` with a fresh `Retry-After`.
 | Field | Type | Description |
 |-------|------|-------------|
 | operation_id | string | Opaque operation identifier. |
-| kind | string | `probe`, `reload`, `suspend`, `resume`, or `group_update`. |
+| kind | string | `probe`, `reload`, `suspend`, `resume`, `group_update`, or `provider_refresh`. |
 | status | string | `queued`, `running`, `succeeded`, or `failed`. |
 | created_at | string | Creation timestamp (RFC3339). |
 | started_at | string or null | Execution start timestamp. |
@@ -53,18 +53,22 @@ A successful `group_update` result contains `group_id` and the applied
 The operation's revision records that mutation's result even if another
 update has already advanced the live resource.
 
+A successful `provider_refresh` result is the refreshed
+[Provider](providers.html). Refetch the provider and node list for current
+state; the operation retains the result of that refresh.
+
 `error` uses the same `code`, `message`, and optional `details` object defined
 by the [native error contract](errors.html). Raw engine errors, stack traces,
 configuration fragments, credentials, and local paths must not be returned.
 
 Completed operations remain queryable for at least the
 `resources.operations.retention_seconds` value advertised by
-`GET /api/v1/capabilities`. Unknown or expired IDs return `404 operation_not_found`.
+`GET /api/v1/capabilities`. Unknown or expired IDs return `404 resource_not_found`.
 Cancellation is not part of the current draft.
 
 Operation status is visible to the principal that created it and to callers
 with `control`; unknown, expired, or unauthorized IDs all return
-`404 operation_not_found` to avoid leaking existence.
+`404 resource_not_found` to avoid leaking existence.
 
 Operation-start endpoints accept an optional `Idempotency-Key` header. During
 the advertised operation retention window, the key is scoped to the caller,
