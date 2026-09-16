@@ -347,6 +347,106 @@ paths:
           $ref: ./openapi.yaml#/components/responses/UnsupportedMediaType
         "503":
           $ref: ./openapi.yaml#/components/responses/Unavailable
+  /api/v1/dns/log:
+    get:
+      operationId: listDnsLog
+      summary: Read the bounded ring of recent resolutions
+      description: |
+        Requires resources.dns_log.available. The engine records every resolution it
+        performs for clients (not the diagnostic /dns/query calls) into a ring of at
+        most resources.dns_log.max_records; newest first, not durable, cleared on
+        restart. A record is one question and its outcome: which client asked, which
+        upstream answered or whether the cache did, the answers, the routing decision
+        and how long it took. Filters narrow by name (case-insensitive substring),
+        record type and client source IP. limit above max_page_size returns 400.
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - name: name
+          in: query
+          description: Case-insensitive substring of the question name.
+          schema:
+            type: string
+            minLength: 1
+          example: telegram
+        - name: type
+          in: query
+          schema:
+            $ref: ./openapi.yaml#/components/schemas/DnsRecordType
+          example: A
+        - name: src
+          in: query
+          description: Client source IP literal, IPv4 or IPv6.
+          schema:
+            type: string
+            minLength: 1
+          example: 10.0.0.12
+        - name: limit
+          in: query
+          schema:
+            $ref: ./openapi.yaml#/components/schemas/SafeUInt
+            minimum: 1
+          example: 200
+        - name: cursor
+          in: query
+          description: Opaque cursor from a previous page; older records follow it.
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Recent resolutions, newest first
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/DnsLogList
+              examples:
+                recent:
+                  value:
+                    observed_at: 2026-08-15T10:00:00Z
+                    total: 2
+                    next_cursor: null
+                    records:
+                      - id: dl-000002
+                        observed_at: 2026-08-15T09:59:59Z
+                        src: 10.0.0.12:53211
+                        question: { name: api.telegram.org., type: A }
+                        status: NOERROR
+                        cached: false
+                        upstream: tls://1.1.1.1
+                        route: { source: dns.routing, rule: "qname(geosite: telegram) -> proxy" }
+                        elapsed_ms: 38
+                        answers:
+                          - { name: api.telegram.org., type: A, class: IN, ttl: 240, data: 149.154.167.220 }
+                      - id: dl-000001
+                        observed_at: 2026-08-15T09:59:58Z
+                        src: "[2001:db8::12]:53210"
+                        question: { name: cdn.bilibili.com., type: AAAA }
+                        status: NOERROR
+                        cached: true
+                        upstream: null
+                        route: { source: default, rule: null }
+                        elapsed_ms: 0
+                        answers: []
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
 schemas:
   DnsQueryLimits:
     type: object
@@ -503,6 +603,55 @@ schemas:
         $ref: ./openapi.yaml#/components/schemas/SafeUInt
       next_cursor:
         type: [ string, "null" ]
+  DnsLogRecord:
+    type: object
+    required: [ id, observed_at, src, question, status, cached, upstream, route, elapsed_ms, answers ]
+    properties:
+      id:
+        type: string
+        minLength: 1
+        description: Opaque, unique within the running instance; the cursor is derived from it.
+      observed_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      src:
+        type: [ string, "null" ]
+        description: Client socket address, IPv6 in brackets; null when the resolver itself asked.
+      question:
+        $ref: ./openapi.yaml#/components/schemas/DnsQuestion
+      status:
+        type: string
+        minLength: 1
+        description: RCODE name such as NOERROR or NXDOMAIN, or an engine outcome such as TIMEOUT.
+      cached:
+        type: boolean
+      upstream:
+        type: [ string, "null" ]
+        description: The upstream that answered, null on a cache hit or failure before sending.
+      route:
+        $ref: ./openapi.yaml#/components/schemas/DnsRoute
+      elapsed_ms:
+        type: integer
+        minimum: 0
+        maximum: 9007199254740991
+      answers:
+        type: array
+        items:
+          $ref: ./openapi.yaml#/components/schemas/DnsAnswer
+  DnsLogList:
+    type: object
+    required: [ observed_at, total, next_cursor, records ]
+    properties:
+      observed_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      total:
+        $ref: ./openapi.yaml#/components/schemas/SafeUInt
+        description: Records in the ring at observed_at, before filters.
+      next_cursor:
+        type: [ string, "null" ]
+      records:
+        type: array
+        items:
+          $ref: ./openapi.yaml#/components/schemas/DnsLogRecord
   DeleteCount:
     type: object
     required: [ deleted ]

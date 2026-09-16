@@ -193,6 +193,10 @@ paths:
                         delete_name: true
                         flush: true
                         entry_kinds: [ positive, negative ]
+                      dns_log:
+                        available: true
+                        max_records: 2048
+                        max_page_size: 500
                       operations:
                         available: true
                         retention_seconds: 300
@@ -326,7 +330,7 @@ schemas:
             minimum: 1
       resources:
         type: object
-        required: [ runtime, runtime_memory, runtime_outbounds, traffic_history, datapath, nodes, providers, groups, probes, connections, flows, routing_trace, rules, events, logs, dns_query, dns_cache, operations, reload, suspend, resume ]
+        required: [ runtime, runtime_memory, runtime_outbounds, traffic_history, datapath, nodes, providers, groups, probes, connections, flows, routing_trace, rules, events, logs, dns_query, dns_cache, dns_log, operations, reload, suspend, resume ]
         properties:
           runtime:
             $ref: ./openapi.yaml#/components/schemas/AvailableResource
@@ -661,6 +665,25 @@ schemas:
                 items:
                   type: string
                   enum: [ positive, negative ]
+          dns_log:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ max_records, max_page_size ]
+            properties:
+              available:
+                type: boolean
+              max_records:
+                $ref: ./openapi.yaml#/components/schemas/SafeUInt
+                minimum: 1
+                description: Ring capacity in records; not a retention guarantee.
+              max_page_size:
+                $ref: ./openapi.yaml#/components/schemas/SafeUInt
+                minimum: 1
           operations:
             type: object
             required: [ available ]

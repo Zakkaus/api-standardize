@@ -93,3 +93,6 @@ curl http://localhost:9527/api/v1/capabilities
 `max_buffered_records` and `settings` are required. `settings` says whether
 the level and ring size can be changed at runtime through
 `PATCH /api/v1/logs/settings`.
+
+`dns_log.available` declares the ring of recent client resolutions; when
+true, `max_records` and `max_page_size` are required positive safe integers.

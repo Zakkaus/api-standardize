@@ -240,6 +240,30 @@ test("log settings stay inside the advertised levels and ring size", () => {
   assertValid(validateExample(contract, rejected));
 });
 
+test("DNS log records keep client evidence and page inside the advertised size", () => {
+  const capabilities = example("getCapabilities:200:available");
+  const log = capabilities.body.resources.dns_log;
+  assert.equal(log.available, true);
+  for (const field of ["max_records", "max_page_size"]) {
+    const value = log[field];
+    delete log[field];
+    assertInvalid(validateExample(contract, capabilities), `${field} must be advertised when available`);
+    log[field] = value;
+  }
+  const page = example("listDnsLog:200:recent");
+  assertValid(validateExample(contract, page));
+  assert.ok(page.body.records.length <= log.max_page_size);
+  const [live, cached] = page.body.records;
+  assert.equal(cached.cached, true);
+  assert.equal(cached.upstream, null);
+  assert.match(cached.src, /^\[[0-9a-f:]+\]:\d+$/);
+  assert.ok(live.answers.length > 0);
+  live.src = null;
+  assertValid(validateExample(contract, page));
+  delete live.route;
+  assertInvalid(validateExample(contract, page), "the routing decision is part of the record");
+});
+
 test("examples remain bound to their operation schema", () => {
   const changed = structuredClone(spec);
   changed.paths["/api/v1/flows/{flow_id}"].get.responses["200"].content[
