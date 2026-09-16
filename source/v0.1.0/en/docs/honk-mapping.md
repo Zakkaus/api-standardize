@@ -41,7 +41,7 @@ must not be advertised as a shared dae guarantee.
 =======
 | Engine logs | Add read-only `/logs` SSE with typed, sanitized records, minimum-level/module-prefix filters and bounded cursor replay. Logs are not recorded-flow evidence; redact before buffering rather than forwarding raw engine output. |
 | DNS log | `GET /dns/log`: record each client resolution (question, source, upstream or cache, answers, routing decision, elapsed) into a bounded ring in the DNS layer; filters and cursor paging over the ring. |
-| Log settings | `GET`/`PATCH /logs/settings`: expose the tracing filter's current level and the ring capacity; a PATCH reloads the filter handle and resizes the ring at runtime without writing the configuration file. |
+| Runtime settings | `GET`/`PATCH /runtime/settings`: one place for the tracing filter level, the log and DNS log ring capacities and flow retention; a PATCH reloads the filter handle and resizes the rings at runtime without writing the configuration file. Ceilings are the capability values. |
 | Providers | Add paginated provider metadata, optional `Node.provider_id`, and a control-only refresh operation. Preserve native subscription/file/inline provenance, redact source URLs, and keep provider usage separate from runtime counters. These rows define the proposed contract, not verified current endpoints. |
 | Running rules | Add a read-only generation-scoped dictionary with the same rule IDs as routing simulation and flow summaries. Retain fallback identity, redact source paths, and refetch on generation publication; no rule-editing or raw-config endpoint. |
 >>>>>>> observability-endpoints

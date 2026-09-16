@@ -183,7 +183,6 @@ paths:
                         available: true
                         levels: [ trace, debug, info, warn, error ]
                         max_buffered_records: 4096
-                        settings: true
                       dns_query:
                         available: true
                         record_types: [ A, AAAA, HTTPS ]
@@ -204,6 +203,9 @@ paths:
                         available: true
                         max_records: 2048
                         max_page_size: 500
+                      runtime_settings:
+                        available: true
+                        fields: [ log.level, log.buffered_records, dns_log.max_records, flows.max_flows, flows.retention_seconds ]
                       operations:
                         available: true
                         retention_seconds: 300
@@ -340,7 +342,7 @@ schemas:
             minimum: 1
       resources:
         type: object
-        required: [ runtime, runtime_memory, runtime_outbounds, traffic_history, memory_history, datapath, nodes, providers, groups, probes, connections, flows, routing_trace, rules, events, logs, dns_query, dns_cache, dns_log, operations, reload, suspend, resume ]
+        required: [ runtime, runtime_memory, runtime_outbounds, traffic_history, memory_history, datapath, nodes, providers, groups, probes, connections, flows, routing_trace, rules, events, logs, dns_query, dns_cache, dns_log, runtime_settings, operations, reload, suspend, resume ]
         properties:
           runtime:
             $ref: ./openapi.yaml#/components/schemas/AvailableResource
@@ -650,13 +652,10 @@ schemas:
                 available:
                   const: true
             then:
-              required: [ levels, max_buffered_records, settings ]
+              required: [ levels, max_buffered_records ]
             properties:
               available:
                 type: boolean
-              settings:
-                type: boolean
-                description: Whether PATCH /logs/settings can change the level and ring size at runtime; false makes it return 404 capability_not_supported.
               levels:
                 type: array
                 minItems: 1
@@ -731,6 +730,24 @@ schemas:
               max_page_size:
                 $ref: ./openapi.yaml#/components/schemas/SafeUInt
                 minimum: 1
+          runtime_settings:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ fields ]
+            properties:
+              available:
+                type: boolean
+              fields:
+                type: array
+                uniqueItems: true
+                description: The settings PATCH /runtime/settings accepts on this backend; others return 400.
+                items:
+                  $ref: ./openapi.yaml#/components/schemas/RuntimeSettingField
           operations:
             type: object
             required: [ available ]

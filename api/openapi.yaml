@@ -62,8 +62,8 @@ paths:
     $ref: ./events.yaml#/paths/~1api~1v1~1events
   /api/v1/logs:
     $ref: ./logs.yaml#/paths/~1api~1v1~1logs
-  /api/v1/logs/settings:
-    $ref: ./logs.yaml#/paths/~1api~1v1~1logs~1settings
+  /api/v1/runtime/settings:
+    $ref: ./settings.yaml#/paths/~1api~1v1~1runtime~1settings
   /api/v1/dns/query:
     $ref: ./dns.yaml#/paths/~1api~1v1~1dns~1query
   /api/v1/dns/log:
@@ -492,10 +492,12 @@ components:
       $ref: ./logs.yaml#/schemas/LogLevel
     LogRecord:
       $ref: ./logs.yaml#/schemas/LogRecord
-    LogSettings:
-      $ref: ./logs.yaml#/schemas/LogSettings
-    LogSettingsPatch:
-      $ref: ./logs.yaml#/schemas/LogSettingsPatch
+    RuntimeSettingField:
+      $ref: ./settings.yaml#/schemas/RuntimeSettingField
+    RuntimeSettings:
+      $ref: ./settings.yaml#/schemas/RuntimeSettings
+    RuntimeSettingsPatch:
+      $ref: ./settings.yaml#/schemas/RuntimeSettingsPatch
     StreamReadyEvent:
       $ref: ./events.yaml#/schemas/StreamReadyEvent
     RuntimeUpdatedEvent:
