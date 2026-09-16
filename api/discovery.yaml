@@ -176,6 +176,7 @@ paths:
                         available: true
                         levels: [ trace, debug, info, warn, error ]
                         max_buffered_records: 4096
+                        settings: true
                       dns_query:
                         available: true
                         record_types: [ A, AAAA, HTTPS ]
@@ -598,10 +599,13 @@ schemas:
                 available:
                   const: true
             then:
-              required: [ levels, max_buffered_records ]
+              required: [ levels, max_buffered_records, settings ]
             properties:
               available:
                 type: boolean
+              settings:
+                type: boolean
+                description: Whether PATCH /logs/settings can change the level and ring size at runtime; false makes it return 404 capability_not_supported.
               levels:
                 type: array
                 minItems: 1

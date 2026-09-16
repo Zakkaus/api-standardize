@@ -224,6 +224,7 @@ paths:
                           - warn
                           - error
                         max_buffered_records: 4096
+                        settings: true
                       dns_query:
                         available: true
                         record_types:
@@ -2346,6 +2347,127 @@ paths:
           $ref: '#/components/responses/RateLimited'
         '503':
           $ref: '#/components/responses/Unavailable'
+  /api/v1/logs/settings:
+    get:
+      operationId: getLogSettings
+      summary: Read the engine's log level and replay buffer size
+      description: |
+        Requires resources.logs.available. Reports the level the engine currently
+        emits at and how many records the replay ring keeps. Values are the running
+        state, which may differ from the configuration file after a PATCH.
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        '200':
+          description: Current log settings
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/NoStore'
+            X-Content-Type-Options:
+              $ref: '#/components/headers/NoSniff'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogSettings'
+              examples:
+                current:
+                  value:
+                    observed_at: '2026-08-15T10:00:00Z'
+                    level: info
+                    buffered_records: 4096
+                    source: config
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      operationId: patchLogSettings
+      summary: Change the log level or replay buffer size at runtime
+      description: |
+        Requires control, resources.logs.available and resources.logs.settings.
+        The change applies to the running engine immediately, without a reload, and
+        lasts until the process restarts or the next configuration activation resets
+        it; it is not written back to the configuration file. Both fields are
+        optional; an absent field keeps its value. level must be an advertised level.
+        buffered_records must lie in [64, resources.logs.max_buffered_records];
+        shrinking the ring drops the oldest records and cursors older than the new
+        floor expire. Out-of-range or unadvertised values return 400 invalid_request
+        and change nothing. Follows the shared idempotency rules.
+      x-permission: control
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogSettingsPatch'
+            examples:
+              debug:
+                value:
+                  level: debug
+      responses:
+        '200':
+          description: Settings after the change
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/NoStore'
+            X-Content-Type-Options:
+              $ref: '#/components/headers/NoSniff'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogSettings'
+              examples:
+                changed:
+                  value:
+                    observed_at: '2026-08-15T10:00:05Z'
+                    level: debug
+                    buffered_records: 4096
+                    source: runtime
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        '400':
+          description: Unadvertised level or buffered_records outside the advertised range
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/NoStore'
+            X-Content-Type-Options:
+              $ref: '#/components/headers/NoSniff'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                too_many_records:
+                  value:
+                    error:
+                      code: invalid_request
+                      message: buffered_records exceeds the advertised limit.
+                    request_id: request-3
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v1/dns/query:
     get:
       operationId: queryDns
@@ -4011,9 +4133,13 @@ components:
                 required:
                   - levels
                   - max_buffered_records
+                  - settings
               properties:
                 available:
                   type: boolean
+                settings:
+                  type: boolean
+                  description: Whether PATCH /logs/settings can change the level and ring size at runtime; false makes it return 404 capability_not_supported.
                 levels:
                   type: array
                   minItems: 1
@@ -7910,6 +8036,39 @@ components:
             - 'null'
           additionalProperties: true
           description: Sanitized structured fields, or null when unavailable; the message safety rules apply recursively.
+    LogSettings:
+      type: object
+      required:
+        - observed_at
+        - level
+        - buffered_records
+        - source
+      properties:
+        observed_at:
+          $ref: '#/components/schemas/Timestamp'
+        level:
+          $ref: '#/components/schemas/LogLevel'
+          description: The minimum severity the engine emits; the stream's level filter cannot go below it.
+        buffered_records:
+          $ref: '#/components/schemas/SafeUInt'
+          minimum: 64
+          description: Replay ring capacity in records, at most resources.logs.max_buffered_records.
+        source:
+          type: string
+          enum:
+            - config
+            - runtime
+          description: config while the values come from the activated configuration; runtime after a PATCH overrode them.
+    LogSettingsPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        level:
+          $ref: '#/components/schemas/LogLevel'
+        buffered_records:
+          $ref: '#/components/schemas/SafeUInt'
+          minimum: 64
     StreamReadyEvent:
       type: object
       required:

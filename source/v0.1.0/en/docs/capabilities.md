@@ -88,3 +88,8 @@ Clash connection list, log parser, or map snapshot cannot satisfy it.
 ```bash
 curl http://localhost:9527/api/v1/capabilities
 ```
+
+`logs.available` declares the bounded log stream; when true, `levels`,
+`max_buffered_records` and `settings` are required. `settings` says whether
+the level and ring size can be changed at runtime through
+`PATCH /api/v1/logs/settings`.
