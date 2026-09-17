@@ -26,6 +26,7 @@ The group API has four separate responsibilities:
 |-------|------|-------------|
 | id | string | Opaque stable group identifier. Do not derive API identity from `name`. |
 | name | string | Engine-visible group name. |
+| icon | string or null | Icon the configuration names for the group (absolute http(s) URL or data URI), shown beside the name. `null` when none is configured; a client may keep its own local override. |
 | config_revision | string | Revision used for optimistic configuration updates. |
 | policy.kind | string | Canonical behavior: `selector`, `urltest`, `loadbalance`, `fallback`, `random`, or `score`. |
 | policy.native | string | Effective engine policy, not a configuration alias that the runtime implements differently. |
