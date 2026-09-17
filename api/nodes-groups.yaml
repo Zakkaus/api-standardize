@@ -89,6 +89,7 @@ paths:
                   value:
                     - id: group-proxy
                       name: proxy
+                      icon: https://icons.example/proxy.png
                       config_revision: "17"
                       policy:
                         kind: urltest
@@ -136,6 +137,7 @@ paths:
                   value:
                     id: group-proxy
                     name: proxy
+                    icon: https://icons.example/proxy.png
                     config_revision: "17"
                     policy:
                       kind: urltest
@@ -664,7 +666,7 @@ schemas:
           $ref: ./openapi.yaml#/components/schemas/Transport
   Group:
     type: object
-    required: [ id, name, config_revision, policy, members, config, runtime, capabilities ]
+    required: [ id, name, icon, config_revision, policy, members, config, runtime, capabilities ]
     properties:
       id:
         type: string
@@ -672,6 +674,10 @@ schemas:
       name:
         type: string
         minLength: 1
+      icon:
+        type: [ string, "null" ]
+        maxLength: 2048
+        description: An icon the configuration names for this group, as an absolute http(s) URL or a data URI the client shows beside the name; null when none is configured. Clients may let the user override it locally.
       config_revision:
         type: string
         minLength: 1
@@ -689,7 +695,7 @@ schemas:
         $ref: ./openapi.yaml#/components/schemas/GroupCapabilities
   GroupSummary:
     type: object
-    required: [ id, name, config_revision, policy, member_count, selection ]
+    required: [ id, name, icon, config_revision, policy, member_count, selection ]
     properties:
       id:
         type: string
@@ -697,6 +703,10 @@ schemas:
       name:
         type: string
         minLength: 1
+      icon:
+        type: [ string, "null" ]
+        maxLength: 2048
+        description: An icon the configuration names for this group, as an absolute http(s) URL or a data URI the client shows beside the name; null when none is configured. Clients may let the user override it locally.
       config_revision:
         type: string
         minLength: 1
