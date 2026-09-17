@@ -199,6 +199,7 @@ flow traces and operation results remain separate records. SSE does not
 replay traffic history, even with `Last-Event-ID`; fetch this resource on
 first open or reconnect rather than treating invalidations as samples.
 
+<<<<<<< HEAD
 ## GET /api/v1/runtime/settings
 
 Requires `observe` and `resources.runtime_settings.available`. Reports the
@@ -233,3 +234,40 @@ applies immediately, is not written to the configuration file, and lasts
 until the process restarts or the next configuration activation resets it.
 
 {% api_example patchRuntimeSettings 400 above_ceiling %}
+=======
+## GET /api/v1/runtime/mode
+
+Requires `observe` and `resources.runtime_mode.available`. The engine's
+outbound mode, the switch Clash-style dashboards put at the top of the page:
+
+- `rule`: routing follows the configuration.
+- `direct`: every flow leaves directly, as if the routing section were only
+  `fallback: direct`.
+- `global`: every flow leaves through `target`, a group or node id.
+
+{% api_example getRuntimeMode 200 rule %}
+
+| Field | Type | Description |
+|-------|------|-------------|
+| observed_at | string | When the mode was read (RFC 3339). |
+| mode | string | `rule`, `direct` or `global`. |
+| target | string or null | The group or node id every flow leaves through in `global` mode; `null` otherwise. |
+| source | string | `config` until a `PUT` changed the mode in this generation, `runtime` afterwards. |
+
+## PUT /api/v1/runtime/mode
+
+Requires `control` and `resources.runtime_mode.available`; `mode` must be in
+`resources.runtime_mode.modes`. `global` needs `target`; `rule` and `direct`
+reject one with `400 invalid_request`. An unknown target returns
+`422 unsupported_value`.
+
+{% api_example setRuntimeMode request global http %}
+
+The change applies at once to new flows and interrupts nothing already
+established. It is runtime state: never written to the configuration, and the
+next activation returns the engine to `rule`. Presets the engine treats as must
+(the LAN, multicast, the local network manager) keep applying in every mode, so
+`direct` and `global` cannot cut the operator off the panel.
+
+{% api_example setRuntimeMode 200 global %}
+>>>>>>> connection-close
