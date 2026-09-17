@@ -130,6 +130,14 @@ parameters:
       type: string
       minLength: 1
     example: provider-a
+  NodeId:
+    name: id
+    in: path
+    required: true
+    schema:
+      type: string
+      minLength: 1
+    example: node-hk-03
 responses:
   OperationAccepted:
     description: Operation accepted

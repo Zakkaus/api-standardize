@@ -1060,20 +1060,37 @@ test("partial reroutes may report an uncaptured source", () => {
 
 test("observability resources expose discovery, permissions and examples for every response", () => {
   const links = example("getDiscovery:200:draft").body.links;
-  for (const resource of ["logs", "providers", "rules"]) {
+  for (const resource of ["logs", "providers", "rules", "geodata"]) {
     assert.equal(links[resource], `/api/v1/${resource}`);
   }
+  const methods = {
+    "/api/v1/logs": ["get"],
+    "/api/v1/providers": ["get", "post"],
+    "/api/v1/providers/{id}": ["get", "delete"],
+    "/api/v1/providers/{id}/refresh": ["post"],
+    "/api/v1/nodes": ["get", "post"],
+    "/api/v1/nodes/{id}": ["delete"],
+    "/api/v1/rules": ["get"],
+    "/api/v1/geodata": ["get"],
+    "/api/v1/geodata/update": ["post"],
+  };
   for (const [path, method, permission] of [
     ["/api/v1/logs", "get", "observe"],
     ["/api/v1/providers", "get", "observe"],
+    ["/api/v1/providers", "post", "control"],
     ["/api/v1/providers/{id}", "get", "observe"],
+    ["/api/v1/providers/{id}", "delete", "control"],
     ["/api/v1/providers/{id}/refresh", "post", "control"],
+    ["/api/v1/nodes", "post", "control"],
+    ["/api/v1/nodes/{id}", "delete", "control"],
     ["/api/v1/rules", "get", "observe"],
+    ["/api/v1/geodata", "get", "observe"],
+    ["/api/v1/geodata/update", "post", "control"],
   ]) {
     const item = spec.paths[path];
     const operation = item[method];
     assert.equal(operation["x-permission"], permission);
-    assert.deepEqual(Object.keys(item).filter((key) => key !== "parameters"), [method]);
+    assert.deepEqual(Object.keys(item).filter((key) => key !== "parameters"), methods[path]);
     for (const status of Object.keys(operation.responses)) {
       const responses = [...contract.examples.values()].filter((value) =>
         value.operationId === operation.operationId && String(value.status) === status);
@@ -1091,8 +1108,9 @@ test("observability resources expose discovery, permissions and examples for eve
 test("observability capabilities require usable bounds only when available", () => {
   for (const [resource, fields] of [
     ["logs", ["levels", "max_buffered_records"]],
-    ["providers", ["can_refresh", "max_page_size"]],
+    ["providers", ["can_refresh", "can_manage", "max_page_size"]],
     ["rules", ["max_rules"]],
+    ["geodata", ["can_update", "assets"]],
   ]) {
     const response = example("getCapabilities:200:available");
     const advertised = response.body.resources[resource];

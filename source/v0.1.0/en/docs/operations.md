@@ -40,7 +40,7 @@ too soon may return `429` with a fresh `Retry-After`.
 | Field | Type | Description |
 |-------|------|-------------|
 | operation_id | string | Opaque operation identifier. |
-| kind | string | `probe`, `reload`, `suspend`, `resume`, `group_update`, or `provider_refresh`. |
+| kind | string | `probe`, `reload`, `suspend`, `resume`, `group_update`, `provider_refresh`, or `geodata_update`. |
 | status | string | `queued`, `running`, `succeeded`, or `failed`. |
 | created_at | string | Creation timestamp (RFC3339). |
 | started_at | string or null | Execution start timestamp. |
@@ -56,6 +56,9 @@ update has already advanced the live resource.
 A successful `provider_refresh` result is the refreshed
 [Provider](providers.html). Refetch the provider and node list for current
 state; the operation retains the result of that refresh.
+
+A successful `geodata_update` result is the new [GeoData](geodata.html);
+the datapath has already been reloaded with it.
 
 `error` uses the same `code`, `message`, and optional `details` object defined
 by the [native error contract](errors.html). Raw engine errors, stack traces,

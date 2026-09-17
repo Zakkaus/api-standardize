@@ -30,7 +30,7 @@ must not be advertised as a shared dae guarantee.
 | Version path | `/api/v1` for resources, `/api` for discovery; document revision and engine version are independent. No unversioned resource aliases. |
 | Effective configuration and validation | Add capability-gated native `GET /config` and `POST /config/validate` with shared safe diagnostics. Readback uses accepted sources, not current disk contents; content is hidden by default. Validation requires `control`, performs no network access or state changes, and obeys byte/source limits. |
 | Configuration editing | Add single-source GET and PUT. PUT requires `control`, server/source writability, and an on-disk SHA-256 `If-Match` precondition. Full validation precedes atomic replacement and a reload operation; any error diagnostic prevents the write. Engine-written sources remain read-only. |
-| Probe overlap | One `/probes` resource, explicit `tcp_connect`/`http`/`dns` semantics and health dimensions; `/nodes` is read-only. |
+| Probe overlap | One `/probes` resource, explicit `tcp_connect`/`http`/`dns` semantics and health dimensions; `/nodes` writes only inline nodes, by share link. |
 | Required capabilities | Define `base` and `full_transparency` profiles. Userspace-only snapshots cannot claim the latter. |
 | `202 Retry-After` | Mandatory alongside Location; clients obey a positive-seconds polling floor, including after an SSE invalidation. |
 | Group icon | `icon` on Group and GroupSummary comes from the group's configuration (an `icon` key on the group definition); the engine passes the string through unvalidated beyond length and null. | Configuration schema gains an optional `icon` per group; not a runtime field. |

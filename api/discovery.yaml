@@ -36,6 +36,7 @@ paths:
                       providers: /api/v1/providers
                       rules: /api/v1/rules
                       runtime_mode: /api/v1/runtime/mode
+                      geodata: /api/v1/geodata
                       operations: /api/v1/operations/{id}
                   x-headers:
                     Content-Type: application/json
@@ -140,9 +141,11 @@ paths:
                         details: [ attachments, maps ]
                       nodes:
                         available: true
+                        can_manage: true
                       providers:
                         available: true
                         can_refresh: true
+                        can_manage: true
                         max_page_size: 1000
                       groups:
                         available: true
@@ -223,6 +226,10 @@ paths:
                       runtime_settings:
                         available: true
                         fields: [ log.level, log.buffered_records, dns_log.max_records, flows.max_flows, flows.retention_seconds ]
+                      geodata:
+                        available: true
+                        can_update: true
+                        assets: [ geosite, geoip ]
                       operations:
                         available: true
                         retention_seconds: 300
@@ -255,7 +262,7 @@ schemas:
         const: /api/v1
       links:
         type: object
-        required: [ version, capabilities, config, config_validate, runtime, runtime_outbounds, traffic_history, memory_history, runtime_mode, logs, providers, rules, operations ]
+        required: [ version, capabilities, config, config_validate, runtime, runtime_outbounds, traffic_history, memory_history, runtime_mode, logs, providers, rules, operations, geodata ]
         properties:
           version:
             type: string
@@ -293,6 +300,9 @@ schemas:
           runtime_mode:
             type: string
             const: /api/v1/runtime/mode
+          geodata:
+            type: string
+            const: /api/v1/geodata
           operations:
             type: string
             const: /api/v1/operations/{id}
@@ -368,7 +378,7 @@ schemas:
             minimum: 1
       resources:
         type: object
-        required: [ config, config_validate, runtime, runtime_memory, runtime_outbounds, traffic_history, memory_history, runtime_mode, datapath, nodes, providers, groups, probes, connections, flows, routing_trace, rules, events, logs, dns_query, dns_cache, dns_log, runtime_settings, operations, reload, suspend, resume ]
+        required: [ config, config_validate, runtime, runtime_memory, runtime_outbounds, traffic_history, memory_history, runtime_mode, datapath, nodes, providers, groups, probes, connections, flows, routing_trace, rules, events, logs, dns_query, dns_cache, dns_log, runtime_settings, operations, reload, suspend, resume, geodata ]
         properties:
           config:
             type: object
@@ -533,7 +543,20 @@ schemas:
                   type: string
                   enum: [ attachments, maps ]
           nodes:
-            $ref: ./openapi.yaml#/components/schemas/AvailableResource
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ can_manage ]
+            properties:
+              available:
+                type: boolean
+              can_manage:
+                type: boolean
+                description: POST /nodes and DELETE /nodes/{id} are implemented for inline nodes; the backend owns a writable main source.
           providers:
             type: object
             required: [ available ]
@@ -542,13 +565,16 @@ schemas:
                 available:
                   const: true
             then:
-              required: [ can_refresh, max_page_size ]
+              required: [ can_refresh, can_manage, max_page_size ]
             properties:
               available:
                 type: boolean
               can_refresh:
                 type: boolean
                 description: Refresh is implemented; individual provider kinds may still be unsupported. Requires operations.available.
+              can_manage:
+                type: boolean
+                description: POST /providers and DELETE /providers/{id} are implemented for subscription providers; the backend owns a writable main source.
               max_page_size:
                 $ref: ./openapi.yaml#/components/schemas/SafeUInt
                 minimum: 1
@@ -851,6 +877,27 @@ schemas:
                 description: The settings PATCH /runtime/settings accepts on this backend; others return 400.
                 items:
                   $ref: ./openapi.yaml#/components/schemas/RuntimeSettingField
+          geodata:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ can_update, assets ]
+            properties:
+              available:
+                type: boolean
+              can_update:
+                type: boolean
+                description: POST /geodata/update is implemented. Requires operations.available and configured asset sources.
+              assets:
+                type: array
+                uniqueItems: true
+                description: The asset kinds GET /geodata reports on this backend.
+                items:
+                  $ref: ./openapi.yaml#/components/schemas/GeoAssetKind
           operations:
             type: object
             required: [ available ]
