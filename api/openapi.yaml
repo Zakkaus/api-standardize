@@ -36,6 +36,12 @@ paths:
     $ref: ./providers.yaml#/paths/~1api~1v1~1providers~1{id}
   /api/v1/providers/{id}/refresh:
     $ref: ./providers.yaml#/paths/~1api~1v1~1providers~1{id}~1refresh
+  /api/v1/nodes/{id}:
+    $ref: ./nodes-groups.yaml#/paths/~1api~1v1~1nodes~1{id}
+  /api/v1/geodata:
+    $ref: ./geodata.yaml#/paths/~1api~1v1~1geodata
+  /api/v1/geodata/update:
+    $ref: ./geodata.yaml#/paths/~1api~1v1~1geodata~1update
   /api/v1/groups:
     $ref: ./nodes-groups.yaml#/paths/~1api~1v1~1groups
   /api/v1/groups/{groupId}:
@@ -112,6 +118,8 @@ components:
       $ref: ./common.yaml#/parameters/LastEventId
     ProviderId:
       $ref: ./common.yaml#/parameters/ProviderId
+    NodeId:
+      $ref: ./common.yaml#/parameters/NodeId
   responses:
     OperationAccepted:
       $ref: ./common.yaml#/responses/OperationAccepted
@@ -240,6 +248,20 @@ components:
       $ref: ./providers.yaml#/schemas/ProviderRefreshAccepted
     ProviderRefreshSucceededOperation:
       $ref: ./providers.yaml#/schemas/ProviderRefreshSucceededOperation
+    ProviderCreate:
+      $ref: ./providers.yaml#/schemas/ProviderCreate
+    NodeCreate:
+      $ref: ./nodes-groups.yaml#/schemas/NodeCreate
+    GeoAssetKind:
+      $ref: ./geodata.yaml#/schemas/GeoAssetKind
+    GeoAsset:
+      $ref: ./geodata.yaml#/schemas/GeoAsset
+    GeoData:
+      $ref: ./geodata.yaml#/schemas/GeoData
+    GeoDataUpdateAccepted:
+      $ref: ./geodata.yaml#/schemas/GeoDataUpdateAccepted
+    GeoDataUpdateSucceededOperation:
+      $ref: ./geodata.yaml#/schemas/GeoDataUpdateSucceededOperation
     GroupPolicy:
       $ref: ./nodes-groups.yaml#/schemas/GroupPolicy
     GroupPolicyRequest:
@@ -440,7 +462,7 @@ components:
       $ref: ./dns.yaml#/schemas/DeleteMatchingCount
     OperationKind:
       type: string
-      enum: [ probe, reload, suspend, resume, group_update, provider_refresh ]
+      enum: [ probe, reload, suspend, resume, group_update, provider_refresh, geodata_update ]
     OperationAccepted:
       $ref: ./operations-probes.yaml#/schemas/OperationAccepted
     Operation:
@@ -454,6 +476,7 @@ components:
         - $ref: ./openapi.yaml#/components/schemas/ResumeSucceededOperation
         - $ref: ./openapi.yaml#/components/schemas/GroupUpdateSucceededOperation
         - $ref: ./openapi.yaml#/components/schemas/ProviderRefreshSucceededOperation
+        - $ref: ./openapi.yaml#/components/schemas/GeoDataUpdateSucceededOperation
     QueuedOperation:
       $ref: ./operations-probes.yaml#/schemas/QueuedOperation
     RunningOperation:

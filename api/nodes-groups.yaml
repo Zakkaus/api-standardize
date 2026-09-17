@@ -65,6 +65,213 @@ paths:
           $ref: ./openapi.yaml#/components/responses/Forbidden
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
+    post:
+      operationId: createNode
+      summary: Add an inline node from a share link
+      description: |
+        Requires resources.nodes.can_manage; otherwise returns 404
+        capability_not_supported. The backend parses the link with the engine's own
+        share-link support, writes it into the node section of its managed main
+        source under the given name, advances the configuration revision and emits
+        generation.changed. The link is stored, never returned. A link the engine
+        cannot parse returns 422 unprocessable with the engine's reason in message;
+        a name already in use returns 409 state_conflict. The node belongs to the
+        inline provider and to every group whose filter matches it after reload.
+      x-permission: control
+      security:
+        - bearerAuth: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./openapi.yaml#/components/schemas/NodeCreate
+            examples:
+              link:
+                value:
+                  name: hk-03
+                  link: vless://uuid@example.com:443?security=tls#hk-03
+      responses:
+        "201":
+          description: Node written to the managed configuration
+          headers:
+            Location:
+              description: The new node in the node list.
+              required: true
+              schema:
+                type: string
+                pattern: ^/api/v1/nodes/[^/]+$
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/Node
+              examples:
+                created:
+                  value:
+                    id: node-hk-03
+                    name: hk-03
+                    protocol: vless
+                    subscription_tag: null
+                    provider_id: inline
+                    group_ids: [ group-proxy ]
+                    health: []
+                  x-headers:
+                    Content-Type: application/json
+                    Location: /api/v1/nodes/node-hk-03
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "409":
+          description: A node with this name exists
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                name_taken:
+                  value:
+                    error:
+                      code: state_conflict
+                      message: An inline node named hk-03 already exists.
+                      details: null
+                    request_id: request-01HZX4K8W6
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "413":
+          description: Request body exceeds limits.max_json_body_bytes
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                too_large:
+                  value:
+                    error:
+                      code: request_too_large
+                      message: The request body exceeds the advertised limit.
+                      details: null
+                    request_id: request-01HZX4K8W6
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "415":
+          description: Request body is not application/json
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                unsupported:
+                  value:
+                    error:
+                      code: unsupported_media_type
+                      message: The request body must be application/json.
+                      details: null
+                    request_id: request-01HZX4K8W6
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "422":
+          description: The engine cannot parse the link
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                bad_link:
+                  value:
+                    error:
+                      code: unsupported_value
+                      message: Unsupported share link scheme "foo".
+                      details: null
+                    request_id: request-01HZX4K8W6
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "503":
+          $ref: ./openapi.yaml#/components/responses/Unavailable
+  /api/v1/nodes/{id}:
+    parameters:
+      - $ref: ./openapi.yaml#/components/parameters/NodeId
+    delete:
+      operationId: deleteNode
+      summary: Remove an inline node from the managed configuration
+      description: |
+        Requires resources.nodes.can_manage; otherwise returns 404
+        capability_not_supported, as does a node that came from a subscription or
+        file provider: those are removed by refreshing or deleting their provider.
+        Removes the node's line from the node section of the managed main source and
+        the node from the running groups, advances the configuration revision and
+        emits generation.changed. Idempotent: an unknown id returns deleted 0.
+      x-permission: control
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        "200":
+          description: Idempotent deletion result
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/DeleteCount
+              examples:
+                deleted:
+                  value:
+                    deleted: 1
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "503":
+          $ref: ./openapi.yaml#/components/responses/Unavailable
   /api/v1/groups:
     get:
       operationId: listGroups
@@ -454,6 +661,21 @@ schemas:
         description: Latest observations, unique by (transport, purpose, measurement, ip_version, warmth) within this node.
         items:
           $ref: ./openapi.yaml#/components/schemas/HealthObservation
+  NodeCreate:
+    type: object
+    additionalProperties: false
+    required: [ name, link ]
+    properties:
+      name:
+        type: string
+        minLength: 1
+        maxLength: 64
+        description: The node name as written in the configuration; unique among inline nodes.
+      link:
+        type: string
+        minLength: 1
+        maxLength: 8192
+        description: A share link in a scheme the engine parses (for example vless, vmess, trojan, ss); stored in the managed main source and never returned.
   NodeList:
     type: object
     required: [ observed_at, nodes, next_cursor ]

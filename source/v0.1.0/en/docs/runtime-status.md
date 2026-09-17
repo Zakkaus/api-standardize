@@ -220,7 +220,7 @@ the log level and replay ring, the DNS log ring, and flow retention.
 Requires `control`. Only the fields listed in `resources.runtime_settings.fields`
 may appear; the body merges, an absent field keeps its value.
 
-{% api_request patchRuntimeSettings %}
+{% api_request patchRuntimeSettings debug %}
 
 {% api_example patchRuntimeSettings 200 changed %}
 

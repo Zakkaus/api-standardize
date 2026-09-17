@@ -96,3 +96,35 @@ Group-specific ranking belongs to the group, not a mutated node health copy.
 ```bash
 curl "http://localhost:9527/api/v1/nodes?group_id=group-proxy"
 ```
+
+## Add an inline node
+
+`POST /api/v1/nodes` requires `resources.nodes.can_manage`; otherwise it
+returns `404 capability_not_supported`.
+
+{% api_request createNode link %}
+
+{% api_example createNode 201 created http %}
+
+The backend parses the share link with the engine's own support, writes it
+into the `node` section of its managed main source under the given name,
+advances the configuration revision and emits `generation.changed`. The link
+is stored and never returned. A link the engine cannot parse returns
+`422 unsupported_value` with the engine's reason in `message`; a name already
+in use returns `409 state_conflict`. The node belongs to the inline provider
+and to every group whose filter matches it after reload; `health` is empty
+until a probe or the engine's own checks observe it.
+
+## Delete an inline node
+
+`DELETE /api/v1/nodes/{id}` requires `resources.nodes.can_manage`. A node
+from a subscription or file provider returns `404 capability_not_supported`:
+refresh or delete its [provider](providers.html) instead.
+
+{% api_request deleteNode %}
+
+{% api_example deleteNode 200 deleted %}
+
+Deletion removes the node's line from the managed main source and the node
+from the running groups, advances the configuration revision and emits
+`generation.changed`. It is idempotent: an unknown id returns `deleted` 0.

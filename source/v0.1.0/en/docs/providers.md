@@ -4,8 +4,9 @@ title: Providers
 
 # Providers
 
-> Proposed provider metadata and refresh endpoints. Reads require `observe`;
-> refresh requires `control`. No endpoint edits provider configuration.
+> Proposed provider metadata, refresh and management endpoints. Reads require
+> `observe`; refresh, create and delete require `control`. Create and delete
+> edit the backend's managed main source; nothing else edits configuration.
 
 ## List providers
 
@@ -65,3 +66,38 @@ A distinct refresh for a provider already queued or running returns
 `409 state_conflict`. Replaying the same accepted `Idempotency-Key` returns
 its original operation before checking that conflict. A full bounded queue
 returns `503 temporarily_unavailable` with a positive `Retry-After`.
+
+## Add a subscription
+
+`POST /api/v1/providers` requires `resources.providers.can_manage`; otherwise
+it returns `404 capability_not_supported`. Only `kind: subscription` can be
+created: file and inline providers are authored in the configuration sources.
+
+{% api_request createProvider subscription %}
+
+{% api_example createProvider 201 created http %}
+
+The backend writes the provider into the `subscription` section of its managed
+main source, advances the configuration revision and emits
+`generation.changed`; a configuration editor holding the previous revision
+receives `412 stale_revision` on its next write. The provider is created
+unfetched (`node_count` 0, `updated_at` null, `status` stale); call refresh
+to load it. The URL is stored and never returned. A name already in use
+returns `409 state_conflict`; a URL that is not http(s) returns
+`422 unsupported_value`.
+
+## Delete a provider
+
+`DELETE /api/v1/providers/{id}` requires `resources.providers.can_manage`. An
+inline provider returns `404 capability_not_supported`: it is the `node`
+section itself and is edited through [nodes](node-latency.html) or the
+configuration sources.
+
+{% api_request deleteProvider %}
+
+{% api_example deleteProvider 200 deleted %}
+
+Deletion removes the provider's line from the managed main source and its
+nodes from the running groups, advances the configuration revision and emits
+`generation.changed`. It is idempotent: an unknown id returns `deleted` 0. A
+group whose only member source was the provider is left empty.

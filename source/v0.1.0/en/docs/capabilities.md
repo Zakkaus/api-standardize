@@ -48,13 +48,17 @@ retention guarantee. Both resources are optional and require `observe`.
 
 `logs` advertises supported `levels` and `max_buffered_records`. Its bounded
 SSE feed carries sanitized log records, separately from invalidation events.
-`providers` advertises `can_refresh` and `max_page_size` (1–1000); refresh
-requires `control` and the operation resource. `rules` advertises `max_rules`,
+`providers` advertises `can_refresh`, `can_manage` and `max_page_size`
+(1–1000); refresh requires `control` and the operation resource, and
+`can_manage` means the backend owns a writable main source and implements
+provider create and delete. `nodes` advertises `can_manage` on the same terms
+for inline nodes. `geodata` advertises `can_update` and the `assets` it reports
+(`geosite`, `geoip`); update requires `control` and the operation resource. `rules` advertises `max_rules`,
 including the fallback entry, for a complete running-generation dictionary.
 These three resources require `observe` for reads. When available, each
 resource must include its advertised fields; buffer and rule limits are
 positive safe integers. See [logs](logs.html), [providers](providers.html),
-and [rules](rules.html).
+[rules](rules.html) and [geodata](geodata.html).
 
 ## Conformance profiles
 

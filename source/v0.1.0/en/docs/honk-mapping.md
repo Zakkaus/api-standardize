@@ -29,7 +29,7 @@ must not be advertised as a shared dae guarantee.
 | Streaming | Bounded invalidation SSE with resume, authorization, loss and resnapshot rules. Flow details remain GET resources, not duplicated into every event; engine logs use a separate feed. |
 | Version path | `/api/v1` for resources, `/api` for discovery; document revision and engine version are independent. No unversioned resource aliases. |
 | Raw config and validation | Correct the claim about current `/configs`; defer native editing/readback until source ownership, credential privilege, includes and revision semantics are designed. Do not expose raw secrets under `observe`. |
-| Probe overlap | One `/probes` resource, explicit `tcp_connect`/`http`/`dns` semantics and health dimensions; `/nodes` is read-only. |
+| Probe overlap | One `/probes` resource, explicit `tcp_connect`/`http`/`dns` semantics and health dimensions; `/nodes` writes only inline nodes, by share link. |
 | Required capabilities | Define `base` and `full_transparency` profiles. Userspace-only snapshots cannot claim the latter. |
 | `202 Retry-After` | Mandatory alongside Location; clients obey a positive-seconds polling floor, including after an SSE invalidation. |
 | Connection/flow list columns | Denormalise the application chain, rule ID/expression, ingress and domain provenance onto both summaries. Current handoff/tracking omits deciding-rule context; producers must retain selection IDs and label evaluation, reconstruction and recomputation honestly. |
