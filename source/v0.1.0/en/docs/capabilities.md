@@ -72,6 +72,44 @@ resource must include its advertised fields; buffer and rule limits are
 positive safe integers. See [logs](logs.html), [providers](providers.html),
 and [rules](rules.html).
 
+## Configuration visibility
+
+`resources.config.available` gates effective configuration readback under
+`observe`, including single-source GET. When available, the adapter must declare
+`content`, `writable`, `max_bytes`, and `max_sources`.
+`content` is a visibility flag, false by default: false forbids source text in
+the response; true permits optional text subject to secret redaction. It does
+not grant access to raw secrets. `max_sources` is a positive safe-integer bound
+on the complete source set, not permission to truncate it.
+
+`writable` is the server-wide switch for source replacement under `control`.
+A source's own `writable` field can further restrict writes. A false switch or
+read-only source returns `403 permission_denied`; neither grants write access
+through `observe`. Generated and subscription sources are never writable.
+`max_bytes` is a positive safe-integer limit on UTF-8 replacement content, not
+character count. The shared JSON body limit also applies; excess returns
+`413 request_too_large`.
+
+Advertising `writable: true` requires full validation and asynchronous reload
+support, with `resources.reload.available` and `resources.operations.available`
+both true. Editing is independent of the optional dry-run endpoint and of
+content visibility. It does not grant permission to read secrets.
+
+Path redaction follows the [shared visibility rules](api-config.html#Permissions).
+Use `<redacted>` for hidden display paths. Apply privacy filters consistently
+to paths, source text, and diagnostics; `detail=summary` is not a privacy tier.
+The adapter sets `secrets_redacted` when it withholds content or redacts data.
+
+`resources.config_validate.available` independently gates dry-run validation
+under `control`; the request body may contain secrets. When available, the
+adapter must declare `modes` as a nonempty unique subset of `syntax` and `full`.
+It must also declare `max_bytes` and `max_sources` as positive safe integers.
+The limits bound total UTF-8 source bytes and source count, including locally
+resolved dependencies in `full` mode. The shared JSON body ceiling also applies. Exceeding a size or
+source-count limit returns `413 request_too_large`; an unadvertised mode returns
+`422 unsupported_value`. Neither mode permits network access or state changes.
+See [Configuration](configuration.html) for request and diagnostic semantics.
+
 ## Conformance profiles
 
 `profiles` is an array, not a feature inferred from engine identity. The

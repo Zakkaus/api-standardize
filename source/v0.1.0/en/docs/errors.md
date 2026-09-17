@@ -35,10 +35,10 @@ in resources (`operation.error`, `datapath.errors`, `lifecycle.last_error`,
 | 409 | `snapshot_unavailable` | Routing simulation or the running rule list could not pin a consistent generation. |
 | 410 | `snapshot_expired` | Paginated flow snapshot expired; restart the page walk. |
 | 410 | `flow_expired` | Flow evidence was evicted/expired and a tombstone still exists. |
-| 412 | `stale_revision` | `If-Match` does not match the current resource revision. |
+| 412 | `stale_revision` | `If-Match` does not match the current resource revision or on-disk source content hash. |
 | 413 | `request_too_large` | Request or requested fan-out exceeds an advertised limit. |
 | 415 | `unsupported_media_type` | Request `Content-Type` is unsupported. |
-| 422 | `unsupported_value` | Syntax is valid but a field, value, or transition is unsupported. |
+| 422 | `unsupported_value` | Unsupported field, value, or transition, or error diagnostics from full validation of a source replacement. |
 | 428 | `precondition_required` | A required `If-Match` header is missing. |
 | 429 | `rate_limited` | A request or operation limit was reached. |
 | 503 | `temporarily_unavailable` | A bounded queue or required runtime component is unavailable. |
@@ -47,7 +47,6 @@ Responses with `429` or retryable `503` include `Retry-After`. Errors must not
 contain bearer secrets, proxy credentials, private keys, raw configuration,
 stack traces, local file paths, or unredacted chained engine errors.
 
-<<<<<<< HEAD
 ## Connection closing
 
 Both connection DELETE endpoints require `control` permission. Closing uses
@@ -65,10 +64,23 @@ the existing error codes:
 prevents an omitted filter from disconnecting every userspace connection.
 `Idempotency-Key` does not replay a previous synchronous DELETE result:
 closing an already-gone ID still returns `404 resource_not_found`.
-=======
+
 Provider refresh returns `409 state_conflict` while another refresh for that
 provider is queued or running, and `503 temporarily_unavailable` with
 `Retry-After` when its queue is full. Provider page cursors use
 `400 invalid_request` when invalidated; the generation-scoped rule list does
 not use `410 snapshot_expired`.
->>>>>>> observability-endpoints
+
+Configuration source replacement uses existing codes:
+
+- `403 permission_denied` also covers disabled server-wide editing and read-only
+  sources, including generated and subscription sources.
+- `412 stale_revision` compares the source's current on-disk SHA-256, not the
+  accepted snapshot revision; the server writes nothing.
+- `422 unsupported_value` carries `error.details.diagnostics` with the shared
+  `ConfigDiagnostic` shape and at least one `error` diagnostic. The JSON request
+  may be well-formed even when dae syntax is invalid. The server writes nothing
+  and starts no reload.
+- `428 precondition_required` rejects a missing `If-Match` before writing.
+
+See the [editing flow](configuration.html#Editing) for recovery steps.
