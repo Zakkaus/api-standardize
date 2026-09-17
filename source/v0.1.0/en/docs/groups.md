@@ -12,7 +12,8 @@ The group API has four separate responsibilities:
 
 - `GET` reads the current group state.
 - `PATCH` changes group configuration only.
-- `PUT` changes runtime selection when the policy supports manual selection.
+- `PUT` changes runtime selection when the policy supports manual selection, or pins a member on an automatic policy that allows an override.
+- `DELETE` clears such a pin so the automatic policy chooses again.
 - `POST /api/v1/probes` starts a typed probe job whose target can be a group.
 
 ## Group resource
@@ -148,6 +149,27 @@ temporarily invalid runtime transition returns `409 state_conflict`.
 ### Success (200 OK)
 
 {% api_example selectGroupMember 200 selected %}
+
+### Pinning a member on an automatic policy
+
+When `capabilities.can_select` is `false` but `capabilities.can_override` is
+`true`, the same request pins the member: the policy stops choosing for that
+transport until the pin is cleared or the next configuration activation resets
+it. The pin is runtime state, not written to the configuration. While it
+stands, `runtime.selection.<transport>.source` is `override` and the response
+reports `source: override`. Health checks keep running so the ranking is
+current when the pin is cleared. A group with neither capability returns
+`422 selection_not_supported`.
+
+## DELETE /api/v1/groups/{groupId}/selection
+
+Clears a pinned member so the automatic policy chooses again. `network`
+selects the transport and defaults to `both`. The response is the selection
+after the change with `source: policy`; when no pin stood, the current
+selection is returned unchanged. A selector group has nothing to clear and
+returns `409 state_conflict`.
+
+{% api_example clearGroupOverride 200 automatic_again %}
 
 ## Group latency tests
 
