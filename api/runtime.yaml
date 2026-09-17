@@ -403,6 +403,112 @@ paths:
           $ref: ./openapi.yaml#/components/responses/NotFound
         "429":
           $ref: ./openapi.yaml#/components/responses/RateLimited
+  /api/v1/runtime/mode:
+    get:
+      operationId: getRuntimeMode
+      summary: Read the outbound mode
+      description: |
+        The engine's outbound mode: rule follows the configuration, direct
+        sends every flow straight out as if the routing section were only
+        `fallback: direct`, global sends every flow through one outbound. Runtime
+        state, never written to the configuration; the next activation returns
+        to rule. Requires resources.runtime_mode.available.
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        "200":
+          description: Current outbound mode
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/RuntimeMode
+              examples:
+                rule:
+                  value:
+                    observed_at: 2026-08-15T10:00:00Z
+                    mode: rule
+                    target: null
+                    source: config
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+    put:
+      operationId: setRuntimeMode
+      summary: Switch the outbound mode without a reload
+      description: |
+        Requires control and resources.runtime_mode.available; mode must be one
+        of resources.runtime_mode.modes. global needs target, the id of a group
+        or node every flow then leaves through; rule and direct take no target.
+        Presets the engine treats as must (LAN, multicast, the network manager)
+        keep applying in every mode. The change applies immediately, interrupts
+        nothing already established, and is dropped by the next activation.
+        Follows the shared idempotency rules.
+      x-permission: control
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - $ref: ./openapi.yaml#/components/parameters/IdempotencyKey
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./openapi.yaml#/components/schemas/RuntimeModeRequest
+            examples:
+              global:
+                value:
+                  mode: global
+                  target: group-proxy
+      responses:
+        "200":
+          description: Mode after the change
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/RuntimeMode
+              examples:
+                global:
+                  value:
+                    observed_at: 2026-08-15T10:00:05Z
+                    mode: global
+                    target: group-proxy
+                    source: runtime
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "415":
+          $ref: ./openapi.yaml#/components/responses/UnsupportedMediaType
+        "422":
+          $ref: ./openapi.yaml#/components/responses/Unprocessable
   /api/v1/datapath:
     get:
       operationId: getDatapath
@@ -660,6 +766,35 @@ schemas:
       connections:
         $ref: ./openapi.yaml#/components/schemas/NullableSafeUInt
         description: Visible active TCP and UDP connections at sampled_at, or null when unavailable.
+  RuntimeMode:
+    type: object
+    required: [ observed_at, mode, target, source ]
+    properties:
+      observed_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      mode:
+        $ref: ./openapi.yaml#/components/schemas/OutboundMode
+      target:
+        type: [ string, "null" ]
+        description: The group or node id every flow leaves through in global mode; null otherwise.
+      source:
+        type: string
+        enum: [ config, runtime ]
+        description: config until a PUT changed the mode in this generation, runtime afterwards.
+  OutboundMode:
+    type: string
+    enum: [ rule, direct, global ]
+  RuntimeModeRequest:
+    type: object
+    additionalProperties: false
+    required: [ mode ]
+    properties:
+      mode:
+        $ref: ./openapi.yaml#/components/schemas/OutboundMode
+      target:
+        type: string
+        minLength: 1
+        description: Required with global; rejected with rule and direct.
   MemoryHistory:
     type: object
     required: [ observed_at, window_seconds, sampled_every_seconds, samples ]

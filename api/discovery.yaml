@@ -30,6 +30,7 @@ paths:
                       runtime_outbounds: /api/v1/runtime/outbounds
                       traffic_history: /api/v1/runtime/traffic/history
                       memory_history: /api/v1/runtime/memory/history
+                      runtime_mode: /api/v1/runtime/mode
                       operations: /api/v1/operations/{id}
                   x-headers:
                     Content-Type: application/json
@@ -114,6 +115,9 @@ paths:
                         available: true
                         max_window_seconds: 3600
                         max_points: 720
+                      runtime_mode:
+                        available: true
+                        modes: [ rule, direct, global ]
                       datapath:
                         available: true
                         kinds: [ ebpf ]
@@ -217,7 +221,7 @@ schemas:
         const: /api/v1
       links:
         type: object
-        required: [ version, capabilities, runtime, runtime_outbounds, traffic_history, memory_history, operations ]
+        required: [ version, capabilities, runtime, runtime_outbounds, traffic_history, memory_history, runtime_mode, operations ]
         properties:
           version:
             type: string
@@ -237,6 +241,9 @@ schemas:
           memory_history:
             type: string
             const: /api/v1/runtime/memory/history
+          runtime_mode:
+            type: string
+            const: /api/v1/runtime/mode
           operations:
             type: string
             const: /api/v1/operations/{id}
@@ -312,7 +319,7 @@ schemas:
             minimum: 1
       resources:
         type: object
-        required: [ runtime, runtime_memory, runtime_outbounds, traffic_history, memory_history, datapath, nodes, groups, probes, connections, flows, routing_trace, events, dns_query, dns_cache, operations, reload, suspend, resume ]
+        required: [ runtime, runtime_memory, runtime_outbounds, traffic_history, memory_history, runtime_mode, datapath, nodes, groups, probes, connections, flows, routing_trace, events, dns_query, dns_cache, operations, reload, suspend, resume ]
         properties:
           runtime:
             $ref: ./openapi.yaml#/components/schemas/AvailableResource
@@ -376,6 +383,25 @@ schemas:
                 $ref: ./openapi.yaml#/components/schemas/SafeUInt
                 minimum: 1
                 description: Maximum returned samples per history request.
+          runtime_mode:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ modes ]
+            properties:
+              available:
+                type: boolean
+              modes:
+                type: array
+                uniqueItems: true
+                minItems: 1
+                items:
+                  $ref: ./openapi.yaml#/components/schemas/OutboundMode
+                description: The modes PUT /runtime/mode accepts; rule is always one of them.
           datapath:
             type: object
             required: [ available ]
