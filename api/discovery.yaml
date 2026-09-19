@@ -134,6 +134,7 @@ paths:
                         max_points: 720
                       runtime_mode:
                         available: true
+                        writable: true
                         modes: [ rule, direct, global ]
                       datapath:
                         available: true
@@ -508,10 +509,14 @@ schemas:
                 available:
                   const: true
             then:
-              required: [ modes ]
+              required: [ writable, modes ]
             properties:
               available:
                 type: boolean
+                description: GET /runtime/mode answers.
+              writable:
+                type: boolean
+                description: PUT /runtime/mode is offered. False keeps the mode readable while the engine cannot take a change through this surface, whether the switch is not built or another owner holds the mode.
               modes:
                 type: array
                 uniqueItems: true

@@ -606,7 +606,11 @@ paths:
             default: both
       responses:
         "200":
-          description: Selection after the override is cleared; unchanged when none stood
+          description: |
+            The group's selection per network after the override is cleared;
+            unchanged when none stood. A network the policy has not chosen a
+            member for is null, so clearing both networks when only one had a
+            pin, or when one side is still unselected, is stated as it is.
           headers:
             Cache-Control:
               $ref: ./openapi.yaml#/components/headers/NoStore
@@ -615,17 +619,20 @@ paths:
           content:
             application/json:
               schema:
-                $ref: ./openapi.yaml#/components/schemas/GroupSelectionResult
+                $ref: ./openapi.yaml#/components/schemas/GroupOverrideCleared
               examples:
                 automatic_again:
                   value:
                     group_id: group-auto
-                    member_id: node-sg-01
-                    resolved_leaf_node_id: node-sg-01
                     network: both
-                    source: policy
                     selection_revision: "9"
                     connections_interrupted: false
+                    selection:
+                      tcp:
+                        member_id: node-sg-01
+                        resolved_leaf_node_id: node-sg-01
+                        source: policy
+                      udp: null
                   x-headers:
                     Content-Type: application/json
                     Cache-Control: no-store
@@ -1114,6 +1121,35 @@ schemas:
       network:
         type: string
         enum: [ tcp, udp, both ]
+  GroupOverrideCleared:
+    type: object
+    description: The outcome of clearing an override, one selection per network like GroupRuntime.selection.
+    required: [ group_id, network, selection_revision, connections_interrupted, selection ]
+    properties:
+      group_id:
+        type: string
+        minLength: 1
+      network:
+        type: string
+        enum: [ tcp, udp, both ]
+        description: The networks the request cleared.
+      selection_revision:
+        type: string
+        minLength: 1
+      connections_interrupted:
+        type: boolean
+      selection:
+        type: object
+        required: [ tcp, udp ]
+        properties:
+          tcp:
+            oneOf:
+              - type: "null"
+              - $ref: ./openapi.yaml#/components/schemas/GroupSelection
+          udp:
+            oneOf:
+              - type: "null"
+              - $ref: ./openapi.yaml#/components/schemas/GroupSelection
   GroupSelectionResult:
     type: object
     required: [ group_id, member_id, network, source, selection_revision, connections_interrupted ]
