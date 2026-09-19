@@ -35,7 +35,6 @@ paths:
                       logs: /api/v1/logs
                       providers: /api/v1/providers
                       rules: /api/v1/rules
-                      runtime_mode: /api/v1/runtime/mode
                       geodata: /api/v1/geodata
                       operations: /api/v1/operations/{id}
                   x-headers:
@@ -132,10 +131,6 @@ paths:
                         available: true
                         max_window_seconds: 3600
                         max_points: 720
-                      runtime_mode:
-                        available: true
-                        writable: true
-                        modes: [ rule, direct, global ]
                       datapath:
                         available: true
                         kinds: [ ebpf ]
@@ -263,7 +258,7 @@ schemas:
         const: /api/v1
       links:
         type: object
-        required: [ version, capabilities, config, config_validate, runtime, runtime_outbounds, traffic_history, memory_history, runtime_mode, logs, providers, rules, operations, geodata ]
+        required: [ version, capabilities, config, config_validate, runtime, runtime_outbounds, traffic_history, memory_history, logs, providers, rules, operations, geodata ]
         properties:
           version:
             type: string
@@ -298,9 +293,6 @@ schemas:
           rules:
             type: string
             const: /api/v1/rules
-          runtime_mode:
-            type: string
-            const: /api/v1/runtime/mode
           geodata:
             type: string
             const: /api/v1/geodata
@@ -379,7 +371,7 @@ schemas:
             minimum: 1
       resources:
         type: object
-        required: [ config, config_validate, runtime, runtime_memory, runtime_outbounds, traffic_history, memory_history, runtime_mode, datapath, nodes, providers, groups, probes, connections, flows, routing_trace, rules, events, logs, dns_query, dns_cache, dns_log, runtime_settings, operations, reload, suspend, resume, geodata ]
+        required: [ config, config_validate, runtime, runtime_memory, runtime_outbounds, traffic_history, memory_history, datapath, nodes, providers, groups, probes, connections, flows, routing_trace, rules, events, logs, dns_query, dns_cache, dns_log, runtime_settings, operations, reload, suspend, resume, geodata ]
         properties:
           config:
             type: object
@@ -501,29 +493,6 @@ schemas:
                 $ref: ./openapi.yaml#/components/schemas/SafeUInt
                 minimum: 1
                 description: Maximum returned samples per history request.
-          runtime_mode:
-            type: object
-            required: [ available ]
-            if:
-              properties:
-                available:
-                  const: true
-            then:
-              required: [ writable, modes ]
-            properties:
-              available:
-                type: boolean
-                description: GET /runtime/mode answers.
-              writable:
-                type: boolean
-                description: PUT /runtime/mode is offered. False keeps the mode readable while the engine cannot take a change through this surface, whether the switch is not built or another owner holds the mode.
-              modes:
-                type: array
-                uniqueItems: true
-                minItems: 1
-                items:
-                  $ref: ./openapi.yaml#/components/schemas/OutboundMode
-                description: The modes PUT /runtime/mode accepts; rule is always one of them.
           datapath:
             type: object
             required: [ available ]
