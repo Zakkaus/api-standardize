@@ -450,13 +450,16 @@ paths:
       operationId: setRuntimeMode
       summary: Switch the outbound mode without a reload
       description: |
-        Requires control and resources.runtime_mode.available; mode must be one
+        Requires control and resources.runtime_mode.writable; mode must be one
         of resources.runtime_mode.modes. global needs target, the id of a group
         or node every flow then leaves through; rule and direct take no target.
         Presets the engine treats as must (LAN, multicast, the network manager)
         keep applying in every mode. The change applies immediately, interrupts
         nothing already established, and is dropped by the next activation.
-        Follows the shared idempotency rules.
+        Follows the shared idempotency rules. While the engine is suspended or
+        an activation is in flight the switch answers 409 and the mode stays as
+        it was; when the owner that applies the mode is not running it answers
+        503 with Retry-After, and the mode stays as it was as well.
       x-permission: control
       security:
         - bearerAuth: []
@@ -505,10 +508,14 @@ paths:
           $ref: ./openapi.yaml#/components/responses/Forbidden
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
+        "409":
+          $ref: ./openapi.yaml#/components/responses/Conflict
         "415":
           $ref: ./openapi.yaml#/components/responses/UnsupportedMediaType
         "422":
           $ref: ./openapi.yaml#/components/responses/Unprocessable
+        "503":
+          $ref: ./openapi.yaml#/components/responses/Unavailable
   /api/v1/datapath:
     get:
       operationId: getDatapath

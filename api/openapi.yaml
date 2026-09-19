@@ -356,6 +356,8 @@ components:
       $ref: ./nodes-groups.yaml#/schemas/GroupSelectionRequest
     GroupSelectionResult:
       $ref: ./nodes-groups.yaml#/schemas/GroupSelectionResult
+    GroupOverrideCleared:
+      $ref: ./nodes-groups.yaml#/schemas/GroupOverrideCleared
     ProbeKind:
       $ref: ./operations-probes.yaml#/schemas/ProbeKind
     ProbeTarget:
