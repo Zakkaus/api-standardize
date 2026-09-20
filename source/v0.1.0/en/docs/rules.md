@@ -20,8 +20,9 @@ title: Rules
 its complete evaluation order, including exactly one final `kind: fallback`
 entry. Each entry has `rule_id`, zero-based `index`, safe display `expression`,
 `outbound`, boolean `must`, nullable `source`, and `kind` (`rule` or `fallback`).
-`source` contains a redacted file label and one-based line number; return null
-when unavailable or unsafe. Do not expose absolute local paths or raw config.
+`source` carries the redacted file label, the source ID from `GET /config`, the one-based line
+and the byte column of the rule's first token; return null when the location is unknown or unsafe to
+disclose. Do not expose absolute local paths or raw config.
 The top-level `fallback` repeats that entry's `outbound` and `source`.
 
 `rule_id` is identical to the IDs used by
@@ -45,4 +46,4 @@ coherent generation. A generation change alone is not an expired snapshot.
 
 ## Editing
 
-Rules are part of the configuration. Each rule carries `source` with its file and line. An editor opens that source at that line and writes the whole file back through the configuration editing endpoints: `PUT /api/v1/config/sources/{source_id}` with `If-Match`, validation before any write, then a reload operation. There is no rule-level write endpoint.
+Rules are part of the configuration. Each rule carries `source` with its file label, source ID, line and column. An editor opens the source by ID at that line and writes the whole file back through the configuration editing endpoints: `PUT /api/v1/config/sources/{source_id}` with `If-Match`, validation before any write, then a reload operation. There is no rule-level write endpoint.

@@ -3997,7 +3997,9 @@ paths:
                         must: false
                         source:
                           file: '[redacted]/routing.dae'
+                          source_id: source-routing
                           line: 12
+                          column: 5
                         kind: rule
                       - rule_id: traffic:1
                         index: 1
@@ -4006,7 +4008,9 @@ paths:
                         must: false
                         source:
                           file: '[redacted]/routing.dae'
+                          source_id: source-routing
                           line: 13
+                          column: 5
                         kind: rule
                       - rule_id: traffic:2
                         index: 2
@@ -10229,16 +10233,28 @@ components:
         - type: object
           required:
             - file
+            - source_id
             - line
+            - column
           properties:
             file:
               type: string
               minLength: 1
               description: Redacted source label; never an absolute local path or credential-bearing URL.
+            source_id:
+              type: string
+              minLength: 1
+              description: |
+                Source ID in the effective snapshot, the same one `GET /config` lists. A client that edits a rule
+                opens that source by ID and its content permission; it never derives a path from `file`.
             line:
               $ref: '#/components/schemas/SafeUInt'
               minimum: 1
-      description: Source location, or null when unavailable or unsafe to disclose.
+            column:
+              $ref: '#/components/schemas/NullableSafeUInt'
+              minimum: 1
+              description: One-based UTF-8 byte column of the rule's first token, or null if unknown.
+      description: Source location, or null when unavailable or unsafe to disclose. Coordinates refer to the original source before redaction.
     RoutingRule:
       type: object
       required:
