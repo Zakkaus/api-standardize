@@ -2,50 +2,55 @@
 title: Suspend
 ---
 
-# POST /api/suspend
+# POST /api/v1/operations/suspend
 
-Suspends the proxy service. This is equivalent to running `dae suspend` from the command line.
+> Draft endpoint. Suspension is capability-gated and asynchronous. It is not
+> a universal dae/honk operation.
+
+Starts suspension for an adapter that implements a no-load lifecycle.
 
 ## Request
 
-```http
-POST /api/suspend HTTP/1.1
-Host: localhost:9527
-Content-Length: 0
-```
+{% api_example startSuspend request empty http %}
 
 ## Response
 
-### Success (200 OK)
+### Accepted (202 Accepted)
 
-```json
-{
-  "ok": true,
-  "message": "Service suspended"
-}
-```
+{% api_example startSuspend 202 queued http %}
 
-### Error (500 Internal Server Error)
+Poll [`GET /api/v1/operations/{id}`](operations.html) for completion.
 
-```json
-{
-  "ok": false,
-  "error": "Failed to suspend service"
-}
-```
+### Completed result
+
+{% api_example getOperation 200 suspend_complete %}
 
 ### Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| ok | bool | Whether the operation succeeded |
-| message | string | Human-readable message (on success) |
-| error | string | Error message (on failure) |
+| operation_id | string | Suspension operation identifier. |
+| status | string | `queued`, `running`, `succeeded`, or `failed`. |
+| result.runtime_state | string or null | `suspended` after a successful operation. |
+| finished_at | string or null | Completion timestamp (RFC3339). |
+| error | object or null | Shared safe error object, when present. |
+
+If the adapter advertises `resources.resume.available`, resume uses:
+
+{% api_example startResume request empty http %}
+
+Resume returns the same operation envelope with `kind: resume`. On success,
+`result.runtime_state` is `running`, or null when the adapter cannot observe
+the resulting state, consistent with suspension's nullable state field.
+Acceptance alone must never be reported as successful resumption.
+
+An unavailable suspend or resume operation returns `404 capability_not_supported`.
+A lifecycle state that prevents the transition returns `409 state_conflict`.
 
 ## Example
 
 ```bash
-curl -X POST http://localhost:9527/api/suspend
+curl -X POST http://localhost:9527/api/v1/operations/suspend \
+  -H 'Content-Type: application/json' \
+  -d '{}'
 ```
-
-> **Note:** To resume the service, use the `dae resume` command from the command line or restart the dae service.

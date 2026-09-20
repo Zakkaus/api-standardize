@@ -1,0 +1,853 @@
+paths:
+  /api/v1/probes:
+    post:
+      operationId: createProbe
+      summary: Start a bounded typed probe operation
+      x-permission: control
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - $ref: ./openapi.yaml#/components/parameters/IdempotencyKey
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./openapi.yaml#/components/schemas/ProbeRequest
+            examples:
+              dns_udp:
+                value:
+                  target:
+                    type: group
+                    group_id: group-proxy
+                  kind: dns
+                  purpose: dns
+                  transport: [ udp ]
+                  ip_version: ipv4
+                  members: [ node-hk-01, group-jp ]
+                  warmth: cold
+      responses:
+        "202":
+          description: Operation accepted
+          headers:
+            Location:
+              description: Operation status URL; equal to body href.
+              required: true
+              schema:
+                type: string
+                pattern: ^/api/v1/operations/[^/]+$
+            Retry-After:
+              description: Positive polling floor in seconds.
+              required: true
+              schema:
+                type: integer
+                minimum: 1
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/OperationAccepted
+              examples:
+                queued:
+                  value:
+                    operation_id: op-01HZX4K8W9
+                    kind: probe
+                    status: queued
+                    href: /api/v1/operations/op-01HZX4K8W9
+                  x-headers:
+                    Content-Type: application/json
+                    Location: /api/v1/operations/op-01HZX4K8W9
+                    Retry-After: 1
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "409":
+          $ref: ./openapi.yaml#/components/responses/Conflict
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
+        "415":
+          $ref: ./openapi.yaml#/components/responses/UnsupportedMediaType
+        "422":
+          $ref: ./openapi.yaml#/components/responses/Unprocessable
+        "429":
+          $ref: ./openapi.yaml#/components/responses/RateLimited
+        "503":
+          description: Probe queue is full
+          headers:
+            Retry-After:
+              description: Positive retry delay in seconds.
+              required: true
+              schema:
+                type: integer
+                minimum: 1
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                queue_full:
+                  value:
+                    error:
+                      code: temporarily_unavailable
+                      message: Probe queue is full.
+                    request_id: request-1
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+                    Retry-After: 1
+  /api/v1/operations/reload:
+    post:
+      operationId: startReload
+      summary: Start an asynchronous reload
+      x-permission: control
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - $ref: ./openapi.yaml#/components/parameters/IdempotencyKey
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: ./openapi.yaml#/components/schemas/EmptyObject
+            examples:
+              empty:
+                value: {}
+      responses:
+        "202":
+          description: Operation accepted
+          headers:
+            Location:
+              description: Operation status URL; equal to body href.
+              required: true
+              schema:
+                type: string
+                pattern: ^/api/v1/operations/[^/]+$
+            Retry-After:
+              description: Positive polling floor in seconds.
+              required: true
+              schema:
+                type: integer
+                minimum: 1
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/OperationAccepted
+              examples:
+                queued:
+                  value:
+                    operation_id: op-01HZX4K8W7
+                    kind: reload
+                    status: queued
+                    href: /api/v1/operations/op-01HZX4K8W7
+                  x-headers:
+                    Content-Type: application/json
+                    Location: /api/v1/operations/op-01HZX4K8W7
+                    Retry-After: 1
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "409":
+          $ref: ./openapi.yaml#/components/responses/Conflict
+        "415":
+          $ref: ./openapi.yaml#/components/responses/UnsupportedMediaType
+        "429":
+          $ref: ./openapi.yaml#/components/responses/RateLimited
+        "503":
+          $ref: ./openapi.yaml#/components/responses/Unavailable
+  /api/v1/operations/suspend:
+    post:
+      operationId: startSuspend
+      summary: Start an asynchronous suspend transition
+      x-permission: control
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - $ref: ./openapi.yaml#/components/parameters/IdempotencyKey
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: ./openapi.yaml#/components/schemas/EmptyObject
+            examples:
+              empty:
+                value: {}
+      responses:
+        "202":
+          description: Operation accepted
+          headers:
+            Location:
+              description: Operation status URL; equal to body href.
+              required: true
+              schema:
+                type: string
+                pattern: ^/api/v1/operations/[^/]+$
+            Retry-After:
+              description: Positive polling floor in seconds.
+              required: true
+              schema:
+                type: integer
+                minimum: 1
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/OperationAccepted
+              examples:
+                queued:
+                  value:
+                    operation_id: op-01HZX4K8W8
+                    kind: suspend
+                    status: queued
+                    href: /api/v1/operations/op-01HZX4K8W8
+                  x-headers:
+                    Content-Type: application/json
+                    Location: /api/v1/operations/op-01HZX4K8W8
+                    Retry-After: 1
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "409":
+          $ref: ./openapi.yaml#/components/responses/Conflict
+        "415":
+          $ref: ./openapi.yaml#/components/responses/UnsupportedMediaType
+        "429":
+          $ref: ./openapi.yaml#/components/responses/RateLimited
+        "503":
+          $ref: ./openapi.yaml#/components/responses/Unavailable
+  /api/v1/operations/resume:
+    post:
+      operationId: startResume
+      summary: Start an asynchronous resume transition
+      x-permission: control
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - $ref: ./openapi.yaml#/components/parameters/IdempotencyKey
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: ./openapi.yaml#/components/schemas/EmptyObject
+            examples:
+              empty:
+                value: {}
+      responses:
+        "202":
+          $ref: ./openapi.yaml#/components/responses/OperationAccepted
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "409":
+          $ref: ./openapi.yaml#/components/responses/Conflict
+        "415":
+          $ref: ./openapi.yaml#/components/responses/UnsupportedMediaType
+        "429":
+          $ref: ./openapi.yaml#/components/responses/RateLimited
+        "503":
+          $ref: ./openapi.yaml#/components/responses/Unavailable
+  /api/v1/operations/{id}:
+    get:
+      operationId: getOperation
+      summary: Read an asynchronous operation
+      x-permission: observe-owner-or-control
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - $ref: ./openapi.yaml#/components/parameters/OperationId
+      responses:
+        "200":
+          description: Current or terminal operation state
+          headers:
+            Retry-After:
+              description: Positive polling floor in seconds; present while nonterminal.
+              schema:
+                type: integer
+                minimum: 1
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/Operation
+              examples:
+                probe_complete:
+                  value:
+                    operation_id: op-01HZX4K8W9
+                    kind: probe
+                    status: succeeded
+                    created_at: 2026-08-15T09:59:59Z
+                    started_at: 2026-08-15T10:00:00Z
+                    finished_at: 2026-08-15T10:00:01Z
+                    result:
+                      target:
+                        type: group
+                        group_id: group-proxy
+                      selection_changed:
+                        tcp: false
+                        udp: false
+                      selection_before:
+                        tcp: node-hk-01
+                        udp: null
+                      selection_after:
+                        tcp: node-hk-01
+                        udp: null
+                      results:
+                        - member_id: node-hk-01
+                          resolved_leaf_node_id: node-hk-01
+                          kind: dns
+                          purpose: dns
+                          transport: udp
+                          ip_version: ipv4
+                          warmth: cold
+                          state: healthy
+                          latency_ms: 45
+                          health_updated: true
+                          error: null
+                          observed_at: 2026-08-15T10:00:00Z
+                        - member_id: group-jp
+                          resolved_leaf_node_id: node-jp-01
+                          kind: dns
+                          purpose: dns
+                          transport: udp
+                          ip_version: ipv4
+                          warmth: cold
+                          state: unavailable
+                          latency_ms: null
+                          health_updated: true
+                          error: udp_probe_timeout
+                          observed_at: 2026-08-15T10:00:00Z
+                    error: null
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+                reload_running:
+                  value:
+                    operation_id: op-01HZX4K8W7
+                    kind: reload
+                    status: running
+                    created_at: 2026-08-15T09:29:59Z
+                    started_at: 2026-08-15T09:30:00Z
+                    finished_at: null
+                    result: null
+                    error: null
+                  x-headers:
+                    Content-Type: application/json
+                    Retry-After: 1
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+                reload_complete:
+                  value:
+                    operation_id: op-01HZX4K8W7
+                    kind: reload
+                    status: succeeded
+                    created_at: 2026-08-15T09:29:59Z
+                    started_at: 2026-08-15T09:30:00Z
+                    finished_at: 2026-08-15T09:30:01Z
+                    result:
+                      active_generation_id: generation-42
+                      datapath_generation_id: generation-42
+                    error: null
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+                reload_complete_reload:
+                  value:
+                    operation_id: op-01HZX4K8W7
+                    kind: reload
+                    status: succeeded
+                    created_at: 2026-08-15T09:29:59Z
+                    started_at: 2026-08-15T09:30:00Z
+                    finished_at: 2026-08-15T09:30:00Z
+                    result:
+                      active_generation_id: generation-42
+                      datapath_generation_id: generation-42
+                    error: null
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+                suspend_complete:
+                  value:
+                    operation_id: op-01HZX4K8W8
+                    kind: suspend
+                    status: succeeded
+                    created_at: 2026-08-15T10:00:59Z
+                    started_at: 2026-08-15T10:01:00Z
+                    finished_at: 2026-08-15T10:01:00Z
+                    result:
+                      runtime_state: suspended
+                    error: null
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "429":
+          $ref: ./openapi.yaml#/components/responses/RateLimited
+schemas:
+  ProbeLimits:
+    type: object
+    required: [ max_members_per_job, max_results_per_job, max_active_jobs, max_queued_jobs, max_concurrent_per_target, job_timeout_ms, per_principal_requests_per_minute, global_requests_per_minute ]
+    properties:
+      max_members_per_job:
+        type: integer
+        minimum: 1
+      max_results_per_job:
+        type: integer
+        minimum: 1
+      max_active_jobs:
+        type: integer
+        minimum: 1
+      max_queued_jobs:
+        type: integer
+        minimum: 0
+      max_concurrent_per_target:
+        type: integer
+        minimum: 1
+      job_timeout_ms:
+        type: integer
+        minimum: 1
+      per_principal_requests_per_minute:
+        type: integer
+        minimum: 1
+      global_requests_per_minute:
+        type: integer
+        minimum: 1
+  ProbeKind:
+    type: string
+    enum: [ tcp_connect, http, dns ]
+  ProbeTarget:
+    unevaluatedProperties: false
+    oneOf:
+      - $ref: ./openapi.yaml#/components/schemas/NodeProbeTarget
+      - $ref: ./openapi.yaml#/components/schemas/GroupProbeTarget
+  NodeProbeTarget:
+    type: object
+    required: [ type, node_id ]
+    properties:
+      type:
+        type: string
+        const: node
+      node_id:
+        type: string
+        minLength: 1
+  GroupProbeTarget:
+    type: object
+    required: [ type, group_id ]
+    properties:
+      type:
+        type: string
+        const: group
+      group_id:
+        type: string
+        minLength: 1
+  ProbeTargetResponse:
+    oneOf:
+      - $ref: ./openapi.yaml#/components/schemas/NodeProbeTarget
+      - $ref: ./openapi.yaml#/components/schemas/GroupProbeTarget
+  ProbeMembers:
+    oneOf:
+      - type: string
+        enum: [ direct, leaves ]
+      - type: array
+        minItems: 1
+        uniqueItems: true
+        items:
+          type: string
+          minLength: 1
+  ProbeRequest:
+    type: object
+    additionalProperties: false
+    required: [ target, kind, purpose, transport, ip_version, warmth ]
+    properties:
+      target:
+        $ref: ./openapi.yaml#/components/schemas/ProbeTarget
+      kind:
+        $ref: ./openapi.yaml#/components/schemas/ProbeKind
+      purpose:
+        type: string
+        enum: [ data, dns ]
+      transport:
+        type: array
+        minItems: 1
+        maxItems: 2
+        uniqueItems: true
+        items:
+          $ref: ./openapi.yaml#/components/schemas/Transport
+      ip_version:
+        type: string
+        enum: [ ipv4, ipv6, any ]
+      members:
+        $ref: ./openapi.yaml#/components/schemas/ProbeMembers
+        default: direct
+      warmth:
+        type: string
+        enum: [ cold, warm ]
+    allOf:
+      - if:
+          properties:
+            target:
+              properties:
+                type:
+                  const: node
+              required: [ type ]
+        then:
+          not:
+            required: [ members ]
+      - oneOf:
+          - properties:
+              kind:
+                const: tcp_connect
+              purpose:
+                const: data
+              transport:
+                type: array
+                minItems: 1
+                maxItems: 1
+                items:
+                  const: tcp
+          - properties:
+              kind:
+                const: http
+              purpose:
+                const: data
+              transport:
+                type: array
+                minItems: 1
+                maxItems: 1
+                items:
+                  const: tcp
+          - properties:
+              kind:
+                const: dns
+              purpose:
+                const: dns
+  ProbeResultItem:
+    type: object
+    required: [ member_id, resolved_leaf_node_id, kind, purpose, transport, ip_version, warmth, state, latency_ms, health_updated, error, observed_at ]
+    properties:
+      member_id:
+        type: string
+        minLength: 1
+      resolved_leaf_node_id:
+        type: [ string, "null" ]
+      kind:
+        $ref: ./openapi.yaml#/components/schemas/ProbeKind
+      purpose:
+        type: string
+        enum: [ data, dns ]
+      transport:
+        $ref: ./openapi.yaml#/components/schemas/Transport
+      ip_version:
+        $ref: ./openapi.yaml#/components/schemas/IpVersion
+      warmth:
+        type: string
+        enum: [ cold, warm, unknown ]
+      state:
+        type: string
+        enum: [ healthy, unavailable, unknown ]
+      latency_ms:
+        type: [ number, "null" ]
+        minimum: 0
+      health_updated:
+        type: boolean
+      error:
+        type: [ string, "null" ]
+      observed_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+    allOf:
+      - if:
+          properties:
+            state:
+              enum: [ unavailable, unknown ]
+        then:
+          properties:
+            latency_ms:
+              type: "null"
+  ProbeResult:
+    type: object
+    required: [ target, selection_changed, selection_before, selection_after, results ]
+    properties:
+      target:
+        $ref: ./openapi.yaml#/components/schemas/ProbeTargetResponse
+      selection_changed:
+        $ref: ./openapi.yaml#/components/schemas/TransportBooleanMap
+      selection_before:
+        $ref: ./openapi.yaml#/components/schemas/TransportSelectionMap
+      selection_after:
+        $ref: ./openapi.yaml#/components/schemas/TransportSelectionMap
+      results:
+        type: array
+        items:
+          $ref: ./openapi.yaml#/components/schemas/ProbeResultItem
+  TransportBooleanMap:
+    type: object
+    required: [ tcp, udp ]
+    properties:
+      tcp:
+        type: boolean
+      udp:
+        type: boolean
+  TransportSelectionMap:
+    type: object
+    required: [ tcp, udp ]
+    properties:
+      tcp:
+        type: [ string, "null" ]
+      udp:
+        type: [ string, "null" ]
+  OperationKind:
+    type: string
+    enum: [ probe, reload, suspend, resume, group_update ]
+  OperationAccepted:
+    type: object
+    required: [ operation_id, kind, status, href ]
+    properties:
+      operation_id:
+        type: string
+        minLength: 1
+      kind:
+        $ref: ./openapi.yaml#/components/schemas/OperationKind
+      status:
+        type: string
+        const: queued
+      href:
+        type: string
+        pattern: ^/api/v1/operations/[^/]+$
+  Operation:
+    oneOf:
+      - $ref: ./openapi.yaml#/components/schemas/QueuedOperation
+      - $ref: ./openapi.yaml#/components/schemas/RunningOperation
+      - $ref: ./openapi.yaml#/components/schemas/FailedOperation
+      - $ref: ./openapi.yaml#/components/schemas/ProbeSucceededOperation
+      - $ref: ./openapi.yaml#/components/schemas/ReloadSucceededOperation
+      - $ref: ./openapi.yaml#/components/schemas/SuspendSucceededOperation
+      - $ref: ./openapi.yaml#/components/schemas/ResumeSucceededOperation
+      - $ref: ./openapi.yaml#/components/schemas/GroupUpdateSucceededOperation
+  QueuedOperation:
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/OperationCommon
+      - type: object
+        properties:
+          status:
+            const: queued
+          started_at:
+            type: "null"
+          finished_at:
+            type: "null"
+          result:
+            type: "null"
+          error:
+            type: "null"
+  RunningOperation:
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/OperationCommon
+      - type: object
+        properties:
+          status:
+            const: running
+          finished_at:
+            type: "null"
+          result:
+            type: "null"
+          error:
+            type: "null"
+  FailedOperation:
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/OperationCommon
+      - type: object
+        properties:
+          status:
+            const: failed
+          finished_at:
+            $ref: ./openapi.yaml#/components/schemas/Timestamp
+          result:
+            type: "null"
+          error:
+            $ref: ./openapi.yaml#/components/schemas/SafeError
+  ProbeSucceededOperation:
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/OperationCommon
+      - type: object
+        properties:
+          kind:
+            const: probe
+          status:
+            const: succeeded
+          finished_at:
+            $ref: ./openapi.yaml#/components/schemas/Timestamp
+          result:
+            $ref: ./openapi.yaml#/components/schemas/ProbeResult
+          error:
+            type: "null"
+  ReloadSucceededOperation:
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/OperationCommon
+      - type: object
+        properties:
+          kind:
+            const: reload
+          status:
+            const: succeeded
+          finished_at:
+            $ref: ./openapi.yaml#/components/schemas/Timestamp
+          result:
+            $ref: ./openapi.yaml#/components/schemas/ReloadResult
+          error:
+            type: "null"
+  ReloadResult:
+    type: object
+    required: [ active_generation_id, datapath_generation_id ]
+    properties:
+      active_generation_id:
+        type: [ string, "null" ]
+      datapath_generation_id:
+        type: [ string, "null" ]
+  SuspendSucceededOperation:
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/OperationCommon
+      - type: object
+        properties:
+          kind:
+            const: suspend
+          status:
+            const: succeeded
+          finished_at:
+            $ref: ./openapi.yaml#/components/schemas/Timestamp
+          result:
+            type: object
+            required: [ runtime_state ]
+            properties:
+              runtime_state:
+                type: [ string, "null" ]
+                enum: [ suspended, null ]
+          error:
+            type: "null"
+  ResumeSucceededOperation:
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/OperationCommon
+      - type: object
+        properties:
+          kind:
+            const: resume
+          status:
+            const: succeeded
+          finished_at:
+            $ref: ./openapi.yaml#/components/schemas/Timestamp
+          result:
+            type: object
+            required: [ runtime_state ]
+            properties:
+              runtime_state:
+                type: [ string, "null" ]
+                enum: [ running, null ]
+          error:
+            type: "null"
+  GroupUpdateSucceededOperation:
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/OperationCommon
+      - type: object
+        properties:
+          kind:
+            const: group_update
+          status:
+            const: succeeded
+          finished_at:
+            $ref: ./openapi.yaml#/components/schemas/Timestamp
+          result:
+            $ref: ./openapi.yaml#/components/schemas/GroupUpdateResult
+          error:
+            type: "null"
+  GroupUpdateResult:
+    type: object
+    required: [ group_id, config_revision ]
+    properties:
+      group_id:
+        type: string
+        minLength: 1
+      config_revision:
+        type: string
+        minLength: 1
+  OperationCommon:
+    type: object
+    required: [ operation_id, kind, status, created_at, started_at, finished_at, result, error ]
+    properties:
+      operation_id:
+        type: string
+        minLength: 1
+      kind:
+        $ref: ./openapi.yaml#/components/schemas/OperationKind
+      status:
+        type: string
+        enum: [ queued, running, succeeded, failed ]
+      created_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      started_at:
+        $ref: ./openapi.yaml#/components/schemas/NullableTimestamp
+      finished_at:
+        $ref: ./openapi.yaml#/components/schemas/NullableTimestamp
+      result:
+        type: [ object, "null" ]
+        additionalProperties: true
+      error:
+        oneOf:
+          - type: "null"
+          - $ref: ./openapi.yaml#/components/schemas/SafeError

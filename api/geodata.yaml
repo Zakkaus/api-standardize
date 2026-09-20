@@ -1,0 +1,201 @@
+paths:
+  /api/v1/geodata:
+    get:
+      operationId: getGeoData
+      summary: Read the geosite and geoip assets the engine loaded
+      description: |
+        Requires resources.geodata.available; otherwise returns 404
+        capability_not_supported. One entry per asset kind in
+        resources.geodata.assets, describing the file the running datapath was
+        built from: its digest, size and modification time, and the download source
+        POST /geodata/update fetches, redacted like a provider URL. Reading never
+        touches the network.
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        "200":
+          description: Loaded assets
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/GeoData
+              examples:
+                loaded:
+                  value:
+                    observed_at: 2026-08-15T10:00:00Z
+                    assets:
+                      - kind: geosite
+                        sha256: 3f5a9c1e7b2d4c6a8e0f1b3d5a7c9e1f3b5d7a9c1e3f5a7b9d1c3e5f7a9b1d3c
+                        size_bytes: "4718592"
+                        modified_at: 2026-08-14T03:00:00Z
+                        source_redacted: https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat
+                      - kind: geoip
+                        sha256: 9b1d3c5e7f0a2c4e6b8d0f2a4c6e8b0d2f4a6c8e0b2d4f6a8c0e2b4d6f8a0c2e
+                        size_bytes: "6291456"
+                        modified_at: 2026-08-14T03:00:00Z
+                        source_redacted: https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+  /api/v1/geodata/update:
+    post:
+      operationId: updateGeoData
+      summary: Queue a download of the geosite and geoip assets
+      description: |
+        Requires resources.geodata.can_update; otherwise returns 404
+        capability_not_supported. Takes no request body and never changes the
+        configured sources. The backend downloads every asset from its source into a
+        temporary file, verifies it parses, replaces the loaded file and reloads the
+        datapath once, emitting generation.changed; an asset that fails to download
+        or parse leaves the loaded file in place and fails the operation. Follow the
+        shared operation ownership, retention and idempotency rules. Replaying an
+        accepted Idempotency-Key returns its original operation; a distinct update
+        while one is queued or running returns 409 state_conflict. A full bounded
+        queue returns 503 temporarily_unavailable with Retry-After. A successful
+        geodata_update operation returns the new GeoData in result; failure uses
+        SafeError.
+      x-permission: control
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - $ref: ./openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        "202":
+          description: Geodata update accepted
+          headers:
+            Location:
+              description: Operation status URL; equal to body href.
+              required: true
+              schema:
+                type: string
+                pattern: ^/api/v1/operations/[^/]+$
+            Retry-After:
+              description: Positive polling floor in seconds.
+              required: true
+              schema:
+                type: integer
+                minimum: 1
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/GeoDataUpdateAccepted
+              examples:
+                queued:
+                  value:
+                    operation_id: op-geodata-01
+                    kind: geodata_update
+                    status: queued
+                    href: /api/v1/operations/op-geodata-01
+                  x-headers:
+                    Content-Type: application/json
+                    Location: /api/v1/operations/op-geodata-01
+                    Retry-After: 2
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "409":
+          description: An update is queued or running, or an idempotency key conflicts
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                in_flight:
+                  value:
+                    error:
+                      code: state_conflict
+                      message: A geodata update is already queued or running.
+                      details: null
+                    request_id: request-01HZX4K8W6
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "429":
+          $ref: ./openapi.yaml#/components/responses/RateLimited
+        "503":
+          $ref: ./openapi.yaml#/components/responses/Unavailable
+schemas:
+  GeoAssetKind:
+    type: string
+    enum: [ geosite, geoip ]
+  GeoAsset:
+    type: object
+    required: [ kind, sha256, size_bytes, modified_at, source_redacted ]
+    properties:
+      kind:
+        $ref: ./openapi.yaml#/components/schemas/GeoAssetKind
+      sha256:
+        type: string
+        pattern: ^[0-9a-f]{64}$
+        description: Digest of the loaded file.
+      size_bytes:
+        $ref: ./openapi.yaml#/components/schemas/UInt64
+      modified_at:
+        $ref: ./openapi.yaml#/components/schemas/NullableTimestamp
+        description: Modification time of the loaded file, or null when the filesystem does not report one.
+      source_redacted:
+        type: [ string, "null" ]
+        minLength: 1
+        description: Display-only download source with userinfo, query and fragment removed; null when the backend has no source for this asset.
+  GeoData:
+    type: object
+    required: [ observed_at, assets ]
+    properties:
+      observed_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      assets:
+        type: array
+        items:
+          $ref: ./openapi.yaml#/components/schemas/GeoAsset
+  GeoDataUpdateAccepted:
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/OperationAccepted
+      - type: object
+        properties:
+          kind:
+            const: geodata_update
+  GeoDataUpdateSucceededOperation:
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/OperationCommon
+      - type: object
+        properties:
+          kind:
+            const: geodata_update
+          status:
+            const: succeeded
+          finished_at:
+            $ref: ./openapi.yaml#/components/schemas/Timestamp
+          result:
+            $ref: ./openapi.yaml#/components/schemas/GeoData
+          error:
+            type: "null"

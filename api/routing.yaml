@@ -1,0 +1,244 @@
+paths:
+  /api/v1/routing/trace:
+    post:
+      operationId: traceRouting
+      summary: Simulate bounded routing evaluation
+      x-permission: control
+      security:
+        - bearerAuth: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./openapi.yaml#/components/schemas/RoutingTraceRequest
+            examples:
+              hypothetical:
+                value:
+                  input:
+                    network: tcp
+                    domain: example.com
+                    dst_ip: 198.51.100.20
+                    dst_port: 443
+                    src_ip: 192.0.2.10
+                    src_port: 53000
+                    pname: null
+                    dscp: 0
+                    mark: 0
+                  resolve: none
+      responses:
+        "200":
+          description: Hypothetical routing evaluation; never a recorded flow
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/RoutingTraceResponse
+              examples:
+                indeterminate:
+                  value:
+                    mode: simulation
+                    instance_id: instance-7
+                    generation_id: generation-42
+                    observed_at: 2026-09-14T10:00:00Z
+                    evaluations:
+                      - dst_ip: 198.51.100.20
+                        decision: indeterminate
+                        outbound: null
+                        missing_inputs: [ pname ]
+                        rules:
+                          - rule_id: traffic:0
+                            expression: pname(curl) -> direct
+                            result: indeterminate
+                            missing_inputs: [ pname ]
+                            conditions:
+                              - id: traffic:0/pname
+                                expression: pname(curl)
+                                result: indeterminate
+                                missing_inputs: [ pname ]
+                          - rule_id: traffic:1
+                            expression: dip(198.51.100.0/24) -> proxy
+                            result: matched
+                            missing_inputs: []
+                            conditions:
+                              - id: traffic:1/dip
+                                expression: dip(198.51.100.0/24)
+                                result: matched
+                                missing_inputs: []
+                          - rule_id: traffic:2
+                            expression: "fallback: block"
+                            result: skipped
+                            missing_inputs: []
+                            conditions: []
+                    dns: []
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "409":
+          $ref: ./openapi.yaml#/components/responses/Conflict
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
+        "415":
+          $ref: ./openapi.yaml#/components/responses/UnsupportedMediaType
+        "422":
+          $ref: ./openapi.yaml#/components/responses/Unprocessable
+        "429":
+          $ref: ./openapi.yaml#/components/responses/RateLimited
+        "503":
+          $ref: ./openapi.yaml#/components/responses/Unavailable
+schemas:
+  RoutingTraceInput:
+    type: object
+    additionalProperties: false
+    required: [ network, dst_port ]
+    properties:
+      network:
+        $ref: ./openapi.yaml#/components/schemas/Transport
+      domain:
+        type: [ string, "null" ]
+        minLength: 1
+      dst_ip:
+        oneOf:
+          - type: "null"
+          - $ref: ./openapi.yaml#/components/schemas/IpAddress
+      dst_port:
+        type: integer
+        minimum: 1
+        maximum: 65535
+      src_ip:
+        oneOf:
+          - type: "null"
+          - $ref: ./openapi.yaml#/components/schemas/IpAddress
+      src_port:
+        type: [ integer, "null" ]
+        minimum: 1
+        maximum: 65535
+      pname:
+        type: [ string, "null" ]
+      dscp:
+        type: [ integer, "null" ]
+        minimum: 0
+        maximum: 63
+      mark:
+        type: [ integer, "null" ]
+        minimum: 0
+        maximum: 4294967295
+    anyOf:
+      - required: [ domain ]
+        properties:
+          domain:
+            type: string
+            minLength: 1
+      - required: [ dst_ip ]
+        properties:
+          dst_ip:
+            $ref: ./openapi.yaml#/components/schemas/IpAddress
+  RoutingTraceRequest:
+    type: object
+    additionalProperties: false
+    required: [ input ]
+    properties:
+      input:
+        $ref: ./openapi.yaml#/components/schemas/RoutingTraceInput
+      resolve:
+        type: string
+        enum: [ none, live ]
+        default: none
+    allOf:
+      - if:
+          required: [ resolve ]
+          properties:
+            resolve:
+              const: live
+        then:
+          properties:
+            input:
+              allOf:
+                - required: [ domain ]
+                  properties:
+                    domain:
+                      type: string
+                      minLength: 1
+                - properties:
+                    dst_ip:
+                      type: "null"
+  RoutingEvaluation:
+    type: object
+    required: [ dst_ip, decision, outbound, missing_inputs, rules ]
+    properties:
+      dst_ip:
+        oneOf:
+          - type: "null"
+          - $ref: ./openapi.yaml#/components/schemas/IpAddress
+      decision:
+        type: string
+        enum: [ determinate, indeterminate ]
+      outbound:
+        type: [ string, "null" ]
+      missing_inputs:
+        type: array
+        uniqueItems: true
+        items:
+          type: string
+          minLength: 1
+      rules:
+        type: array
+        items:
+          $ref: ./openapi.yaml#/components/schemas/RuleEvaluation
+  SimulationDnsData:
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/DnsStepData
+      - type: object
+        properties:
+          lookup_id:
+            type: string
+            minLength: 1
+            description: Simulation-local lookup ID; never a recorded-flow identity.
+          purpose:
+            const: dial_target
+          attempt_id:
+            type: "null"
+            description: Simulations never create outbound attempts.
+  RoutingTraceResponse:
+    type: object
+    required: [ mode, instance_id, generation_id, observed_at, evaluations, dns ]
+    properties:
+      mode:
+        type: string
+        const: simulation
+      instance_id:
+        type: string
+        minLength: 1
+      generation_id:
+        type: string
+        minLength: 1
+      observed_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      evaluations:
+        type: array
+        items:
+          $ref: ./openapi.yaml#/components/schemas/RoutingEvaluation
+      dns:
+        type: array
+        items:
+          $ref: ./openapi.yaml#/components/schemas/SimulationDnsData
+    not:
+      anyOf:
+        - required: [ id ]
+        - required: [ flow_id ]
+        - required: [ connection_id ]
+    description: Hypothetical output. It never identifies or claims history for a live flow.

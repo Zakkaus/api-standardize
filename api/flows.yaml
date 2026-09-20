@@ -1,0 +1,1199 @@
+paths:
+  /api/v1/connections:
+    get:
+      operationId: listConnections
+      summary: Read a scope-labelled live connection snapshot
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [ tcp, udp, all ]
+            default: all
+        - name: src
+          in: query
+          description: Exact source IP literal, without a port; applied with type before limit. Totals and truncated describe only matching visible entries.
+          schema:
+            $ref: ./openapi.yaml#/components/schemas/IpAddress
+          example: 192.168.1.100
+        - $ref: ./openapi.yaml#/components/parameters/Limit1000
+        - $ref: ./openapi.yaml#/components/parameters/Detail
+      responses:
+        "200":
+          description: Connection snapshot
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ConnectionList
+              examples:
+                visible:
+                  value:
+                    observed_at: 2026-08-15T10:00:00Z
+                    instance_id: instance-7
+                    visibility: partial
+                    truncated: false
+                    tcp:
+                      - id: tcp-01HZX4K8W5
+                        flow_id: flow-23
+                        pname: curl
+                        state: active
+                        src: 192.168.1.100:12345
+                        dst: 1.2.3.4:443
+                        domain: example.com
+                        outbound: proxy
+                        chain: [ group-proxy, node-hk-01 ]
+                        chain_source: evaluation
+                        rule_id: null
+                        rule_expression: null
+                        rule_source: unknown
+                        ingress: wan
+                        domain_source: tls_sni
+                        started_at: 2026-08-15T09:59:50Z
+                        observed_by: userspace
+                        upload_bytes: "20480"
+                        download_bytes: "1048576"
+                        upload_bytes_per_second: "4096"
+                        download_bytes_per_second: "32768"
+                    udp:
+                      - id: udp-01HZX4K8W6
+                        flow_id: null
+                        pname: null
+                        state: unknown
+                        src: 192.168.1.100:5353
+                        dst: 8.8.8.8:53
+                        domain: null
+                        outbound: direct
+                        chain: []
+                        chain_source: unknown
+                        rule_id: null
+                        rule_expression: null
+                        rule_source: unknown
+                        ingress: null
+                        domain_source: null
+                        started_at: 2026-08-15T09:59:55Z
+                        observed_by: ebpf
+                        upload_bytes: null
+                        download_bytes: null
+                        upload_bytes_per_second: null
+                        download_bytes_per_second: null
+                    total_tcp: 1
+                    total_udp: 1
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+    delete:
+      operationId: closeConnections
+      summary: Close matching userspace-owned connections
+      description: |
+        Requires resources.connections.available and can_close; otherwise returns
+        404 capability_not_supported. Requires control permission.
+
+        Uses the list's type and exact source-IP src filters, combined with AND.
+        A missing type or type=all does not restrict the set. Without type=tcp,
+        type=udp, or src, require all=true; otherwise return 400 invalid_request
+        before closing anything. This prevents an omitted filter from accidentally
+        disconnecting every userspace connection. all=true permits an unfiltered
+        request but does not override supplied filters. limit and detail are list
+        presentation parameters, not bulk-close parameters.
+
+        Select the matching live entries once before closing. If their count,
+        including non-closable entries, exceeds resources.connections.max_bulk_close,
+        return 413 request_too_large before closing anything; do not truncate.
+        Close every closable match and count the non-closable matches as skipped.
+        An empty match succeeds with closed=0 and skipped=0. Connections arriving
+        after selection are not included; selected entries that disappear before
+        cancellation are not counted as closed or skipped.
+
+        Closable means the userspace datapath owns the TCP transport or UDP session
+        and can actually cancel or retire it, not merely delete its tracker entry.
+        observed_by labels observation, not ownership: userspace or mixed evidence
+        is not sufficient by itself. Kernel-direct and kernel-bypassed flows
+        (kernel_direct/kernel_bypass scopes, including ebpf-only observations)
+        are not closable. An outbound named direct alone does not determine ownership.
+
+        Idempotency-Key is accepted. These synchronous DELETEs evaluate current live
+        state on each call, even with a repeated key; they do not replay an earlier
+        result or return a retained operation.
+
+        Closing a recorded flow advances its terminal state and emits the existing
+        flow.updated invalidation when advertised. Clients fetch its href and
+        refresh /connections; runtime.updated invalidates changed runtime counters.
+        Coalescing and retention rules still apply. No flow ID or event is fabricated
+        for an unrecorded connection, and there is no new close event kind.
+      x-permission: control
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - $ref: "#/paths/~1api~1v1~1connections/get/parameters/0"
+        - $ref: "#/paths/~1api~1v1~1connections/get/parameters/1"
+        - name: all
+          in: query
+          description: Explicitly permit an unfiltered close; does not override type or src.
+          schema:
+            type: boolean
+            default: false
+        - $ref: ./openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        "200":
+          description: All selected closable matches closed; non-closable matches skipped.
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/BulkCloseResult
+              examples:
+                closed:
+                  value:
+                    closed: 2
+                    skipped: 1
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          description: Invalid parameters, or an unfiltered close without all=true; no connections closed.
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                unfiltered:
+                  value:
+                    error:
+                      code: invalid_request
+                      message: Supply type=tcp, type=udp, or src, or explicitly pass all=true.
+                      details: null
+                    request_id: request-close-1
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          description: Connection closing is unavailable (capability_not_supported).
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                unsupported:
+                  value:
+                    error:
+                      code: capability_not_supported
+                      message: Connection closing is unavailable.
+                      details: null
+                    request_id: request-close-3
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
+          description: Matching live entries exceed max_bulk_close (request_too_large); no connections closed.
+  /api/v1/connections/{connection_id}:
+    delete:
+      operationId: closeConnection
+      summary: Close one userspace-owned connection
+      description: |
+        Requires resources.connections.available and can_close; otherwise returns
+        404 capability_not_supported. Requires control permission.
+
+        A connection is closable only when the userspace datapath owns its TCP
+        transport or UDP session and can actually cancel or retire it. Deleting a
+        tracker entry is not transport cancellation. observed_by is an observation
+        label, not an ownership guarantee: userspace or mixed evidence alone is not
+        sufficient. Kernel-direct and kernel-bypassed flows (kernel_direct and
+        kernel_bypass scopes, including ebpf-only observations) are not closable;
+        an observed but non-closable connection returns 409 state_conflict.
+        An outbound named direct alone does not determine ownership.
+
+        Success returns 204 only after cancellation or retirement, with no body.
+        An unknown or already-gone ID returns 404 resource_not_found. Closing the
+        same ID twice returns 404 on the second call, including when Idempotency-Key
+        is repeated. The header is accepted as on other control calls, but this
+        synchronous DELETE evaluates current live state rather than replaying a
+        previous 204 or returning a retained operation.
+
+        Closing a recorded flow advances its terminal state and emits the existing
+        flow.updated invalidation when advertised. Clients fetch its href and
+        refresh /connections; runtime.updated invalidates changed runtime counters.
+        Coalescing and retention rules still apply. No flow ID or event is fabricated
+        for an unrecorded connection, and there is no new close event kind.
+      x-permission: control
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - $ref: ./openapi.yaml#/components/parameters/ConnectionId
+        - $ref: ./openapi.yaml#/components/parameters/IdempotencyKey
+      responses:
+        "204":
+          description: Connection closed; no response body or Content-Type.
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          x-examples:
+            closed:
+              x-headers:
+                Cache-Control: no-store
+                X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          description: Unknown or already-gone ID (resource_not_found), or closing unavailable (capability_not_supported).
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                gone:
+                  value:
+                    error:
+                      code: resource_not_found
+                      message: Connection is unknown or already gone.
+                      details: null
+                    request_id: request-close-2
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+                unsupported:
+                  value:
+                    error:
+                      code: capability_not_supported
+                      message: Connection closing is unavailable.
+                      details: null
+                    request_id: request-close-3
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "409":
+          description: Observed connection is not owned by a cancellable userspace transport/session (state_conflict).
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                not_closable:
+                  value:
+                    error:
+                      code: state_conflict
+                      message: The connection is observed by eBPF but its transport is not owned by userspace.
+                      details: null
+                    request_id: request-close-4
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+  /api/v1/flows:
+    get:
+      operationId: listFlows
+      summary: List active and retained terminal flow decisions
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - name: network
+          in: query
+          schema:
+            type: string
+            enum: [ tcp, udp, all ]
+            default: all
+        - name: state
+          in: query
+          schema:
+            oneOf:
+              - $ref: ./openapi.yaml#/components/schemas/ConnectionState
+              - const: all
+            default: all
+        - name: connection_id
+          in: query
+          description: Exact opaque connection ID within the current adapter instance; never inferred from a tuple. Matches active and retained terminal flows.
+          schema:
+            type: string
+            minLength: 1
+          example: tcp-01HZX4K8W5
+        - $ref: ./openapi.yaml#/components/parameters/Limit1000
+        - $ref: ./openapi.yaml#/components/parameters/Cursor
+        - $ref: ./openapi.yaml#/components/parameters/Detail
+      responses:
+        "200":
+          description: Point-in-time flow page
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/FlowList
+              examples:
+                visible:
+                  value:
+                    instance_id: instance-7
+                    observed_at: 2026-09-14T10:00:00Z
+                    coverage:
+                      userspace_tcp: full
+                      userspace_udp: partial
+                      kernel_direct: none
+                      kernel_block: none
+                      dns_intercept: partial
+                      kernel_bypass: none
+                    dropped_records: "3"
+                    flows:
+                      - id: flow-23
+                        instance_id: instance-7
+                        revision: 8
+                        network: tcp
+                        state: active
+                        pname: curl
+                        connection_id: tcp-01HZX4K8W5
+                        outbound: proxy
+                        chain: [ group-proxy, node-hk-01 ]
+                        chain_source: evaluation
+                        rule_id: null
+                        rule_expression: null
+                        rule_source: unknown
+                        ingress: wan
+                        domain_source: tls_sni
+                        observed_by: userspace
+                        started_at: 2026-08-15T09:59:50Z
+                        ended_at: null
+                        trace_status: partial
+                    next_cursor: null
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "410":
+          $ref: ./openapi.yaml#/components/responses/Gone
+        "503":
+          description: Bounded recorder memory cannot admit a snapshot
+          headers:
+            Retry-After:
+              description: Retry delay in seconds when retryable.
+              schema:
+                type: integer
+                minimum: 1
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                snapshot_full:
+                  value:
+                    error:
+                      code: temporarily_unavailable
+                      message: Flow snapshot capacity is full.
+                    request_id: request-1
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+                    Retry-After: 1
+  /api/v1/flows/{flow_id}:
+    get:
+      operationId: getFlow
+      summary: Read one recorded causal flow trace
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - $ref: ./openapi.yaml#/components/parameters/FlowId
+      responses:
+        "200":
+          description: Recorded flow detail
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/FlowDetail
+              examples:
+                partial_handoff:
+                  value:
+                    id: flow-23
+                    instance_id: instance-7
+                    revision: 8
+                    network: tcp
+                    state: active
+                    pname: curl
+                    connection_id: tcp-01HZX4K8W5
+                    outbound: proxy
+                    chain: [ group-proxy, node-hk-01 ]
+                    chain_source: evaluation
+                    rule_id: null
+                    rule_expression: null
+                    rule_source: unknown
+                    ingress: wan
+                    domain_source: tls_sni
+                    observed_by: userspace
+                    started_at: 2026-08-15T09:59:50Z
+                    ended_at: null
+                    trace_status: partial
+                    input:
+                      src: 192.168.1.100:12345
+                      dst: 1.2.3.4:443
+                      domain: example.com
+                      domain_source: tls_sni
+                      pid: null
+                      process_path: null
+                      src_mac: null
+                      ingress: wan
+                      domain_rule_ids: null
+                      dscp: 0
+                      mark: 0
+                    trace:
+                      status: partial
+                      missing: [ not_instrumented ]
+                      steps:
+                        - seq: 1
+                          stage: route
+                          observed_at: 2026-08-15T09:59:50Z
+                          elapsed_us: 0
+                          generation_id: generation-42
+                          evidence: observed
+                          data:
+                            evaluation_id: eval-1
+                            chain: traffic
+                            plane: kernel
+                            input: null
+                            dns_action: null
+                            rule_id: null
+                            rules: []
+                            outbound: proxy
+                            must: false
+                            mark: 0
+                        - seq: 2
+                          stage: dial_mode
+                          observed_at: 2026-08-15T09:59:50Z
+                          elapsed_us: 100
+                          generation_id: generation-42
+                          evidence: observed
+                          data:
+                            configured: domain+
+                            effective_target: domain
+                            domain: example.com
+                            domain_source: tls_sni
+                            verification: not_required
+                            reason: preserve_initial_route
+                        - seq: 3
+                          stage: reroute
+                          observed_at: 2026-08-15T09:59:50Z
+                          elapsed_us: 120
+                          generation_id: generation-42
+                          evidence: observed
+                          data:
+                            performed: false
+                            reason: dial_mode_preserves_route
+                            from_evaluation_id: eval-1
+                            to_evaluation_id: null
+                        - seq: 4
+                          stage: outbound
+                          observed_at: 2026-08-15T09:59:50Z
+                          elapsed_us: 150
+                          generation_id: generation-42
+                          evidence: observed
+                          data:
+                            attempt_id: attempt-1
+                            parent_attempt_id: null
+                            kind: leaf
+                            evaluation_id: eval-1
+                            routing_source: evaluation
+                            routed_outbound: proxy
+                            effective_outbound: proxy
+                            mode_override: none
+                            selection_path:
+                              - group_id: group-proxy
+                                member_id: node-hk-01
+                                member_name: hk-01
+                                policy: selector
+                                reason: manual_selection
+                                selection: null
+                            leaf_node_id: node-hk-01
+                            leaf_node_name: hk-01
+                            target: example.com:443
+                            target_kind: domain
+                            dial_ip: null
+                            server_addr: 203.0.113.7:443
+                            resolution_location: outbound_remote
+                            status: succeeded
+                            error: null
+                        - seq: 5
+                          stage: connection
+                          observed_at: 2026-08-15T09:59:50Z
+                          elapsed_us: 20000
+                          generation_id: generation-42
+                          evidence: observed
+                          data:
+                            state: active
+                            reason: transport_ready
+                            milestone: transport_ready
+                            attempt_id: attempt-1
+                            reply_received: null
+                            error: null
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+                interleaved_dns:
+                  summary: Evaluation-owned DNS inputs and explicit non-adjacent references
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+                  value:
+                    id: flow-24
+                    instance_id: instance-7
+                    revision: 8
+                    network: tcp
+                    state: active
+                    pname: curl
+                    connection_id: tcp-24
+                    outbound: proxy
+                    chain: [ node-hk-01 ]
+                    chain_source: evaluation
+                    rule_id: rule-traffic
+                    rule_expression: null
+                    rule_source: kernel
+                    ingress: wan
+                    domain_source: explicit
+                    observed_by: userspace
+                    started_at: 2026-09-14T09:59:59Z
+                    ended_at: null
+                    trace_status: complete
+                    input:
+                      src: 192.0.2.10:53000
+                      dst: 198.51.100.20:443
+                      domain: example.com
+                      domain_source: explicit
+                      pid: null
+                      process_path: null
+                      src_mac: null
+                      ingress: wan
+                      domain_rule_ids: null
+                      dscp: 0
+                      mark: 0
+                    trace:
+                      status: complete
+                      missing: []
+                      steps:
+                        - seq: 1
+                          stage: route
+                          observed_at: 2026-09-14T10:00:00Z
+                          elapsed_us: 10
+                          generation_id: generation-42
+                          evidence: observed
+                          data:
+                            evaluation_id: eval-traffic
+                            chain: traffic
+                            plane: kernel
+                            rule_id: rule-traffic
+                            rules:
+                              - rule_id: rule-traffic
+                                expression: null
+                                result: matched
+                                missing_inputs: []
+                                conditions: []
+                            outbound: proxy
+                            must: false
+                            mark: 0
+                            input:
+                              network: tcp
+                              src_ip: 192.0.2.10
+                              src_port: 53000
+                              dst_ip: 198.51.100.20
+                              dst_port: 443
+                              domain: example.com
+                              pname: curl
+                              src_mac: null
+                              dscp: 0
+                              mark: 0
+                              ingress: wan
+                              domain_rule_ids: null
+                            dns_action: null
+                        - seq: 2
+                          stage: route
+                          observed_at: 2026-09-14T10:00:00Z
+                          elapsed_us: 20
+                          generation_id: generation-42
+                          evidence: observed
+                          data:
+                            evaluation_id: eval-dns-request
+                            chain: dns_request
+                            plane: userspace
+                            rule_id: rule-dns_request
+                            rules:
+                              - rule_id: rule-dns_request
+                                expression: null
+                                result: matched
+                                missing_inputs: []
+                                conditions: []
+                            outbound: dns-primary
+                            must: null
+                            mark: null
+                            input:
+                              name: example.com
+                              qtype: A
+                              source_ip: 192.0.2.10
+                              original_dst: null
+                            dns_action: upstream
+                        - seq: 3
+                          stage: route
+                          observed_at: 2026-09-14T10:00:00Z
+                          elapsed_us: 30
+                          generation_id: generation-42
+                          evidence: observed
+                          data:
+                            evaluation_id: eval-dns-upstream
+                            chain: dns_upstream
+                            plane: userspace
+                            rule_id: rule-dns_upstream
+                            rules:
+                              - rule_id: rule-dns_upstream
+                                expression: null
+                                result: matched
+                                missing_inputs: []
+                                conditions: []
+                            outbound: proxy
+                            must: null
+                            mark: null
+                            input:
+                              network: udp
+                              src_ip: 0.0.0.0
+                              src_port: 0
+                              dst_ip: 203.0.113.53
+                              dst_port: 53
+                              domain: resolver.example
+                              pname: null
+                              src_mac: null
+                              dscp: null
+                              mark: null
+                              ingress: null
+                              domain_rule_ids: null
+                            dns_action: null
+                        - seq: 4
+                          stage: outbound
+                          observed_at: 2026-09-14T10:00:00Z
+                          elapsed_us: 40
+                          generation_id: generation-42
+                          evidence: observed
+                          data:
+                            attempt_id: attempt-dns
+                            parent_attempt_id: null
+                            kind: leaf
+                            evaluation_id: eval-dns-upstream
+                            routing_source: evaluation
+                            routed_outbound: proxy
+                            effective_outbound: proxy
+                            mode_override: none
+                            selection_path: []
+                            leaf_node_id: node-hk-01
+                            leaf_node_name: hk-01
+                            target: 203.0.113.53:53
+                            target_kind: ip
+                            dial_ip: 203.0.113.53
+                            server_addr: 203.0.113.7:443
+                            resolution_location: original_ip
+                            status: succeeded
+                            error: null
+                        - seq: 5
+                          stage: dns
+                          observed_at: 2026-09-14T10:00:00Z
+                          elapsed_us: 50
+                          generation_id: generation-42
+                          evidence: observed
+                          data:
+                            lookup_id: lookup-1
+                            parent_lookup_id: null
+                            attempt_id: attempt-dns
+                            purpose: domain_verification
+                            name: example.com
+                            qtype: A
+                            source: upstream
+                            upstream_transport: udp
+                            carrier_transport: tcp
+                            cache: miss
+                            cache_entry_id: null
+                            upstream: dns-primary
+                            route_evaluation_ids: [ eval-dns-request, eval-dns-upstream, eval-dns-response ]
+                            status: NOERROR
+                            addresses: [ 198.51.100.20 ]
+                            selected_ip: 198.51.100.20
+                            error: null
+                        - seq: 6
+                          stage: route
+                          observed_at: 2026-09-14T10:00:00Z
+                          elapsed_us: 60
+                          generation_id: generation-42
+                          evidence: observed
+                          data:
+                            evaluation_id: eval-dns-response
+                            chain: dns_response
+                            plane: userspace
+                            rule_id: rule-dns_response
+                            rules:
+                              - rule_id: rule-dns_response
+                                expression: null
+                                result: matched
+                                missing_inputs: []
+                                conditions: []
+                            outbound: null
+                            must: null
+                            mark: null
+                            input:
+                              name: example.com
+                              qtype: A
+                              answer_ips: [ 198.51.100.20 ]
+                              from_upstream: dns-primary
+                            dns_action: accept
+                        - seq: 7
+                          stage: outbound
+                          observed_at: 2026-09-14T10:00:00Z
+                          elapsed_us: 70
+                          generation_id: generation-42
+                          evidence: observed
+                          data:
+                            attempt_id: attempt-app
+                            parent_attempt_id: null
+                            kind: leaf
+                            evaluation_id: eval-traffic
+                            routing_source: evaluation
+                            routed_outbound: proxy
+                            effective_outbound: proxy
+                            mode_override: none
+                            selection_path: []
+                            leaf_node_id: node-hk-01
+                            leaf_node_name: hk-01
+                            target: example.com:443
+                            target_kind: domain
+                            dial_ip: null
+                            server_addr: 203.0.113.7:443
+                            resolution_location: outbound_remote
+                            status: succeeded
+                            error: null
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "410":
+          $ref: ./openapi.yaml#/components/responses/Gone
+schemas:
+  BulkCloseResult:
+    type: object
+    required: [ closed, skipped ]
+    description: Bounded JSON-number counts; closed + skipped cannot exceed resources.connections.max_bulk_close.
+    properties:
+      closed:
+        $ref: ./openapi.yaml#/components/schemas/SafeUInt
+        description: Selected connections actually cancelled or retired by the userspace datapath.
+      skipped:
+        $ref: ./openapi.yaml#/components/schemas/SafeUInt
+        description: Selected connections observed but not closable; excludes entries that disappeared before cancellation.
+  ConnectionState:
+    type: string
+    enum: [ observed, routing, dialing, active, closed, blocked, failed, unknown ]
+  Connection:
+    type: object
+    required: [ id, flow_id, pname, state, outbound, chain, chain_source, rule_id, rule_expression, rule_source, ingress, domain_source, started_at, observed_by, upload_bytes, download_bytes, upload_bytes_per_second, download_bytes_per_second ]
+    properties:
+      id:
+        type: string
+        minLength: 1
+      flow_id:
+        type: [ string, "null" ]
+      pname:
+        type: [ string, "null" ]
+      state:
+        $ref: ./openapi.yaml#/components/schemas/ConnectionState
+      src:
+        type: string
+        minLength: 1
+      dst:
+        type: string
+        minLength: 1
+      domain:
+        type: [ string, "null" ]
+      outbound:
+        type: [ string, "null" ]
+      chain:
+        type: array
+        items:
+          type: string
+        description: Application outbound selection_path group IDs followed by the leaf node ID, in order; empty for direct/block or an unknown path.
+      chain_source:
+        type: string
+        enum: [ evaluation, reconstructed, unknown ]
+        description: Selection captured at evaluation, reconstructed from retained evidence, or unavailable; never a current group snapshot.
+      rule_id:
+        type: [ string, "null" ]
+        description: Generation-scoped traffic rule ID, or null when unavailable.
+      rule_expression:
+        type: [ string, "null" ]
+        description: Sanitized display expression for that rule, or null when unavailable.
+      rule_source:
+        type: string
+        enum: [ kernel, recomputed, unknown ]
+        description: Deciding kernel rule, recomputed userspace evidence, or unavailable provenance; see honk-mapping's matched_rule row.
+      ingress:
+        type: [ string, "null" ]
+        enum: [ lan, wan, null ]
+      domain_source:
+        oneOf:
+          - type: "null"
+          - $ref: ./openapi.yaml#/components/schemas/DomainSource
+      started_at:
+        $ref: ./openapi.yaml#/components/schemas/NullableTimestamp
+      observed_by:
+        $ref: ./openapi.yaml#/components/schemas/ObservedBy
+      upload_bytes:
+        $ref: ./openapi.yaml#/components/schemas/NullableUInt64
+      download_bytes:
+        $ref: ./openapi.yaml#/components/schemas/NullableUInt64
+      upload_bytes_per_second:
+        $ref: ./openapi.yaml#/components/schemas/NullableUInt64
+      download_bytes_per_second:
+        $ref: ./openapi.yaml#/components/schemas/NullableUInt64
+  ConnectionList:
+    type: object
+    required: [ observed_at, instance_id, visibility, truncated, tcp, udp, total_tcp, total_udp ]
+    properties:
+      observed_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      instance_id:
+        type: string
+        minLength: 1
+      visibility:
+        $ref: ./openapi.yaml#/components/schemas/Visibility
+      truncated:
+        type: boolean
+        description: Whether limit omitted visible entries matching type and src.
+      tcp:
+        type: array
+        items:
+          $ref: ./openapi.yaml#/components/schemas/Connection
+      udp:
+        type: array
+        items:
+          $ref: ./openapi.yaml#/components/schemas/Connection
+      total_tcp:
+        $ref: ./openapi.yaml#/components/schemas/SafeUInt
+        description: Visible live TCP entries matching type and src before limit; zero when type excludes TCP.
+      total_udp:
+        $ref: ./openapi.yaml#/components/schemas/SafeUInt
+        description: Visible live UDP entries matching type and src before limit; zero when type excludes UDP.
+  FlowScope:
+    type: string
+    enum: [ userspace_tcp, userspace_udp, kernel_direct, kernel_block, dns_intercept, kernel_bypass ]
+  TraceStatus:
+    type: string
+    enum: [ complete, partial, disabled ]
+  FlowInput:
+    type: object
+    required: [ src, dst, domain, domain_source, pid, process_path, src_mac, ingress, domain_rule_ids, dscp, mark ]
+    properties:
+      src:
+        type: [ string, "null" ]
+      dst:
+        type: [ string, "null" ]
+      domain:
+        type: [ string, "null" ]
+      domain_source:
+        oneOf:
+          - type: "null"
+          - $ref: ./openapi.yaml#/components/schemas/DomainSource
+      pid:
+        $ref: ./openapi.yaml#/components/schemas/NullableSafeUInt
+      process_path:
+        type: [ string, "null" ]
+      src_mac:
+        type: [ string, "null" ]
+      ingress:
+        type: [ string, "null" ]
+        enum: [ lan, wan, null ]
+      domain_rule_ids:
+        oneOf:
+          - type: "null"
+          - type: array
+            uniqueItems: true
+            items:
+              type: string
+              minLength: 1
+      dscp:
+        type: [ integer, "null" ]
+        minimum: 0
+        maximum: 63
+      mark:
+        type: [ integer, "null" ]
+        minimum: 0
+        maximum: 4294967295
+  DomainSource:
+    type: string
+    enum: [ tls_sni, http_host, quic_sni, dns_mapping, explicit, unknown ]
+  FlowSummary:
+    type: object
+    required: [ id, instance_id, revision, network, state, pname, connection_id, outbound, chain, chain_source, rule_id, rule_expression, rule_source, ingress, domain_source, observed_by, started_at, ended_at, trace_status ]
+    properties:
+      id:
+        type: string
+        minLength: 1
+      instance_id:
+        type: string
+        minLength: 1
+      revision:
+        type: integer
+        minimum: 1
+        maximum: 9007199254740991
+      network:
+        $ref: ./openapi.yaml#/components/schemas/Transport
+      state:
+        $ref: ./openapi.yaml#/components/schemas/ConnectionState
+      pname:
+        type: [ string, "null" ]
+      connection_id:
+        type: [ string, "null" ]
+      outbound:
+        type: [ string, "null" ]
+      chain:
+        type: array
+        items:
+          type: string
+        description: Application outbound selection_path group IDs followed by the leaf node ID, in order; empty for direct/block or an unknown path.
+      chain_source:
+        type: string
+        enum: [ evaluation, reconstructed, unknown ]
+        description: Selection captured at evaluation, reconstructed from retained evidence, or unavailable; never a current group snapshot.
+      rule_id:
+        type: [ string, "null" ]
+        description: Generation-scoped traffic rule ID, or null when unavailable.
+      rule_expression:
+        type: [ string, "null" ]
+        description: Sanitized display expression for that rule, or null when unavailable.
+      rule_source:
+        type: string
+        enum: [ kernel, recomputed, unknown ]
+        description: Deciding kernel rule, recomputed userspace evidence, or unavailable provenance; see honk-mapping's matched_rule row.
+      ingress:
+        type: [ string, "null" ]
+        enum: [ lan, wan, null ]
+      domain_source:
+        oneOf:
+          - type: "null"
+          - $ref: ./openapi.yaml#/components/schemas/DomainSource
+      observed_by:
+        $ref: ./openapi.yaml#/components/schemas/ObservedBy
+      started_at:
+        $ref: ./openapi.yaml#/components/schemas/NullableTimestamp
+      ended_at:
+        $ref: ./openapi.yaml#/components/schemas/NullableTimestamp
+      trace_status:
+        $ref: ./openapi.yaml#/components/schemas/TraceStatus
+      input:
+        $ref: ./openapi.yaml#/components/schemas/FlowInput
+  FlowCoverage:
+    type: object
+    required: [ userspace_tcp, userspace_udp, kernel_direct, kernel_block, dns_intercept, kernel_bypass ]
+    properties:
+      userspace_tcp:
+        $ref: ./openapi.yaml#/components/schemas/Visibility
+      userspace_udp:
+        $ref: ./openapi.yaml#/components/schemas/Visibility
+      kernel_direct:
+        $ref: ./openapi.yaml#/components/schemas/Visibility
+      kernel_block:
+        $ref: ./openapi.yaml#/components/schemas/Visibility
+      dns_intercept:
+        $ref: ./openapi.yaml#/components/schemas/Visibility
+      kernel_bypass:
+        $ref: ./openapi.yaml#/components/schemas/Visibility
+  FlowList:
+    type: object
+    required: [ instance_id, observed_at, coverage, dropped_records, flows, next_cursor ]
+    properties:
+      instance_id:
+        type: string
+        minLength: 1
+      observed_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      coverage:
+        $ref: ./openapi.yaml#/components/schemas/FlowCoverage
+      dropped_records:
+        $ref: ./openapi.yaml#/components/schemas/NullableUInt64
+      flows:
+        type: array
+        items:
+          $ref: ./openapi.yaml#/components/schemas/FlowSummary
+      next_cursor:
+        type: [ string, "null" ]
+  FlowDetail:
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/FlowSummary
+      - type: object
+        required: [ input, trace ]
+        properties:
+          input:
+            $ref: ./openapi.yaml#/components/schemas/FlowInput
+          trace:
+            $ref: ./openapi.yaml#/components/schemas/FlowTrace
+        not:
+          required: [ mode ]
+      - oneOf:
+          - properties:
+              trace_status:
+                const: complete
+              trace:
+                properties:
+                  status:
+                    const: complete
+          - properties:
+              trace_status:
+                const: partial
+              trace:
+                properties:
+                  status:
+                    const: partial
+          - properties:
+              trace_status:
+                const: disabled
+              trace:
+                properties:
+                  status:
+                    const: disabled
+    description: Recorded evidence identified by id and instance_id; never a simulation.
+  FlowTrace:
+    type: object
+    required: [ status, missing, steps ]
+    properties:
+      status:
+        $ref: ./openapi.yaml#/components/schemas/TraceStatus
+      missing:
+        type: array
+        uniqueItems: true
+        items:
+          type: string
+          enum: [ not_instrumented, started_late, buffer_overflow, sampled, redacted, evicted ]
+      steps:
+        type: array
+        items:
+          $ref: ./openapi.yaml#/components/schemas/FlowStep
+    if:
+      properties:
+        status:
+          const: complete
+    then:
+      properties:
+        missing:
+          maxItems: 0
+        steps:
+          items:
+            properties:
+              evidence:
+                const: observed
+            if:
+              properties:
+                stage:
+                  const: route
+            then:
+              properties:
+                data:
+                  properties:
+                    input:
+                      type: object
+    else:
+      properties:
+        missing:
+          minItems: 1
+  FlowStep:
+    oneOf:
+      - $ref: ./openapi.yaml#/components/schemas/InputStep
+      - $ref: ./openapi.yaml#/components/schemas/RouteStep
+      - $ref: ./openapi.yaml#/components/schemas/DatapathStep
+      - $ref: ./openapi.yaml#/components/schemas/DialModeStep
+      - $ref: ./openapi.yaml#/components/schemas/DnsStep
+      - $ref: ./openapi.yaml#/components/schemas/RerouteStep
+      - $ref: ./openapi.yaml#/components/schemas/OutboundStep
+      - $ref: ./openapi.yaml#/components/schemas/ConnectionStep
+    discriminator:
+      propertyName: stage
+      mapping:
+        input: ./openapi.yaml#/components/schemas/InputStep
+        route: ./openapi.yaml#/components/schemas/RouteStep
+        datapath: ./openapi.yaml#/components/schemas/DatapathStep
+        dial_mode: ./openapi.yaml#/components/schemas/DialModeStep
+        dns: ./openapi.yaml#/components/schemas/DnsStep
+        reroute: ./openapi.yaml#/components/schemas/RerouteStep
+        outbound: ./openapi.yaml#/components/schemas/OutboundStep
+        connection: ./openapi.yaml#/components/schemas/ConnectionStep

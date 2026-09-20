@@ -1,0 +1,541 @@
+securitySchemes:
+  bearerAuth:
+    type: http
+    scheme: bearer
+    bearerFormat: opaque
+    description: |
+      Bearer authentication is mandatory on every request except CORS preflights
+      whenever a deployment secret is set.
+      The anonymous security alternative is permitted only on an explicitly
+      secretless loopback listener, never as a fallback for invalid credentials.
+      Native permissions are expressed by x-permission; see API Configuration.
+headers:
+  NoStore:
+    description: Native responses are not cacheable.
+    required: true
+    schema:
+      type: string
+      const: no-store
+  NoSniff:
+    description: Prevent MIME-type sniffing.
+    required: true
+    schema:
+      type: string
+      const: nosniff
+  ETag:
+    description: Quoted group configuration revision.
+    required: true
+    schema:
+      type: string
+      minLength: 1
+parameters:
+  Detail:
+    name: detail
+    in: query
+    schema:
+      type: string
+      enum: [ summary, full ]
+      default: summary
+    example: full
+  Limit1000:
+    name: limit
+    in: query
+    schema:
+      type: integer
+      minimum: 1
+      maximum: 1000
+      default: 100
+    example: 100
+  Cursor:
+    name: cursor
+    in: query
+    description: |
+      Opaque cursor bound to the resource, running adapter instance, filters,
+      and retained snapshot. Restart, changed filters, or snapshot expiry or
+      eviction invalidates it. GET /flows returns 410 snapshot_expired;
+      GET /nodes, GET /providers and GET /dns/cache return 400 invalid_request
+      for a cursor that is unknown or no longer valid. Discard it and restart
+      the page walk without a cursor; never silently continue against a new snapshot.
+    schema:
+      type: string
+      minLength: 1
+  GroupId:
+    name: groupId
+    in: path
+    required: true
+    schema:
+      type: string
+      minLength: 1
+    example: group-proxy
+  ConnectionId:
+    name: connection_id
+    in: path
+    required: true
+    schema:
+      type: string
+      minLength: 1
+    example: tcp-01HZX4K8W5
+  FlowId:
+    name: flow_id
+    in: path
+    required: true
+    schema:
+      type: string
+      minLength: 1
+    example: flow-23
+  DnsEntryId:
+    name: entry_id
+    in: path
+    required: true
+    schema:
+      type: string
+      minLength: 1
+    example: dns-entry-01HZX4K8W5
+  OperationId:
+    name: id
+    in: path
+    required: true
+    schema:
+      type: string
+      minLength: 1
+    example: op-01HZX4K8W7
+  IfMatch:
+    name: If-Match
+    in: header
+    required: true
+    schema:
+      type: string
+      minLength: 1
+    example: '"17"'
+  IdempotencyKey:
+    name: Idempotency-Key
+    in: header
+    required: false
+    schema:
+      type: string
+      minLength: 1
+  LastEventId:
+    name: Last-Event-ID
+    in: header
+    required: false
+    schema:
+      type: string
+      minLength: 1
+    example: instance-7:123
+  ProviderId:
+    name: id
+    in: path
+    required: true
+    schema:
+      type: string
+      minLength: 1
+    example: provider-a
+  NodeId:
+    name: id
+    in: path
+    required: true
+    schema:
+      type: string
+      minLength: 1
+    example: node-hk-03
+responses:
+  OperationAccepted:
+    description: Operation accepted
+    headers:
+      Location:
+        description: Operation status URL; equal to body href.
+        required: true
+        schema:
+          type: string
+          pattern: ^/api/v1/operations/[^/]+$
+      Retry-After:
+        description: Positive polling floor in seconds.
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      Cache-Control:
+        $ref: ./openapi.yaml#/components/headers/NoStore
+      X-Content-Type-Options:
+        $ref: ./openapi.yaml#/components/headers/NoSniff
+    content:
+      application/json:
+        schema:
+          $ref: ./openapi.yaml#/components/schemas/OperationAccepted
+  BadRequest:
+    description: Malformed parameters or request shape
+    headers:
+      Cache-Control:
+        $ref: ./openapi.yaml#/components/headers/NoStore
+      X-Content-Type-Options:
+        $ref: ./openapi.yaml#/components/headers/NoSniff
+    content:
+      application/json:
+        schema:
+          $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+        examples:
+          invalid_request:
+            value:
+              error:
+                code: invalid_request
+                message: A request parameter is invalid.
+                details: null
+              request_id: request-01HZX4K8W6
+            x-headers:
+              Content-Type: application/json
+              Cache-Control: no-store
+              X-Content-Type-Options: nosniff
+  Unauthorized:
+    description: Credentials are missing or invalid
+    headers:
+      Cache-Control:
+        $ref: ./openapi.yaml#/components/headers/NoStore
+      X-Content-Type-Options:
+        $ref: ./openapi.yaml#/components/headers/NoSniff
+    content:
+      application/json:
+        schema:
+          $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+        examples:
+          authentication_required:
+            value:
+              error:
+                code: authentication_required
+                message: Valid bearer credentials are required.
+                details: null
+              request_id: request-01HZX4K8W6
+            x-headers:
+              Content-Type: application/json
+              Cache-Control: no-store
+              X-Content-Type-Options: nosniff
+  Forbidden:
+    description: Authenticated caller lacks the required permission
+    headers:
+      Cache-Control:
+        $ref: ./openapi.yaml#/components/headers/NoStore
+      X-Content-Type-Options:
+        $ref: ./openapi.yaml#/components/headers/NoSniff
+    content:
+      application/json:
+        schema:
+          $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+        examples:
+          permission_denied:
+            value:
+              error:
+                code: permission_denied
+                message: The caller lacks the required permission.
+                details: null
+              request_id: request-01HZX4K8W6
+            x-headers:
+              Content-Type: application/json
+              Cache-Control: no-store
+              X-Content-Type-Options: nosniff
+  NotFound:
+    description: Resource/action unavailable, absent, expired, or concealed
+    headers:
+      Cache-Control:
+        $ref: ./openapi.yaml#/components/headers/NoStore
+      X-Content-Type-Options:
+        $ref: ./openapi.yaml#/components/headers/NoSniff
+    content:
+      application/json:
+        schema:
+          $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+        examples:
+          resource_not_found:
+            value:
+              error:
+                code: resource_not_found
+                message: The requested resource was not found.
+                details: null
+              request_id: request-01HZX4K8W6
+            x-headers:
+              Content-Type: application/json
+              Cache-Control: no-store
+              X-Content-Type-Options: nosniff
+          capability_not_supported:
+            value:
+              error:
+                code: capability_not_supported
+                message: The requested resource or action is unavailable.
+                details: null
+              request_id: request-01HZX4K8W6
+            x-headers:
+              Content-Type: application/json
+              Cache-Control: no-store
+              X-Content-Type-Options: nosniff
+  Conflict:
+    $ref: ./openapi.yaml#/components/responses/ErrorResponseCommon
+    description: State, idempotency, cursor, or coherent-snapshot conflict
+  Gone:
+    $ref: ./openapi.yaml#/components/responses/ErrorResponseCommon
+    description: Flow or paginated snapshot retention expired
+  PreconditionFailed:
+    $ref: ./openapi.yaml#/components/responses/ErrorResponseCommon
+    description: If-Match does not equal the current configuration revision or on-disk source content hash
+  TooLarge:
+    $ref: ./openapi.yaml#/components/responses/ErrorResponseCommon
+    description: Request size or advertised fan-out limit exceeded
+  UnsupportedMediaType:
+    $ref: ./openapi.yaml#/components/responses/ErrorResponseCommon
+    description: Unsupported request Content-Type
+  Unprocessable:
+    $ref: ./openapi.yaml#/components/responses/ErrorResponseCommon
+    description: Unsupported field, value, or transition, or error diagnostics from configuration replacement validation
+  PreconditionRequired:
+    $ref: ./openapi.yaml#/components/responses/ErrorResponseCommon
+    description: Required If-Match is absent
+  RateLimited:
+    description: Advertised request or operation rate exceeded
+    headers:
+      Retry-After:
+        description: Retry delay in seconds.
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      Cache-Control:
+        $ref: ./openapi.yaml#/components/headers/NoStore
+      X-Content-Type-Options:
+        $ref: ./openapi.yaml#/components/headers/NoSniff
+    content:
+      application/json:
+        schema:
+          $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+        examples:
+          rate_limited:
+            value:
+              error:
+                code: rate_limited
+                message: The request rate limit was reached.
+                details: null
+              request_id: request-01HZX4K8W6
+            x-headers:
+              Content-Type: application/json
+              Retry-After: 1
+              Cache-Control: no-store
+              X-Content-Type-Options: nosniff
+  Unavailable:
+    description: Bounded queue or required runtime component unavailable
+    headers:
+      Retry-After:
+        description: Retry delay in seconds when retryable.
+        schema:
+          type: integer
+          minimum: 1
+      Cache-Control:
+        $ref: ./openapi.yaml#/components/headers/NoStore
+      X-Content-Type-Options:
+        $ref: ./openapi.yaml#/components/headers/NoSniff
+    content:
+      application/json:
+        schema:
+          $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+        examples:
+          temporarily_unavailable:
+            value:
+              error:
+                code: temporarily_unavailable
+                message: A required runtime component is unavailable.
+                details: null
+              request_id: request-01HZX4K8W6
+            x-headers:
+              Content-Type: application/json
+              Retry-After: 1
+              Cache-Control: no-store
+              X-Content-Type-Options: nosniff
+  ErrorResponseCommon:
+    description: Native API error
+    headers:
+      Cache-Control:
+        $ref: ./openapi.yaml#/components/headers/NoStore
+      X-Content-Type-Options:
+        $ref: ./openapi.yaml#/components/headers/NoSniff
+    content:
+      application/json:
+        schema:
+          $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+  EventCursorExpired:
+    description: >-
+      Last-Event-ID cannot be replayed (event_cursor_expired); sent before any 200
+      stream opens. Drop the cursor, reconnect without it and establish a new baseline.
+    headers:
+      Cache-Control:
+        $ref: ./openapi.yaml#/components/headers/NoStore
+      X-Content-Type-Options:
+        $ref: ./openapi.yaml#/components/headers/NoSniff
+    content:
+      application/json:
+        schema:
+          $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+        examples:
+          event_cursor_expired:
+            value:
+              error:
+                code: event_cursor_expired
+                message: Event cursor is older than the retained window; reconnect without it.
+                details: null
+              request_id: request-01HZX4K8W6
+            x-headers:
+              Content-Type: application/json
+              Cache-Control: no-store
+              X-Content-Type-Options: nosniff
+schemas:
+  EmptyObject:
+    type: object
+    additionalProperties: false
+    maxProperties: 0
+  SafeUInt:
+    type: integer
+    minimum: 0
+    maximum: 9007199254740991
+  NullableSafeUInt:
+    type: [ integer, "null" ]
+    minimum: 0
+    maximum: 9007199254740991
+  UInt64:
+    type: string
+    maxLength: 20
+    not:
+      pattern: "[^0-9]"
+    pattern: ^(?:0|[1-9][0-9]{0,18}|1[0-7][0-9]{18}|18[0-3][0-9]{17}|184[0-3][0-9]{16}|1844[0-5][0-9]{15}|18446[0-6][0-9]{14}|184467[0-3][0-9]{13}|1844674[0-3][0-9]{12}|184467440[0-6][0-9]{10}|1844674407[0-2][0-9]{9}|18446744073[0-6][0-9]{8}|1844674407370[0-8][0-9]{6}|18446744073709[0-4][0-9]{5}|184467440737095[0-4][0-9]{4}|18446744073709550[0-9]{3}|18446744073709551[0-5][0-9]{2}|1844674407370955160[0-9]|1844674407370955161[0-4]|18446744073709551615)$
+    description: Canonical unsigned 64-bit decimal string, 0 through 18446744073709551615. Never a JSON number.
+  NullableUInt64:
+    oneOf:
+      - type: "null"
+      - $ref: ./openapi.yaml#/components/schemas/UInt64
+  Timestamp:
+    type: string
+    format: date-time
+  NullableTimestamp:
+    type: [ string, "null" ]
+    format: date-time
+  ErrorCode:
+    type: string
+    description: >-
+      Closed catalogue of HTTP error codes (docs/errors.md keeps the prose). Adding a
+      code is a contract change; adapters never invent codes. Errors embedded in
+      resources (operation.error, datapath.errors, lifecycle.last_error) carry an
+      adapter-defined code and stay plain SafeError.
+    enum:
+      - invalid_request
+      - authentication_required
+      - permission_denied
+      - resource_not_found
+      - capability_not_supported
+      - state_conflict
+      - idempotency_conflict
+      - event_cursor_expired
+      - snapshot_unavailable
+      - snapshot_expired
+      - flow_expired
+      - stale_revision
+      - request_too_large
+      - unsupported_media_type
+      - unsupported_value
+      - precondition_required
+      - rate_limited
+      - temporarily_unavailable
+  SafeError:
+    type: object
+    required: [ code, message ]
+    properties:
+      code:
+        type: string
+        minLength: 1
+      message:
+        type: string
+        minLength: 1
+      details:
+        type: [ object, "null" ]
+    description: Safe structured error; never raw engine output.
+  ApiError:
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/SafeError
+      - type: object
+        properties:
+          code:
+            $ref: ./openapi.yaml#/components/schemas/ErrorCode
+    description: HTTP error body; the code comes from ErrorCode.
+  ErrorResponse:
+    type: object
+    required: [ error, request_id ]
+    properties:
+      error:
+        $ref: ./openapi.yaml#/components/schemas/ApiError
+      request_id:
+        type: [ string, "null" ]
+  ConfigDiagnostic:
+    type: object
+    required: [ level, source_id, line, column, span, code, message ]
+    description: |
+      Safe diagnostic for an accepted or candidate source, never raw parser output.
+      Coordinates refer to the original source before redaction. Use null for
+      unknown locations; do not fabricate positions from setting names.
+    properties:
+      level:
+        type: string
+        enum: [ error, warning, info ]
+      source_id:
+        type: string
+        minLength: 1
+        description: Source ID in the effective snapshot, validation request, or source set being validated for replacement.
+      line:
+        $ref: ./openapi.yaml#/components/schemas/NullableSafeUInt
+        minimum: 1
+        description: One-based line, or null if unknown.
+      column:
+        $ref: ./openapi.yaml#/components/schemas/NullableSafeUInt
+        minimum: 1
+        description: One-based UTF-8 byte column, or null if unknown; not a character or UTF-16 offset.
+      span:
+        oneOf:
+          - type: "null"
+          - $ref: ./openapi.yaml#/components/schemas/ConfigDiagnosticSpan
+      code:
+        type: string
+        minLength: 1
+        description: Adapter-defined diagnostic code, independent of the HTTP ErrorCode catalogue.
+      message:
+        type: string
+        minLength: 1
+        description: Safe operator-facing description; never source excerpts, credentials, private paths, or raw engine errors.
+  ConfigDiagnosticSpan:
+    type: object
+    required: [ start_line, start_column, end_line, end_column ]
+    description: |
+      One-based lines and UTF-8 byte columns; start inclusive, end exclusive.
+      The end must not precede the start. A zero-width span is permitted.
+      When line and column are known, they equal the span start.
+    properties:
+      start_line:
+        $ref: ./openapi.yaml#/components/schemas/SafeUInt
+        minimum: 1
+      start_column:
+        $ref: ./openapi.yaml#/components/schemas/SafeUInt
+        minimum: 1
+      end_line:
+        $ref: ./openapi.yaml#/components/schemas/SafeUInt
+        minimum: 1
+      end_column:
+        $ref: ./openapi.yaml#/components/schemas/SafeUInt
+        minimum: 1
+  Visibility:
+    type: string
+    enum: [ full, partial, none ]
+  ObservedBy:
+    type: string
+    enum: [ userspace, ebpf, mixed ]
+  Transport:
+    type: string
+    enum: [ tcp, udp ]
+  IpVersion:
+    type: string
+    enum: [ ipv4, ipv6 ]
+  IpAddress:
+    oneOf:
+      - type: string
+        format: ipv4
+      - type: string
+        format: ipv6

@@ -1,0 +1,563 @@
+schemas:
+  TrafficRoutingInput:
+    type: object
+    required: [ network, src_ip, src_port, dst_ip, dst_port, domain, pname, src_mac, dscp, mark, ingress, domain_rule_ids ]
+    properties:
+      network:
+        $ref: ./openapi.yaml#/components/schemas/Transport
+      src_ip:
+        oneOf:
+          - type: "null"
+          - $ref: ./openapi.yaml#/components/schemas/IpAddress
+      src_port:
+        type: [ integer, "null" ]
+        minimum: 0
+        maximum: 65535
+      dst_ip:
+        oneOf:
+          - type: "null"
+          - $ref: ./openapi.yaml#/components/schemas/IpAddress
+      dst_port:
+        type: [ integer, "null" ]
+        minimum: 0
+        maximum: 65535
+      domain:
+        type: [ string, "null" ]
+      pname:
+        type: [ string, "null" ]
+      src_mac:
+        type: [ string, "null" ]
+      dscp:
+        type: [ integer, "null" ]
+        minimum: 0
+        maximum: 63
+      mark:
+        type: [ integer, "null" ]
+        minimum: 0
+        maximum: 4294967295
+      ingress:
+        type: [ string, "null" ]
+        enum: [ lan, wan, null ]
+      domain_rule_ids:
+        oneOf:
+          - type: "null"
+          - type: array
+            items:
+              type: string
+              minLength: 1
+            uniqueItems: true
+  DnsRequestRoutingInput:
+    type: object
+    required: [ name, qtype, source_ip, original_dst ]
+    properties:
+      name:
+        type: string
+        minLength: 1
+      qtype:
+        $ref: ./openapi.yaml#/components/schemas/DnsRecordType
+      source_ip:
+        oneOf:
+          - type: "null"
+          - $ref: ./openapi.yaml#/components/schemas/IpAddress
+      original_dst:
+        type: [ string, "null" ]
+  DnsResponseRoutingInput:
+    type: object
+    required: [ name, qtype, answer_ips, from_upstream ]
+    properties:
+      name:
+        type: string
+        minLength: 1
+      qtype:
+        $ref: ./openapi.yaml#/components/schemas/DnsRecordType
+      answer_ips:
+        type: array
+        items:
+          $ref: ./openapi.yaml#/components/schemas/IpAddress
+      from_upstream:
+        type: string
+        minLength: 1
+  InputStep:
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/StepCommon
+      - type: object
+        required: [ stage, data ]
+        properties:
+          stage:
+            const: input
+          data:
+            $ref: ./openapi.yaml#/components/schemas/InputStepData
+  InputStepData:
+    type: object
+    required: [ values, source ]
+    properties:
+      values:
+        allOf:
+          - $ref: ./openapi.yaml#/components/schemas/FlowInput
+          - type: object
+            required: [ pname ]
+            properties:
+              pname:
+                type: [ string, "null" ]
+      source:
+        type: string
+        enum: [ kernel, socket, sniffer, dns_mapping ]
+  RouteStep:
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/StepCommon
+      - type: object
+        required: [ stage, data ]
+        properties:
+          stage:
+            const: route
+          data:
+            $ref: ./openapi.yaml#/components/schemas/RouteStepData
+  RouteStepData:
+    type: object
+    required: [ evaluation_id, chain, plane, rule_id, rules, outbound, must, mark, input, dns_action ]
+    properties:
+      evaluation_id:
+        type: string
+        minLength: 1
+      chain:
+        type: string
+        enum: [ traffic, dns_request, dns_response, dns_upstream ]
+      plane:
+        type: string
+        enum: [ kernel, userspace ]
+      rule_id:
+        type: [ string, "null" ]
+      rules:
+        type: array
+        items:
+          $ref: ./openapi.yaml#/components/schemas/RuleEvaluation
+      outbound:
+        type: [ string, "null" ]
+        description: Traffic outbound, or DNS upstream tag for upstream/requery; null for other DNS actions.
+      must:
+        type: [ boolean, "null" ]
+      mark:
+        type: [ integer, "null" ]
+        minimum: 0
+        maximum: 4294967295
+      input:
+        type: [ object, "null" ]
+        additionalProperties: true
+        description: Immutable inputs consumed by this evaluation, typed by chain below; null means missing capture.
+      dns_action:
+        type: [ string, "null" ]
+        enum: [ upstream, asis, accept, reject, requery, null ]
+    allOf:
+      - oneOf:
+          - properties:
+              chain:
+                enum: [ traffic, dns_upstream ]
+              input:
+                oneOf:
+                  - type: "null"
+                  - $ref: ./openapi.yaml#/components/schemas/TrafficRoutingInput
+              dns_action:
+                type: "null"
+          - properties:
+              chain:
+                const: dns_request
+              input:
+                oneOf:
+                  - type: "null"
+                  - $ref: ./openapi.yaml#/components/schemas/DnsRequestRoutingInput
+              dns_action:
+                enum: [ upstream, asis, reject, null ]
+              must:
+                type: "null"
+              mark:
+                type: "null"
+          - properties:
+              chain:
+                const: dns_response
+              input:
+                oneOf:
+                  - type: "null"
+                  - $ref: ./openapi.yaml#/components/schemas/DnsResponseRoutingInput
+              dns_action:
+                enum: [ accept, reject, requery, null ]
+              must:
+                type: "null"
+              mark:
+                type: "null"
+      - if:
+          properties:
+            dns_action:
+              enum: [ asis, accept, reject ]
+        then:
+          properties:
+            outbound:
+              type: "null"
+  DatapathStep:
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/StepCommon
+      - type: object
+        required: [ stage, data ]
+        properties:
+          stage:
+            const: datapath
+          data:
+            $ref: ./openapi.yaml#/components/schemas/DatapathStepData
+  DatapathStepData:
+    type: object
+    required: [ plane, action, reason, error ]
+    properties:
+      plane:
+        type: string
+        enum: [ kernel, userspace ]
+      action:
+        type: string
+        enum: [ pass, redirect, hold, arm_direct, activate_direct, activate_proxy, drop ]
+      reason:
+        type: string
+        minLength: 1
+      error:
+        type: [ string, "null" ]
+  DialModeStep:
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/StepCommon
+      - type: object
+        required: [ stage, data ]
+        properties:
+          stage:
+            const: dial_mode
+          data:
+            $ref: ./openapi.yaml#/components/schemas/DialModeStepData
+  DialModeStepData:
+    type: object
+    required: [ configured, effective_target, domain, domain_source, verification, reason ]
+    properties:
+      configured:
+        type: string
+        minLength: 1
+      effective_target:
+        type: string
+        enum: [ ip, domain, none, unknown ]
+      domain:
+        type: [ string, "null" ]
+      domain_source:
+        oneOf:
+          - type: "null"
+          - $ref: ./openapi.yaml#/components/schemas/DomainSource
+      verification:
+        type: string
+        enum: [ matched, other_family_trusted, failed, not_required, unavailable ]
+      reason:
+        type: string
+        minLength: 1
+  DnsStep:
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/StepCommon
+      - type: object
+        required: [ stage, data ]
+        properties:
+          stage:
+            const: dns
+          data:
+            $ref: ./openapi.yaml#/components/schemas/DnsStepData
+  DnsStepData:
+    type: object
+    required: [ lookup_id, parent_lookup_id, attempt_id, purpose, name, qtype, source, upstream_transport, carrier_transport, cache, cache_entry_id, upstream, route_evaluation_ids, status, addresses, selected_ip, error ]
+    properties:
+      lookup_id:
+        type: string
+        minLength: 1
+      parent_lookup_id:
+        type: [ string, "null" ]
+      attempt_id:
+        type: [ string, "null" ]
+      purpose:
+        type: string
+        enum: [ domain_verification, dial_target, proxy_server, intercepted_query, family_preference, refresh ]
+      name:
+        type: string
+        minLength: 1
+      qtype:
+        $ref: ./openapi.yaml#/components/schemas/DnsRecordType
+      source:
+        type: string
+        enum: [ hosts, cache, upstream, coalesced, unknown ]
+      upstream_transport:
+        type: [ string, "null" ]
+        enum: [ udp, tcp, dot, doh, doq, doh3, null ]
+      carrier_transport:
+        type: [ string, "null" ]
+        enum: [ tcp, udp, null ]
+      cache:
+        type: string
+        enum: [ hit, miss, stale, bypass, unknown ]
+      cache_entry_id:
+        type: [ string, "null" ]
+      upstream:
+        type: [ string, "null" ]
+      route_evaluation_ids:
+        type: array
+        uniqueItems: true
+        items:
+          type: string
+          minLength: 1
+      status:
+        type: string
+        minLength: 1
+      addresses:
+        type: array
+        uniqueItems: true
+        items:
+          $ref: ./openapi.yaml#/components/schemas/IpAddress
+      selected_ip:
+        oneOf:
+          - type: "null"
+          - $ref: ./openapi.yaml#/components/schemas/IpAddress
+      error:
+        type: [ string, "null" ]
+  RerouteStep:
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/StepCommon
+      - type: object
+        required: [ stage, data ]
+        properties:
+          stage:
+            const: reroute
+          data:
+            $ref: ./openapi.yaml#/components/schemas/RerouteStepData
+  RerouteStepData:
+    type: object
+    required: [ performed, reason, from_evaluation_id, to_evaluation_id ]
+    properties:
+      performed:
+        type: [ boolean, "null" ]
+      reason:
+        type: string
+        minLength: 1
+      from_evaluation_id:
+        type: [ string, "null" ]
+      to_evaluation_id:
+        type: [ string, "null" ]
+  OutboundStep:
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/StepCommon
+      - type: object
+        required: [ stage, data ]
+        properties:
+          stage:
+            const: outbound
+          data:
+            $ref: ./openapi.yaml#/components/schemas/OutboundStepData
+  OutboundStepData:
+    type: object
+    required: [ attempt_id, parent_attempt_id, kind, evaluation_id, routing_source, routed_outbound, effective_outbound, mode_override, selection_path, leaf_node_id, leaf_node_name, target, target_kind, dial_ip, server_addr, resolution_location, status, error ]
+    properties:
+      attempt_id:
+        type: string
+        minLength: 1
+      parent_attempt_id:
+        type: [ string, "null" ]
+      kind:
+        type: string
+        enum: [ leaf, transport ]
+      evaluation_id:
+        type: [ string, "null" ]
+        minLength: 1
+      routing_source:
+        type: string
+        enum: [ evaluation, forced, builtin, unknown ]
+      routed_outbound:
+        type: [ string, "null" ]
+      effective_outbound:
+        type: [ string, "null" ]
+      mode_override:
+        type: string
+        enum: [ none, direct, global, unknown ]
+      selection_path:
+        type: array
+        items:
+          $ref: ./openapi.yaml#/components/schemas/SelectionPathItem
+      leaf_node_id:
+        type: [ string, "null" ]
+      leaf_node_name:
+        type: [ string, "null" ]
+        description: Sanitized leaf name captured at decision time, or null when unavailable; leaf_node_id remains authoritative.
+      target:
+        type: [ string, "null" ]
+      target_kind:
+        type: string
+        enum: [ ip, domain, none, unknown ]
+      dial_ip:
+        oneOf:
+          - type: "null"
+          - $ref: ./openapi.yaml#/components/schemas/IpAddress
+      server_addr:
+        type: [ string, "null" ]
+      resolution_location:
+        type: string
+        enum: [ original_ip, local_dns, outbound_remote, not_applicable, unknown ]
+      status:
+        type: string
+        enum: [ started, succeeded, failed, cancelled ]
+      error:
+        type: [ string, "null" ]
+    if:
+      properties:
+        routing_source:
+          const: evaluation
+    then:
+      properties:
+        evaluation_id:
+          type: string
+    else:
+      properties:
+        evaluation_id:
+          type: "null"
+  SelectionPathItem:
+    type: object
+    required: [ group_id, member_id, member_name, policy, reason, selection ]
+    properties:
+      group_id:
+        type: string
+        minLength: 1
+      member_id:
+        type: [ string, "null" ]
+        minLength: 1
+      member_name:
+        type: [ string, "null" ]
+        description: Sanitized member name captured at decision time, or null when unavailable; member_id remains authoritative.
+      policy:
+        type: string
+        minLength: 1
+      reason:
+        type: string
+        minLength: 1
+      selection:
+        oneOf:
+          - type: "null"
+          - $ref: ./openapi.yaml#/components/schemas/SelectionDecision
+  SelectionDecision:
+    type: object
+    required: [ previous_member_id, metric, tolerance_ms, candidates ]
+    properties:
+      previous_member_id:
+        type: [ string, "null" ]
+      metric:
+        type: [ string, "null" ]
+      tolerance_ms:
+        type: [ number, "null" ]
+      candidates:
+        type: array
+        items:
+          $ref: ./openapi.yaml#/components/schemas/SelectionCandidate
+  SelectionCandidate:
+    type: object
+    required: [ member_id, member_name, leaf_node_id, leaf_node_name, eligible, sorting_latency_ms, score, selected, reason ]
+    properties:
+      member_id:
+        type: string
+        minLength: 1
+      member_name:
+        type: [ string, "null" ]
+        description: Sanitized member name captured at decision time, or null when unavailable; member_id remains authoritative.
+      leaf_node_id:
+        type: [ string, "null" ]
+      leaf_node_name:
+        type: [ string, "null" ]
+        description: Sanitized leaf name captured at decision time, or null when unavailable; leaf_node_id remains authoritative.
+      eligible:
+        type: [ boolean, "null" ]
+      sorting_latency_ms:
+        type: [ number, "null" ]
+      score:
+        type: [ number, "null" ]
+      selected:
+        type: boolean
+      reason:
+        type: string
+        minLength: 1
+  ConnectionStep:
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/StepCommon
+      - type: object
+        required: [ stage, data ]
+        properties:
+          stage:
+            const: connection
+          data:
+            $ref: ./openapi.yaml#/components/schemas/ConnectionStepData
+  ConnectionStepData:
+    type: object
+    required: [ state, reason, milestone, attempt_id, reply_received, error ]
+    properties:
+      state:
+        $ref: ./openapi.yaml#/components/schemas/ConnectionState
+      reason:
+        type: string
+        minLength: 1
+      milestone:
+        type: string
+        enum: [ transport_ready, target_request_sent, target_confirmed, first_reply, terminal, unknown ]
+      attempt_id:
+        type: [ string, "null" ]
+      reply_received:
+        type: [ boolean, "null" ]
+      error:
+        type: [ string, "null" ]
+  RuleResult:
+    type: string
+    enum: [ matched, not_matched, skipped, indeterminate ]
+  RuleCondition:
+    type: object
+    required: [ id, expression, result, missing_inputs ]
+    properties:
+      id:
+        type: string
+        minLength: 1
+      expression:
+        type: [ string, "null" ]
+      result:
+        $ref: ./openapi.yaml#/components/schemas/RuleResult
+      missing_inputs:
+        type: array
+        uniqueItems: true
+        items:
+          type: string
+          minLength: 1
+  RuleEvaluation:
+    type: object
+    required: [ rule_id, expression, result, missing_inputs, conditions ]
+    properties:
+      rule_id:
+        type: string
+        minLength: 1
+      expression:
+        type: [ string, "null" ]
+      result:
+        $ref: ./openapi.yaml#/components/schemas/RuleResult
+      missing_inputs:
+        type: array
+        uniqueItems: true
+        items:
+          type: string
+          minLength: 1
+      conditions:
+        type: array
+        items:
+          $ref: ./openapi.yaml#/components/schemas/RuleCondition
+  StepCommon:
+    type: object
+    required: [ seq, observed_at, elapsed_us, generation_id, evidence ]
+    properties:
+      seq:
+        type: integer
+        minimum: 1
+        maximum: 9007199254740991
+      observed_at:
+        $ref: ./openapi.yaml#/components/schemas/NullableTimestamp
+      elapsed_us:
+        $ref: ./openapi.yaml#/components/schemas/NullableSafeUInt
+      generation_id:
+        type: [ string, "null" ]
+      evidence:
+        type: string
+        enum: [ observed, reconstructed ]

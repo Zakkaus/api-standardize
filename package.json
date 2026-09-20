@@ -3,10 +3,13 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build": "hexo generate",
+    "build": "npm run prepare:contract && hexo clean && hexo generate",
     "clean": "hexo clean",
     "deploy": "hexo deploy",
-    "server": "hexo server"
+    "server": "npm run prepare:contract && hexo clean && hexo server",
+    "bundle": "redocly bundle api/openapi.yaml --output source/openapi.yaml --component-renaming-conflicts-severity=error",
+    "prepare:contract": "npm run bundle && redocly lint source/openapi.yaml --config redocly.yaml && node tools/check-contract.mjs",
+    "check:contract": "npm run prepare:contract && node --experimental-eventsource --test tools/check-contract.test.mjs"
   },
   "hexo": {
     "version": "8.1.2"
@@ -22,5 +25,11 @@
     "hexo-renderer-stylus": "^3.0.1",
     "hexo-server": "^3.0.0",
     "hexo-theme-landscape": "^1.0.0"
+  },
+  "devDependencies": {
+    "@redocly/cli": "2.53.0",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "yaml": "^2.8.1"
   }
 }

@@ -1,0 +1,671 @@
+paths:
+  /api/v1/dns/query:
+    get:
+      operationId: queryDns
+      summary: Execute a routed diagnostic DNS query
+      x-permission: control
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - name: domain
+          in: query
+          required: true
+          description: DNS name within the 255-wire-octet and 63-octet-label limits.
+          schema:
+            type: string
+            minLength: 1
+          example: example.com
+        - name: type
+          in: query
+          description: Unique record types; repeated query parameter.
+          style: form
+          explode: true
+          schema:
+            type: array
+            minItems: 1
+            uniqueItems: true
+            items:
+              $ref: ./openapi.yaml#/components/schemas/DnsRecordType
+            default: [ A ]
+          example: [ A, AAAA ]
+        - name: upstream
+          in: query
+          schema:
+            type: string
+            minLength: 1
+        - name: cache_mode
+          in: query
+          schema:
+            type: string
+            enum: [ normal, bypass ]
+            default: normal
+        - $ref: ./openapi.yaml#/components/parameters/Detail
+      responses:
+        "200":
+          description: Per-record-type DNS results, including DNS failures
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/DnsQueryResponse
+              examples:
+                dual_stack:
+                  value:
+                    domain: example.com
+                    cache_mode: normal
+                    query_time: 2026-08-14T00:00:00Z
+                    results:
+                      - type: A
+                        cached: false
+                        cache_entry_id: dns-entry-01HZX4K8W5
+                        upstream: alidns
+                        route:
+                          source: dns.routing
+                          rule: domain(example.com)
+                        status: NOERROR
+                        elapsed_ms: 12
+                        question:
+                          name: example.com.
+                          type: A
+                        answers:
+                          - name: example.com.
+                            type: A
+                            class: IN
+                            ttl: 600
+                            data: 93.184.216.34
+                      - type: AAAA
+                        cached: false
+                        cache_entry_id: null
+                        upstream: alidns
+                        route:
+                          source: dns.routing
+                          rule: domain(example.com)
+                        status: NODATA
+                        elapsed_ms: 11
+                        question:
+                          name: example.com.
+                          type: AAAA
+                        answers: []
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
+        "422":
+          $ref: ./openapi.yaml#/components/responses/Unprocessable
+        "429":
+          $ref: ./openapi.yaml#/components/responses/RateLimited
+        "503":
+          $ref: ./openapi.yaml#/components/responses/Unavailable
+  /api/v1/dns/cache:
+    get:
+      operationId: listDnsCache
+      summary: Read a paginated DNS cache snapshot
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - name: name
+          in: query
+          schema:
+            type: string
+            minLength: 1
+        - name: domain
+          in: query
+          schema:
+            type: string
+            minLength: 1
+        - name: type
+          in: query
+          style: form
+          explode: true
+          schema:
+            type: array
+            uniqueItems: true
+            items:
+              $ref: ./openapi.yaml#/components/schemas/DnsRecordType
+        - name: include_expired
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - $ref: ./openapi.yaml#/components/parameters/Limit1000
+        - $ref: ./openapi.yaml#/components/parameters/Cursor
+        - $ref: ./openapi.yaml#/components/parameters/Detail
+      responses:
+        "200":
+          description: DNS cache page
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/DnsCacheList
+              examples:
+                entries:
+                  value:
+                    observed_at: 2026-08-15T12:00:00Z
+                    coverage:
+                      positive: true
+                      negative: true
+                      persistent: false
+                    entries:
+                      - entry_id: dns-entry-01HZX4K8W5
+                        domain: example.com.
+                        type: A
+                        class: IN
+                        status: NOERROR
+                        answers:
+                          - name: example.com.
+                            type: A
+                            class: IN
+                            data: 93.184.216.34
+                            ttl: 3600
+                        expires_at: 2026-08-15T13:00:00Z
+                        stale_until: null
+                      - entry_id: dns-entry-01HZX4K8W6
+                        domain: missing.example.com.
+                        type: A
+                        class: IN
+                        status: NXDOMAIN
+                        answers: []
+                        expires_at: 2026-08-15T12:05:00Z
+                        stale_until: 2026-08-15T12:06:00Z
+                    total: 1024
+                    next_cursor: eyJvZmZzZXQiOjEwMH0
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "503":
+          $ref: ./openapi.yaml#/components/responses/Unavailable
+    delete:
+      operationId: deleteDnsCacheByName
+      summary: Delete cache entries for one exact name
+      x-permission: control
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - name: name
+          in: query
+          required: true
+          description: Exact canonicalizable DNS name; required to prevent an accidental flush.
+          schema:
+            type: string
+            minLength: 1
+          example: example.com.
+        - name: type
+          in: query
+          style: form
+          explode: true
+          schema:
+            type: array
+            uniqueItems: true
+            items:
+              $ref: ./openapi.yaml#/components/schemas/DnsRecordType
+          example: [ A, AAAA ]
+      responses:
+        "200":
+          description: Idempotent matching deletion result
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/DeleteMatchingCount
+              examples:
+                deleted:
+                  value:
+                    matched: 2
+                    deleted: 2
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "503":
+          $ref: ./openapi.yaml#/components/responses/Unavailable
+  /api/v1/dns/cache/{entry_id}:
+    delete:
+      operationId: deleteDnsCacheEntry
+      summary: Delete one opaque DNS cache entry
+      x-permission: control
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - $ref: ./openapi.yaml#/components/parameters/DnsEntryId
+      responses:
+        "200":
+          description: Idempotent deletion result
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/DeleteCount
+              examples:
+                deleted:
+                  value:
+                    deleted: 1
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "503":
+          $ref: ./openapi.yaml#/components/responses/Unavailable
+  /api/v1/dns/cache/flush:
+    post:
+      operationId: flushDnsCache
+      summary: Flush the complete runtime DNS cache
+      x-permission: control
+      security:
+        - bearerAuth: []
+        - {}
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: ./openapi.yaml#/components/schemas/EmptyObject
+      responses:
+        "200":
+          description: Cache invalidation barrier result
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/DeleteMatchingCount
+              examples:
+                flushed:
+                  value:
+                    matched: 1024
+                    deleted: 1024
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "415":
+          $ref: ./openapi.yaml#/components/responses/UnsupportedMediaType
+        "503":
+          $ref: ./openapi.yaml#/components/responses/Unavailable
+  /api/v1/dns/log:
+    get:
+      operationId: listDnsLog
+      summary: Read the bounded ring of recent resolutions
+      description: |
+        Requires resources.dns_log.available. The engine records every resolution it
+        performs for clients (not the diagnostic /dns/query calls) into a ring of at
+        most resources.dns_log.max_records; newest first, not durable, cleared on
+        restart. A record is one question and its outcome: which client asked, which
+        upstream answered or whether the cache did, the answers, the routing decision
+        and how long it took. Filters narrow by name (case-insensitive substring),
+        record type and client source IP. limit above max_page_size returns 400.
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - name: name
+          in: query
+          description: Case-insensitive substring of the question name.
+          schema:
+            type: string
+            minLength: 1
+          example: telegram
+        - name: type
+          in: query
+          schema:
+            $ref: ./openapi.yaml#/components/schemas/DnsRecordType
+          example: A
+        - name: src
+          in: query
+          description: Client source IP literal, IPv4 or IPv6.
+          schema:
+            type: string
+            minLength: 1
+          example: 10.0.0.12
+        - name: limit
+          in: query
+          schema:
+            $ref: ./openapi.yaml#/components/schemas/SafeUInt
+            minimum: 1
+          example: 200
+        - name: cursor
+          in: query
+          description: Opaque cursor from a previous page; older records follow it.
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Recent resolutions, newest first
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/DnsLogList
+              examples:
+                recent:
+                  value:
+                    observed_at: 2026-08-15T10:00:00Z
+                    total: 2
+                    next_cursor: null
+                    records:
+                      - id: dl-000002
+                        observed_at: 2026-08-15T09:59:59Z
+                        src: 10.0.0.12:53211
+                        question: { name: api.telegram.org., type: A }
+                        status: NOERROR
+                        cached: false
+                        upstream: tls://1.1.1.1
+                        route: { source: dns.routing, rule: "qname(geosite: telegram) -> proxy" }
+                        elapsed_ms: 38
+                        answers:
+                          - { name: api.telegram.org., type: A, class: IN, ttl: 240, data: 149.154.167.220 }
+                      - id: dl-000001
+                        observed_at: 2026-08-15T09:59:58Z
+                        src: "[2001:db8::12]:53210"
+                        question: { name: cdn.bilibili.com., type: AAAA }
+                        status: NOERROR
+                        cached: true
+                        upstream: null
+                        route: { source: default, rule: null }
+                        elapsed_ms: 0
+                        answers: []
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+schemas:
+  DnsQueryLimits:
+    type: object
+    required: [ max_types_per_request, query_timeout_ms, max_response_bytes, per_principal_requests_per_minute, global_requests_per_minute ]
+    properties:
+      max_types_per_request:
+        type: integer
+        minimum: 1
+      query_timeout_ms:
+        type: integer
+        minimum: 1
+      max_response_bytes:
+        type: integer
+        minimum: 1
+      per_principal_requests_per_minute:
+        type: integer
+        minimum: 1
+      global_requests_per_minute:
+        type: integer
+        minimum: 1
+  DnsRecordType:
+    type: string
+    pattern: ^(?:[A-Z][A-Z0-9-]*|TYPE[0-9]{1,5}|[0-9]{1,5})$
+  DnsAnswer:
+    type: object
+    required: [ name, type, class, ttl, data ]
+    properties:
+      name:
+        type: string
+        minLength: 1
+      type:
+        $ref: ./openapi.yaml#/components/schemas/DnsRecordType
+      class:
+        type: string
+        minLength: 1
+      ttl:
+        type: integer
+        minimum: 0
+        maximum: 4294967295
+      data:
+        type: string
+  DnsQuestion:
+    type: object
+    required: [ name, type ]
+    properties:
+      name:
+        type: string
+        minLength: 1
+      type:
+        $ref: ./openapi.yaml#/components/schemas/DnsRecordType
+  DnsRoute:
+    type: object
+    required: [ source, rule ]
+    properties:
+      source:
+        type: string
+        enum: [ forced, dns.routing, default ]
+      rule:
+        type: [ string, "null" ]
+  DnsQueryResult:
+    type: object
+    required: [ type, cached, cache_entry_id, upstream, route, status, elapsed_ms, question ]
+    properties:
+      type:
+        $ref: ./openapi.yaml#/components/schemas/DnsRecordType
+      cached:
+        type: boolean
+      cache_entry_id:
+        type: [ string, "null" ]
+      upstream:
+        type: [ string, "null" ]
+      route:
+        $ref: ./openapi.yaml#/components/schemas/DnsRoute
+      status:
+        type: string
+        minLength: 1
+      elapsed_ms:
+        type: integer
+        minimum: 0
+        maximum: 9007199254740991
+      question:
+        $ref: ./openapi.yaml#/components/schemas/DnsQuestion
+      answers:
+        type: array
+        items:
+          $ref: ./openapi.yaml#/components/schemas/DnsAnswer
+  DnsQueryResponse:
+    type: object
+    required: [ domain, cache_mode, query_time, results ]
+    properties:
+      domain:
+        type: string
+        minLength: 1
+      cache_mode:
+        type: string
+        enum: [ normal, bypass ]
+      query_time:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      results:
+        type: array
+        minItems: 1
+        items:
+          $ref: ./openapi.yaml#/components/schemas/DnsQueryResult
+  DnsCacheCoverage:
+    type: object
+    required: [ positive, negative, persistent ]
+    properties:
+      positive:
+        type: boolean
+      negative:
+        type: boolean
+      persistent:
+        type: boolean
+  DnsCacheEntry:
+    type: object
+    required: [ entry_id, domain, type, class, status, expires_at, stale_until ]
+    properties:
+      entry_id:
+        type: string
+        minLength: 1
+      domain:
+        type: string
+        minLength: 2
+        pattern: \.$
+      type:
+        $ref: ./openapi.yaml#/components/schemas/DnsRecordType
+      class:
+        type: string
+        minLength: 1
+      status:
+        type: string
+        minLength: 1
+      answers:
+        type: array
+        items:
+          $ref: ./openapi.yaml#/components/schemas/DnsAnswer
+      expires_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      stale_until:
+        $ref: ./openapi.yaml#/components/schemas/NullableTimestamp
+  DnsCacheList:
+    type: object
+    required: [ observed_at, coverage, entries, total, next_cursor ]
+    properties:
+      observed_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      coverage:
+        $ref: ./openapi.yaml#/components/schemas/DnsCacheCoverage
+      entries:
+        type: array
+        items:
+          $ref: ./openapi.yaml#/components/schemas/DnsCacheEntry
+      total:
+        $ref: ./openapi.yaml#/components/schemas/SafeUInt
+      next_cursor:
+        type: [ string, "null" ]
+  DnsLogRecord:
+    type: object
+    required: [ id, observed_at, src, question, status, cached, upstream, route, elapsed_ms, answers ]
+    properties:
+      id:
+        type: string
+        minLength: 1
+        description: Opaque, unique within the running instance; the cursor is derived from it.
+      observed_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      src:
+        type: [ string, "null" ]
+        description: Client socket address, IPv6 in brackets; null when the resolver itself asked.
+      question:
+        $ref: ./openapi.yaml#/components/schemas/DnsQuestion
+      status:
+        type: string
+        minLength: 1
+        description: RCODE name such as NOERROR or NXDOMAIN, or an engine outcome such as TIMEOUT.
+      cached:
+        type: boolean
+      upstream:
+        type: [ string, "null" ]
+        description: The upstream that answered, null on a cache hit or failure before sending.
+      route:
+        $ref: ./openapi.yaml#/components/schemas/DnsRoute
+      elapsed_ms:
+        type: integer
+        minimum: 0
+        maximum: 9007199254740991
+      answers:
+        type: array
+        items:
+          $ref: ./openapi.yaml#/components/schemas/DnsAnswer
+  DnsLogList:
+    type: object
+    required: [ observed_at, total, next_cursor, records ]
+    properties:
+      observed_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      total:
+        $ref: ./openapi.yaml#/components/schemas/SafeUInt
+        description: Records in the ring at observed_at, before filters.
+      next_cursor:
+        type: [ string, "null" ]
+      records:
+        type: array
+        items:
+          $ref: ./openapi.yaml#/components/schemas/DnsLogRecord
+  DeleteCount:
+    type: object
+    required: [ deleted ]
+    properties:
+      deleted:
+        type: integer
+        minimum: 0
+  DeleteMatchingCount:
+    type: object
+    required: [ matched, deleted ]
+    properties:
+      matched:
+        type: integer
+        minimum: 0
+      deleted:
+        type: integer
+        minimum: 0

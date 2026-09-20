@@ -1,0 +1,883 @@
+paths:
+  /api/v1/runtime:
+    get:
+      operationId: getRuntime
+      summary: Read coherent runtime summary
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - $ref: ./openapi.yaml#/components/parameters/Detail
+      responses:
+        "200":
+          description: Runtime snapshot
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/Runtime
+              examples:
+                snapshot:
+                  value:
+                    observed_at: 2026-08-15T10:00:00Z
+                    instance_id: instance-7
+                    lifecycle:
+                      state: running
+                      started_at: 2026-08-15T08:00:00Z
+                      uptime_seconds: "7200"
+                    generation:
+                      active_id: generation-42
+                      config_revision: "17"
+                      state: active
+                      activated_at: 2026-08-15T09:30:00Z
+                    datapath:
+                      kind: ebpf
+                      state: active
+                      visibility: partial
+                      ebpf:
+                        backend: real
+                        programs: loaded
+                        hooks: attached
+                        routing:
+                          state: published
+                          generation_id: generation-42
+                        health: healthy
+                        last_error: null
+                        checked_at: 2026-08-15T10:00:00Z
+                    traffic:
+                      scope: visible
+                      observed_by: mixed
+                      counter_since: 2026-08-15T08:00:00Z
+                      sampled_at: 2026-08-15T10:00:00Z
+                      connections:
+                        tcp: 42
+                        udp: 128
+                        total: 170
+                      bytes:
+                        upload: "123456789"
+                        download: "987654321"
+                      rates:
+                        window_seconds: 1
+                        upload_bytes_per_second: "4096"
+                        download_bytes_per_second: "32768"
+                    process:
+                      pid: 1234
+                      cpu_percent: null
+                    last_reload:
+                      operation_id: op-01HZX4K8W7
+                      status: succeeded
+                      finished_at: 2026-08-15T09:30:00Z
+                      error: null
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "429":
+          $ref: ./openapi.yaml#/components/responses/RateLimited
+  /api/v1/runtime/memory:
+    get:
+      operationId: getRuntimeMemory
+      summary: Read lightweight process, cgroup, and eBPF memory
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        "200":
+          description: Memory snapshot
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/RuntimeMemory
+              examples:
+                snapshot:
+                  value:
+                    observed_at: 2026-08-15T10:00:00Z
+                    process:
+                      rss_bytes: "67108864"
+                    cgroup:
+                      scope: service
+                      current_bytes: "83886080"
+                      limit_bytes: "536870912"
+                      events:
+                        high: "0"
+                        oom: "0"
+                        oom_kill: "0"
+                    kernel:
+                      ebpf_bytes: null
+                      sampled_at: null
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "429":
+          $ref: ./openapi.yaml#/components/responses/RateLimited
+  /api/v1/runtime/outbounds:
+    get:
+      operationId: getRuntimeOutbounds
+      summary: Read per-outbound cumulative counters
+      description: |
+        Mirrors honk's Clash-surface /stats counters for visible traffic, not
+        a sum of live connections. All rows share counter_since; restart or
+        counter reset starts a new interval. Requires resources.runtime_outbounds.available.
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        "200":
+          description: Outbound counter snapshot
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/RuntimeOutbounds
+              examples:
+                snapshot:
+                  value:
+                    observed_at: 2026-08-15T10:00:00Z
+                    counter_since: 2026-08-15T08:00:00Z
+                    outbounds:
+                      - name: direct
+                        kind: builtin
+                        active_connections: 12
+                        total_connections: "240"
+                        upload_bytes: "123456"
+                        download_bytes: "654321"
+                        errors: "0"
+                      - name: proxy
+                        kind: group
+                        active_connections: 158
+                        total_connections: "1200"
+                        upload_bytes: "123333333"
+                        download_bytes: "987000000"
+                        errors: "3"
+                      - name: block
+                        kind: builtin
+                        active_connections: 0
+                        total_connections: "0"
+                        upload_bytes: "0"
+                        download_bytes: "0"
+                        errors: "0"
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "429":
+          $ref: ./openapi.yaml#/components/responses/RateLimited
+  /api/v1/runtime/traffic/history:
+    get:
+      operationId: getTrafficHistory
+      summary: Read bounded traffic history
+      description: |
+        Reads a bounded in-memory ring of visible traffic samples without
+        starting sampling on GET. This is the only traffic history the native
+        API serves; SSE does not replay it. Requires resources.traffic_history.available.
+        A query above either advertised limit returns 400 invalid_request,
+        never a silently clamped window or point limit.
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - name: window_seconds
+          in: query
+          description: Look-back window ending at observed_at; defaults to resources.traffic_history.max_window_seconds.
+          schema:
+            $ref: ./openapi.yaml#/components/schemas/SafeUInt
+            minimum: 1
+          example: 60
+        - name: max_points
+          in: query
+          description: Maximum returned samples; defaults to resources.traffic_history.max_points.
+          schema:
+            $ref: ./openapi.yaml#/components/schemas/SafeUInt
+            minimum: 1
+          example: 3
+      responses:
+        "200":
+          description: Retained traffic samples, oldest first
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/TrafficHistory
+              examples:
+                recent:
+                  value:
+                    observed_at: 2026-08-15T10:00:00Z
+                    window_seconds: 60
+                    sampled_every_seconds: 20
+                    samples:
+                      - sampled_at: 2026-08-15T09:59:20Z
+                        upload_bytes_per_second: "2048"
+                        download_bytes_per_second: "16384"
+                        connections: 162
+                      - sampled_at: 2026-08-15T09:59:40Z
+                        upload_bytes_per_second: null
+                        download_bytes_per_second: null
+                        connections: null
+                      - sampled_at: 2026-08-15T10:00:00Z
+                        upload_bytes_per_second: "4096"
+                        download_bytes_per_second: "32768"
+                        connections: 170
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          description: Invalid query or window_seconds/max_points above the advertised limit
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                window_too_large:
+                  value:
+                    error:
+                      code: invalid_request
+                      message: window_seconds exceeds the advertised limit.
+                    request_id: request-1
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+                too_many_points:
+                  value:
+                    error:
+                      code: invalid_request
+                      message: max_points exceeds the advertised limit.
+                    request_id: request-2
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "429":
+          $ref: ./openapi.yaml#/components/responses/RateLimited
+  /api/v1/runtime/memory/history:
+    get:
+      operationId: getMemoryHistory
+      summary: Read bounded memory history
+      description: |
+        Reads a bounded in-memory ring of memory samples without starting
+        sampling on GET. Same shape and rules as traffic history: the producer
+        samples independently of readers, SSE does not replay it, and a query
+        above either advertised limit returns 400 invalid_request rather than a
+        clamped result. Requires resources.memory_history.available.
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - name: window_seconds
+          in: query
+          description: Look-back window ending at observed_at; defaults to resources.memory_history.max_window_seconds.
+          schema:
+            $ref: ./openapi.yaml#/components/schemas/SafeUInt
+            minimum: 1
+          example: 300
+        - name: max_points
+          in: query
+          description: Maximum returned samples; defaults to resources.memory_history.max_points.
+          schema:
+            $ref: ./openapi.yaml#/components/schemas/SafeUInt
+            minimum: 1
+          example: 3
+      responses:
+        "200":
+          description: Retained memory samples, oldest first
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/MemoryHistory
+              examples:
+                recent:
+                  value:
+                    observed_at: 2026-08-15T10:00:00Z
+                    window_seconds: 300
+                    sampled_every_seconds: 5
+                    samples:
+                      - sampled_at: 2026-08-15T09:59:50Z
+                        rss_bytes: "48234496"
+                        cgroup_current_bytes: "67108864"
+                        kernel_ebpf_bytes: "18874368"
+                      - sampled_at: 2026-08-15T09:59:55Z
+                        rss_bytes: null
+                        cgroup_current_bytes: null
+                        kernel_ebpf_bytes: null
+                      - sampled_at: 2026-08-15T10:00:00Z
+                        rss_bytes: "48762880"
+                        cgroup_current_bytes: "67371008"
+                        kernel_ebpf_bytes: "18874368"
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          description: Invalid query or window_seconds/max_points above the advertised limit
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                window_too_large:
+                  value:
+                    error:
+                      code: invalid_request
+                      message: window_seconds exceeds the advertised limit.
+                    request_id: request-1
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+                too_many_points:
+                  value:
+                    error:
+                      code: invalid_request
+                      message: max_points exceeds the advertised limit.
+                    request_id: request-2
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "429":
+          $ref: ./openapi.yaml#/components/responses/RateLimited
+  /api/v1/datapath:
+    get:
+      operationId: getDatapath
+      summary: Read detailed datapath state
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - $ref: ./openapi.yaml#/components/parameters/Detail
+      responses:
+        "200":
+          description: Datapath snapshot
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/Datapath
+              examples:
+                active:
+                  value:
+                    observed_at: 2026-08-15T10:00:00Z
+                    kind: ebpf
+                    state: active
+                    visibility: partial
+                    ebpf:
+                      backend: real
+                      programs: loaded
+                      hooks: attached
+                      routing:
+                        state: published
+                        generation_id: generation-42
+                        epoch: "3"
+                      attachments:
+                        - name: wan_ingress
+                          interface: eth0
+                          direction: ingress
+                          state: attached
+                      maps:
+                        state: ready
+                        conn_state:
+                          occupancy: 1200
+                          capacity: 524288
+                          occupancy_known: true
+                      health: healthy
+                      last_error: null
+                      checked_at: 2026-08-15T10:00:00Z
+                    errors: []
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+schemas:
+  Runtime:
+    type: object
+    required: [ observed_at, instance_id, lifecycle, generation, datapath, traffic, process, last_reload ]
+    properties:
+      observed_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      instance_id:
+        type: string
+        minLength: 1
+      lifecycle:
+        type: object
+        required: [ state, started_at, uptime_seconds ]
+        properties:
+          state:
+            type: string
+            enum: [ starting, running, reloading, suspended, draining, degraded, failed ]
+          started_at:
+            $ref: ./openapi.yaml#/components/schemas/NullableTimestamp
+          uptime_seconds:
+            $ref: ./openapi.yaml#/components/schemas/NullableUInt64
+      generation:
+        type: object
+        required: [ active_id, config_revision, state, activated_at ]
+        properties:
+          active_id:
+            type: string
+            minLength: 1
+          config_revision:
+            type: [ string, "null" ]
+          state:
+            type: string
+            enum: [ active, reloading ]
+          activated_at:
+            $ref: ./openapi.yaml#/components/schemas/NullableTimestamp
+      datapath:
+        $ref: ./openapi.yaml#/components/schemas/DatapathSummary
+      traffic:
+        $ref: ./openapi.yaml#/components/schemas/TrafficSummary
+      process:
+        type: object
+        required: [ cpu_percent ]
+        properties:
+          pid:
+            type: [ integer, "null" ]
+            minimum: 0
+            maximum: 4294967295
+          cpu_percent:
+            type: [ number, "null" ]
+            minimum: 0
+      last_reload:
+        oneOf:
+          - type: "null"
+          - $ref: ./openapi.yaml#/components/schemas/LastReload
+  LastReload:
+    type: object
+    required: [ operation_id, status, finished_at, error ]
+    properties:
+      operation_id:
+        type: string
+        minLength: 1
+      status:
+        type: string
+        enum: [ succeeded, failed ]
+      finished_at:
+        $ref: ./openapi.yaml#/components/schemas/NullableTimestamp
+      error:
+        oneOf:
+          - type: "null"
+          - $ref: ./openapi.yaml#/components/schemas/SafeError
+  TrafficSummary:
+    type: object
+    required: [ scope, observed_by, counter_since, sampled_at, connections, bytes, rates ]
+    properties:
+      scope:
+        type: string
+        const: visible
+      observed_by:
+        $ref: ./openapi.yaml#/components/schemas/ObservedBy
+      counter_since:
+        $ref: ./openapi.yaml#/components/schemas/NullableTimestamp
+      sampled_at:
+        $ref: ./openapi.yaml#/components/schemas/NullableTimestamp
+        description: Traffic sample timestamp, or null when unavailable. Never substitute the HTTP snapshot timestamp.
+      connections:
+        type: object
+        required: [ tcp, udp, total ]
+        properties:
+          tcp:
+            $ref: ./openapi.yaml#/components/schemas/NullableSafeUInt
+          udp:
+            $ref: ./openapi.yaml#/components/schemas/NullableSafeUInt
+          total:
+            $ref: ./openapi.yaml#/components/schemas/NullableSafeUInt
+      bytes:
+        type: object
+        required: [ upload, download ]
+        properties:
+          upload:
+            $ref: ./openapi.yaml#/components/schemas/NullableUInt64
+          download:
+            $ref: ./openapi.yaml#/components/schemas/NullableUInt64
+      rates:
+        oneOf:
+          - type: "null"
+          - type: object
+            required: [ window_seconds, upload_bytes_per_second, download_bytes_per_second ]
+            properties:
+              window_seconds:
+                type: number
+                exclusiveMinimum: 0
+                description: Duration of the rate interval ending at sampled_at, in seconds.
+              upload_bytes_per_second:
+                $ref: ./openapi.yaml#/components/schemas/NullableUInt64
+              download_bytes_per_second:
+                $ref: ./openapi.yaml#/components/schemas/NullableUInt64
+  RuntimeOutbounds:
+    type: object
+    required: [ observed_at, counter_since, outbounds ]
+    properties:
+      observed_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      counter_since:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+        description: Shared cumulative counter reset boundary; changes on restart or reset. Never compute deltas across this boundary.
+      outbounds:
+        type: array
+        items:
+          $ref: ./openapi.yaml#/components/schemas/OutboundCounters
+  OutboundCounters:
+    type: object
+    required: [ name, kind, active_connections, total_connections, upload_bytes, download_bytes, errors ]
+    properties:
+      name:
+        type: string
+        minLength: 1
+        description: Engine-visible outbound name, retained with its counters across reloads.
+      kind:
+        type: string
+        enum: [ group, node, builtin ]
+        description: Configured group, leaf node, or engine builtin such as direct/block.
+      active_connections:
+        $ref: ./openapi.yaml#/components/schemas/SafeUInt
+        description: Currently active connections attributed to this outbound.
+      total_connections:
+        $ref: ./openapi.yaml#/components/schemas/UInt64
+        description: Cumulative connections attributed to this outbound since counter_since.
+      upload_bytes:
+        $ref: ./openapi.yaml#/components/schemas/UInt64
+      download_bytes:
+        $ref: ./openapi.yaml#/components/schemas/UInt64
+      errors:
+        $ref: ./openapi.yaml#/components/schemas/UInt64
+        description: Cumulative outbound failures since counter_since; policy blocks are not errors.
+  TrafficHistory:
+    type: object
+    required: [ observed_at, window_seconds, sampled_every_seconds, samples ]
+    description: |
+      Samples lie in (observed_at - window_seconds, observed_at], oldest first.
+      Retention is bounded by age and capacity and is cleared on process restart.
+      Return fewer points for short retention, or an empty array before sampling.
+      If needed, select every Nth stored sample backwards from the newest to
+      fit max_points; preserve original timestamps and rates, without interpolation.
+      Choose the smallest positive N that fits the point limit. A cumulative
+      counter reset makes the spanning rate sample null, never a spike.
+    properties:
+      observed_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      window_seconds:
+        $ref: ./openapi.yaml#/components/schemas/SafeUInt
+        minimum: 1
+        description: Requested look-back window, not the age of the oldest retained sample.
+      sampled_every_seconds:
+        type: number
+        exclusiveMinimum: 0
+        description: Nominal interval between returned samples after thinning, or the recorder interval for an empty result; not the rate averaging interval.
+      samples:
+        type: array
+        description: At most max_points retained samples; missed intervals remain gaps, never fabricated zero traffic.
+        items:
+          $ref: ./openapi.yaml#/components/schemas/TrafficHistorySample
+  TrafficHistorySample:
+    type: object
+    required: [ sampled_at, upload_bytes_per_second, download_bytes_per_second, connections ]
+    properties:
+      sampled_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+        description: Original sample timestamp, never the HTTP snapshot time.
+      upload_bytes_per_second:
+        $ref: ./openapi.yaml#/components/schemas/NullableUInt64
+      download_bytes_per_second:
+        $ref: ./openapi.yaml#/components/schemas/NullableUInt64
+      connections:
+        $ref: ./openapi.yaml#/components/schemas/NullableSafeUInt
+        description: Visible active TCP and UDP connections at sampled_at, or null when unavailable.
+  MemoryHistory:
+    type: object
+    required: [ observed_at, window_seconds, sampled_every_seconds, samples ]
+    description: |
+      Samples lie in (observed_at - window_seconds, observed_at], oldest first,
+      with the same retention, thinning and gap rules as TrafficHistory.
+      Each sample carries the metrics advertised under resources.runtime_memory.metrics;
+      an unadvertised or unobservable metric is null.
+    properties:
+      observed_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      window_seconds:
+        $ref: ./openapi.yaml#/components/schemas/SafeUInt
+        minimum: 1
+        description: Requested look-back window, not the age of the oldest retained sample.
+      sampled_every_seconds:
+        type: number
+        exclusiveMinimum: 0
+        description: Nominal interval between returned samples after thinning, or the recorder interval for an empty result.
+      samples:
+        type: array
+        description: At most max_points retained samples; missed intervals remain gaps.
+        items:
+          $ref: ./openapi.yaml#/components/schemas/MemoryHistorySample
+  MemoryHistorySample:
+    type: object
+    required: [ sampled_at, rss_bytes, cgroup_current_bytes ]
+    properties:
+      sampled_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+        description: Original sample timestamp, never the HTTP snapshot time.
+      rss_bytes:
+        $ref: ./openapi.yaml#/components/schemas/NullableUInt64
+        description: Process resident set at sampled_at, or null when unavailable.
+      cgroup_current_bytes:
+        $ref: ./openapi.yaml#/components/schemas/NullableUInt64
+        description: cgroup memory.current at sampled_at, or null when unavailable.
+      kernel_ebpf_bytes:
+        $ref: ./openapi.yaml#/components/schemas/NullableUInt64
+        description: Kernel eBPF memory at sampled_at; omitted or null when unadvertised.
+  RuntimeMemory:
+    type: object
+    required: [ observed_at, process, cgroup, kernel ]
+    properties:
+      observed_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      process:
+        oneOf:
+          - type: "null"
+          - type: object
+            properties:
+              rss_bytes:
+                $ref: ./openapi.yaml#/components/schemas/NullableUInt64
+      cgroup:
+        oneOf:
+          - type: "null"
+          - type: object
+            required: [ scope ]
+            properties:
+              scope:
+                type: string
+                enum: [ service, shared, unknown ]
+              current_bytes:
+                $ref: ./openapi.yaml#/components/schemas/NullableUInt64
+              limit_bytes:
+                $ref: ./openapi.yaml#/components/schemas/NullableUInt64
+              events:
+                oneOf:
+                  - type: "null"
+                  - type: object
+                    properties:
+                      high:
+                        $ref: ./openapi.yaml#/components/schemas/NullableUInt64
+                      oom:
+                        $ref: ./openapi.yaml#/components/schemas/NullableUInt64
+                      oom_kill:
+                        $ref: ./openapi.yaml#/components/schemas/NullableUInt64
+      kernel:
+        oneOf:
+          - type: "null"
+          - type: object
+            required: [ sampled_at ]
+            properties:
+              ebpf_bytes:
+                $ref: ./openapi.yaml#/components/schemas/NullableUInt64
+              sampled_at:
+                $ref: ./openapi.yaml#/components/schemas/NullableTimestamp
+  DatapathKind:
+    type: string
+    enum: [ ebpf, userspace, mock, unknown ]
+  DatapathState:
+    type: string
+    enum: [ active, degraded, detached, failed, disabled, unknown ]
+  EbpfRoutingSummary:
+    type: object
+    required: [ state, generation_id ]
+    properties:
+      state:
+        type: string
+        enum: [ published, not_published, error, unknown ]
+      generation_id:
+        type: [ string, "null" ]
+      epoch:
+        type: [ string, "null" ]
+  EbpfSummary:
+    type: object
+    required: [ backend, programs, hooks, routing, health, last_error, checked_at ]
+    properties:
+      backend:
+        type: string
+        enum: [ real, mock, unknown ]
+      programs:
+        type: string
+        enum: [ loaded, not_loaded, error, unknown ]
+      hooks:
+        type: string
+        enum: [ attached, partially_attached, detached, unknown ]
+      routing:
+        $ref: ./openapi.yaml#/components/schemas/EbpfRoutingSummary
+      health:
+        type: string
+        enum: [ healthy, degraded, failed, unknown ]
+      last_error:
+        type: [ string, "null" ]
+      checked_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+  DatapathSummary:
+    type: object
+    required: [ kind, state, visibility, ebpf ]
+    properties:
+      kind:
+        $ref: ./openapi.yaml#/components/schemas/DatapathKind
+      state:
+        $ref: ./openapi.yaml#/components/schemas/DatapathState
+      visibility:
+        $ref: ./openapi.yaml#/components/schemas/Visibility
+      ebpf:
+        oneOf:
+          - type: "null"
+          - $ref: ./openapi.yaml#/components/schemas/EbpfSummary
+  Datapath:
+    type: object
+    required: [ observed_at, kind, state, visibility, ebpf, errors ]
+    properties:
+      observed_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      kind:
+        $ref: ./openapi.yaml#/components/schemas/DatapathKind
+      state:
+        $ref: ./openapi.yaml#/components/schemas/DatapathState
+      visibility:
+        $ref: ./openapi.yaml#/components/schemas/Visibility
+      ebpf:
+        oneOf:
+          - type: "null"
+          - $ref: ./openapi.yaml#/components/schemas/EbpfDetail
+      errors:
+        type: array
+        items:
+          $ref: ./openapi.yaml#/components/schemas/SafeError
+  EbpfDetail:
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/EbpfSummary
+      - type: object
+        required: []
+        properties:
+          attachments:
+            type: array
+            items:
+              $ref: ./openapi.yaml#/components/schemas/EbpfAttachment
+          maps:
+            $ref: ./openapi.yaml#/components/schemas/EbpfMaps
+  EbpfAttachment:
+    type: object
+    required: [ name, interface, direction, state ]
+    properties:
+      name:
+        type: string
+        minLength: 1
+      interface:
+        type: string
+        minLength: 1
+      direction:
+        type: string
+        enum: [ ingress, egress ]
+      state:
+        type: string
+        enum: [ attached, detached, error, unknown ]
+  EbpfMaps:
+    type: object
+    required: [ state, conn_state ]
+    properties:
+      state:
+        type: string
+        enum: [ ready, partial, error, unknown ]
+      conn_state:
+        oneOf:
+          - type: "null"
+          - $ref: ./openapi.yaml#/components/schemas/MapOccupancy
+  MapOccupancy:
+    type: object
+    required: [ occupancy, capacity, occupancy_known ]
+    properties:
+      occupancy:
+        $ref: ./openapi.yaml#/components/schemas/NullableSafeUInt
+      capacity:
+        $ref: ./openapi.yaml#/components/schemas/SafeUInt
+      occupancy_known:
+        type: boolean
+    if:
+      properties:
+        occupancy_known:
+          const: true
+    then:
+      properties:
+        occupancy:
+          $ref: ./openapi.yaml#/components/schemas/SafeUInt
+    else:
+      properties:
+        occupancy:
+          type: "null"

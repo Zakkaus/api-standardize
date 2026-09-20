@@ -1,0 +1,895 @@
+paths:
+  /api:
+    get:
+      operationId: getDiscovery
+      summary: Discover the native API
+      security: []
+      responses:
+        "200":
+          description: Native API discovery
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/Discovery
+              examples:
+                draft:
+                  value:
+                    name: dae/honk-native
+                    status: draft
+                    api_major: 1
+                    base_path: /api/v1
+                    links:
+                      version: /api/v1/version
+                      capabilities: /api/v1/capabilities
+                      config: /api/v1/config
+                      config_validate: /api/v1/config/validate
+                      runtime: /api/v1/runtime
+                      runtime_outbounds: /api/v1/runtime/outbounds
+                      traffic_history: /api/v1/runtime/traffic/history
+                      memory_history: /api/v1/runtime/memory/history
+                      logs: /api/v1/logs
+                      providers: /api/v1/providers
+                      rules: /api/v1/rules
+                      geodata: /api/v1/geodata
+                      operations: /api/v1/operations/{id}
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
+  /api/v1/version:
+    get:
+      operationId: getVersion
+      summary: Read native and engine version identity
+      security: []
+      responses:
+        "200":
+          description: Version identity
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/Version
+              examples:
+                build:
+                  value:
+                    api:
+                      name: dae/honk-native
+                      major: 1
+                      status: draft
+                    engine:
+                      name: honk
+                      version: 0.0.1-alpha
+                    build:
+                      revision: abc1234
+                      target: x86_64-unknown-linux-gnu
+                      built_at: null
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+  /api/v1/capabilities:
+    get:
+      operationId: getCapabilities
+      summary: Negotiate resources, visibility, and limits
+      security: []
+      responses:
+        "200":
+          description: Adapter capabilities
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/Capabilities
+              examples:
+                available:
+                  value:
+                    observed_at: 2026-08-15T10:00:00Z
+                    profiles: [ base ]
+                    limits:
+                      max_request_target_bytes: 4096
+                      max_header_bytes: 16384
+                      max_json_body_bytes: 65536
+                    resources:
+                      config:
+                        available: true
+                        content: false
+                        writable: true
+                        max_bytes: 65536
+                        max_sources: 32
+                      config_validate:
+                        available: true
+                        modes: [ syntax, full ]
+                        max_bytes: 65536
+                        max_sources: 32
+                      runtime:
+                        available: true
+                      runtime_memory:
+                        available: true
+                        metrics: [ process.rss_bytes, cgroup.current_bytes, cgroup.limit_bytes, cgroup.events.high, cgroup.events.oom, cgroup.events.oom_kill ]
+                      runtime_outbounds:
+                        available: true
+                      traffic_history:
+                        available: true
+                        max_window_seconds: 3600
+                        max_points: 360
+                      memory_history:
+                        available: true
+                        max_window_seconds: 3600
+                        max_points: 720
+                      datapath:
+                        available: true
+                        kinds: [ ebpf ]
+                        details: [ attachments, maps ]
+                      nodes:
+                        available: true
+                        can_manage: true
+                      providers:
+                        available: true
+                        can_refresh: true
+                        can_manage: true
+                        max_page_size: 1000
+                      groups:
+                        available: true
+                        config_patch: true
+                        selection: true
+                        max_patch_operations: 32
+                      probes:
+                        available: true
+                        targets: [ node, group ]
+                        kinds: [ tcp_connect, http, dns ]
+                        purposes: [ data, dns ]
+                        transports: [ tcp, udp ]
+                        ip_versions: [ ipv4, ipv6 ]
+                        limits:
+                          max_members_per_job: 128
+                          max_results_per_job: 512
+                          max_active_jobs: 4
+                          max_queued_jobs: 16
+                          max_concurrent_per_target: 2
+                          job_timeout_ms: 30000
+                          per_principal_requests_per_minute: 60
+                          global_requests_per_minute: 240
+                      connections:
+                        available: true
+                        can_close: true
+                        max_bulk_close: 1000
+                      flows:
+                        available: true
+                        recording: on
+                        scopes: [ userspace_tcp, userspace_udp ]
+                        max_flows: 10000
+                        max_steps_per_flow: 256
+                        retention_seconds: 300
+                        snapshot_ttl_seconds: 30
+                        max_page_size: 1000
+                      routing_trace:
+                        available: true
+                        resolve_modes: [ none ]
+                        max_addresses: 16
+                        max_rule_steps: 4096
+                        timeout_ms: 5000
+                        per_principal_requests_per_minute: 30
+                        global_requests_per_minute: 120
+                      rules:
+                        available: true
+                        max_rules: 4096
+                      events:
+                        available: true
+                        kinds: [ stream.ready, runtime.updated, flow.updated, flow.gap, operation.updated, generation.changed ]
+                        retention_seconds: 60
+                        max_buffered_events: 4096
+                        max_clients: 16
+                        heartbeat_seconds: 15
+                      logs:
+                        available: true
+                        levels: [ trace, debug, info, warn, error ]
+                        max_buffered_records: 4096
+                      dns_query:
+                        available: true
+                        record_types: [ A, AAAA, HTTPS ]
+                        limits:
+                          max_types_per_request: 8
+                          query_timeout_ms: 5000
+                          max_response_bytes: 65536
+                          per_principal_requests_per_minute: 120
+                          global_requests_per_minute: 480
+                      dns_cache:
+                        available: true
+                        read: true
+                        delete_entry: true
+                        delete_name: true
+                        flush: true
+                        entry_kinds: [ positive, negative ]
+                      dns_log:
+                        available: true
+                        max_records: 2048
+                        max_page_size: 500
+                      runtime_settings:
+                        available: true
+                        fields: [ log.level, log.buffered_records, dns_log.max_records, flows.max_flows, flows.retention_seconds ]
+                      geodata:
+                        available: true
+                        can_update: true
+                        assets: [ geosite, geoip ]
+                      operations:
+                        available: true
+                        retention_seconds: 300
+                      reload:
+                        available: true
+                      suspend:
+                        available: false
+                      resume:
+                        available: false
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+schemas:
+  Discovery:
+    type: object
+    required: [ name, status, api_major, base_path, links ]
+    properties:
+      name:
+        type: string
+        const: dae/honk-native
+      status:
+        type: string
+        const: draft
+      api_major:
+        type: integer
+        const: 1
+      base_path:
+        type: string
+        const: /api/v1
+      links:
+        type: object
+        required: [ version, capabilities, config, config_validate, runtime, runtime_outbounds, traffic_history, memory_history, logs, providers, rules, operations, geodata ]
+        properties:
+          version:
+            type: string
+            const: /api/v1/version
+          capabilities:
+            type: string
+            const: /api/v1/capabilities
+          config:
+            type: string
+            const: /api/v1/config
+          config_validate:
+            type: string
+            const: /api/v1/config/validate
+          runtime:
+            type: string
+            const: /api/v1/runtime
+          runtime_outbounds:
+            type: string
+            const: /api/v1/runtime/outbounds
+          traffic_history:
+            type: string
+            const: /api/v1/runtime/traffic/history
+          memory_history:
+            type: string
+            const: /api/v1/runtime/memory/history
+          logs:
+            type: string
+            const: /api/v1/logs
+          providers:
+            type: string
+            const: /api/v1/providers
+          rules:
+            type: string
+            const: /api/v1/rules
+          geodata:
+            type: string
+            const: /api/v1/geodata
+          operations:
+            type: string
+            const: /api/v1/operations/{id}
+  Version:
+    type: object
+    required: [ api, engine ]
+    properties:
+      api:
+        type: object
+        required: [ name, major, status ]
+        properties:
+          name:
+            type: string
+            const: dae/honk-native
+          major:
+            type: integer
+            const: 1
+          status:
+            type: string
+            const: draft
+      engine:
+        type: object
+        required: [ name, version ]
+        properties:
+          name:
+            type: string
+            minLength: 1
+          version:
+            type: string
+            minLength: 1
+      build:
+        oneOf:
+          - type: "null"
+          - type: object
+            required: [ revision, target, built_at ]
+            properties:
+              revision:
+                type: [ string, "null" ]
+              target:
+                type: [ string, "null" ]
+              built_at:
+                $ref: ./openapi.yaml#/components/schemas/NullableTimestamp
+  AvailableResource:
+    type: object
+    required: [ available ]
+    properties:
+      available:
+        type: boolean
+  Capabilities:
+    type: object
+    required: [ observed_at, profiles, limits, resources ]
+    properties:
+      observed_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      profiles:
+        type: array
+        uniqueItems: true
+        items:
+          type: string
+          enum: [ base, full_transparency ]
+      limits:
+        type: object
+        required: [ max_request_target_bytes, max_header_bytes, max_json_body_bytes ]
+        properties:
+          max_request_target_bytes:
+            type: integer
+            minimum: 1
+          max_header_bytes:
+            type: integer
+            minimum: 1
+          max_json_body_bytes:
+            type: integer
+            minimum: 1
+      resources:
+        type: object
+        required: [ config, config_validate, runtime, runtime_memory, runtime_outbounds, traffic_history, memory_history, datapath, nodes, providers, groups, probes, connections, flows, routing_trace, rules, events, logs, dns_query, dns_cache, dns_log, runtime_settings, operations, reload, suspend, resume, geodata ]
+        properties:
+          config:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ content, writable, max_bytes, max_sources ]
+            properties:
+              available:
+                type: boolean
+              content:
+                type: boolean
+                default: false
+                description: Visibility flag permitting optional source text; not permission to disclose secrets. False by default.
+              writable:
+                type: boolean
+                description: |
+                  Server-wide switch for replacing accepted sources under control;
+                  individual sources may still be read-only. True requires full
+                  validation and reload operations, including resources.reload.available
+                  and resources.operations.available. Independent of content visibility
+                  and the optional dry-run endpoint.
+              max_bytes:
+                $ref: ./openapi.yaml#/components/schemas/SafeUInt
+                minimum: 1
+                description: Maximum UTF-8 bytes in replacement content; the shared JSON body ceiling applies independently.
+              max_sources:
+                $ref: ./openapi.yaml#/components/schemas/SafeUInt
+                minimum: 1
+                description: Maximum complete effective source set the adapter can expose; never silently truncate it.
+          config_validate:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ modes, max_bytes, max_sources ]
+            properties:
+              available:
+                type: boolean
+              modes:
+                type: array
+                minItems: 1
+                uniqueItems: true
+                items:
+                  $ref: ./openapi.yaml#/components/schemas/ConfigValidationMode
+              max_bytes:
+                $ref: ./openapi.yaml#/components/schemas/SafeUInt
+                minimum: 1
+                description: Maximum total UTF-8 source bytes, including local dependencies in full mode; the shared JSON body ceiling also applies.
+              max_sources:
+                $ref: ./openapi.yaml#/components/schemas/SafeUInt
+                minimum: 1
+                description: Maximum sources per validation, including local dependencies in full mode.
+          runtime:
+            $ref: ./openapi.yaml#/components/schemas/AvailableResource
+          runtime_memory:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ metrics ]
+            properties:
+              available:
+                type: boolean
+              metrics:
+                type: array
+                uniqueItems: true
+                items:
+                  type: string
+                  enum: [ process.rss_bytes, cgroup.current_bytes, cgroup.limit_bytes, cgroup.events.high, cgroup.events.oom, cgroup.events.oom_kill, kernel.ebpf_bytes ]
+          runtime_outbounds:
+            $ref: ./openapi.yaml#/components/schemas/AvailableResource
+          traffic_history:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ max_window_seconds, max_points ]
+            properties:
+              available:
+                type: boolean
+              max_window_seconds:
+                $ref: ./openapi.yaml#/components/schemas/SafeUInt
+                minimum: 1
+                description: Maximum look-back window in seconds; not a guarantee against bounded-ring eviction.
+              max_points:
+                $ref: ./openapi.yaml#/components/schemas/SafeUInt
+                minimum: 1
+                description: Maximum returned samples per history request.
+          memory_history:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ max_window_seconds, max_points ]
+            properties:
+              available:
+                type: boolean
+              max_window_seconds:
+                $ref: ./openapi.yaml#/components/schemas/SafeUInt
+                minimum: 1
+                description: Maximum look-back window in seconds; not a guarantee against bounded-ring eviction.
+              max_points:
+                $ref: ./openapi.yaml#/components/schemas/SafeUInt
+                minimum: 1
+                description: Maximum returned samples per history request.
+          datapath:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ kinds, details ]
+            properties:
+              available:
+                type: boolean
+              kinds:
+                type: array
+                uniqueItems: true
+                items:
+                  $ref: ./openapi.yaml#/components/schemas/DatapathKind
+              details:
+                type: array
+                uniqueItems: true
+                items:
+                  type: string
+                  enum: [ attachments, maps ]
+          nodes:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ can_manage ]
+            properties:
+              available:
+                type: boolean
+              can_manage:
+                type: boolean
+                description: POST /nodes and DELETE /nodes/{id} are implemented for inline nodes; the backend owns a writable main source.
+          providers:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ can_refresh, can_manage, max_page_size ]
+            properties:
+              available:
+                type: boolean
+              can_refresh:
+                type: boolean
+                description: Refresh is implemented; individual provider kinds may still be unsupported. Requires operations.available.
+              can_manage:
+                type: boolean
+                description: POST /providers and DELETE /providers/{id} are implemented for subscription providers; the backend owns a writable main source.
+              max_page_size:
+                $ref: ./openapi.yaml#/components/schemas/SafeUInt
+                minimum: 1
+                maximum: 1000
+          groups:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ config_patch, selection, max_patch_operations ]
+            properties:
+              available:
+                type: boolean
+              config_patch:
+                type: boolean
+              selection:
+                type: boolean
+              max_patch_operations:
+                type: integer
+                minimum: 1
+          probes:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ targets, kinds, purposes, transports, ip_versions, limits ]
+            properties:
+              available:
+                type: boolean
+              targets:
+                type: array
+                uniqueItems: true
+                items:
+                  type: string
+                  enum: [ node, group ]
+              kinds:
+                type: array
+                uniqueItems: true
+                items:
+                  $ref: ./openapi.yaml#/components/schemas/ProbeKind
+              purposes:
+                type: array
+                uniqueItems: true
+                items:
+                  type: string
+                  enum: [ data, dns ]
+              transports:
+                type: array
+                uniqueItems: true
+                items:
+                  $ref: ./openapi.yaml#/components/schemas/Transport
+              ip_versions:
+                type: array
+                uniqueItems: true
+                items:
+                  $ref: ./openapi.yaml#/components/schemas/IpVersion
+              limits:
+                $ref: ./openapi.yaml#/components/schemas/ProbeLimits
+          connections:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ can_close, max_bulk_close ]
+            properties:
+              available:
+                type: boolean
+              can_close:
+                type: boolean
+                description: Whether userspace-owned connections can be closed; false makes both connection DELETE endpoints return 404 capability_not_supported.
+              max_bulk_close:
+                $ref: ./openapi.yaml#/components/schemas/SafeUInt
+                minimum: 1
+                description: Maximum matching live entries, including non-closable entries, per bulk close; used only when can_close is true. Excess returns 413 request_too_large before any connection is closed.
+          flows:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ recording, scopes, max_flows, max_steps_per_flow, retention_seconds, snapshot_ttl_seconds, max_page_size ]
+            properties:
+              available:
+                type: boolean
+              recording:
+                type: string
+                enum: [ off, on, sampled ]
+              scopes:
+                type: array
+                uniqueItems: true
+                items:
+                  $ref: ./openapi.yaml#/components/schemas/FlowScope
+              max_flows:
+                type: integer
+                minimum: 1
+              max_steps_per_flow:
+                type: integer
+                minimum: 1
+              retention_seconds:
+                type: integer
+                minimum: 0
+              snapshot_ttl_seconds:
+                type: integer
+                minimum: 1
+              max_page_size:
+                type: integer
+                minimum: 1
+                maximum: 1000
+          routing_trace:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ resolve_modes, max_addresses, max_rule_steps, timeout_ms, per_principal_requests_per_minute, global_requests_per_minute ]
+            properties:
+              available:
+                type: boolean
+              resolve_modes:
+                type: array
+                uniqueItems: true
+                items:
+                  type: string
+                  enum: [ none, live ]
+              max_addresses:
+                type: integer
+                minimum: 1
+              max_rule_steps:
+                type: integer
+                minimum: 1
+              timeout_ms:
+                type: integer
+                minimum: 1
+              per_principal_requests_per_minute:
+                type: integer
+                minimum: 1
+              global_requests_per_minute:
+                type: integer
+                minimum: 1
+          rules:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ max_rules ]
+            properties:
+              available:
+                type: boolean
+              max_rules:
+                $ref: ./openapi.yaml#/components/schemas/SafeUInt
+                minimum: 1
+                description: Maximum complete rule dictionary size, including the fallback entry; never a truncation limit.
+          events:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ kinds, retention_seconds, max_buffered_events, max_clients, heartbeat_seconds ]
+            properties:
+              available:
+                type: boolean
+              kinds:
+                type: array
+                uniqueItems: true
+                items:
+                  $ref: ./openapi.yaml#/components/schemas/EventKind
+              retention_seconds:
+                type: integer
+                minimum: 0
+              max_buffered_events:
+                type: integer
+                minimum: 1
+              max_clients:
+                type: integer
+                minimum: 1
+              heartbeat_seconds:
+                type: integer
+                minimum: 1
+                maximum: 15
+          logs:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ levels, max_buffered_records ]
+            properties:
+              available:
+                type: boolean
+              levels:
+                type: array
+                minItems: 1
+                uniqueItems: true
+                items:
+                  $ref: ./openapi.yaml#/components/schemas/LogLevel
+              max_buffered_records:
+                $ref: ./openapi.yaml#/components/schemas/SafeUInt
+                minimum: 1
+                description: Bounded replay buffer capacity, not a durable retention guarantee.
+          dns_query:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ record_types, limits ]
+            properties:
+              available:
+                type: boolean
+              record_types:
+                type: array
+                uniqueItems: true
+                items:
+                  $ref: ./openapi.yaml#/components/schemas/DnsRecordType
+              limits:
+                $ref: ./openapi.yaml#/components/schemas/DnsQueryLimits
+          dns_cache:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ read, delete_entry, delete_name, flush, entry_kinds ]
+            properties:
+              available:
+                type: boolean
+              read:
+                type: boolean
+              delete_entry:
+                type: boolean
+              delete_name:
+                type: boolean
+              flush:
+                type: boolean
+              entry_kinds:
+                type: array
+                uniqueItems: true
+                items:
+                  type: string
+                  enum: [ positive, negative ]
+          dns_log:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ max_records, max_page_size ]
+            properties:
+              available:
+                type: boolean
+              max_records:
+                $ref: ./openapi.yaml#/components/schemas/SafeUInt
+                minimum: 1
+                description: Ring capacity in records; not a retention guarantee.
+              max_page_size:
+                $ref: ./openapi.yaml#/components/schemas/SafeUInt
+                minimum: 1
+          runtime_settings:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ fields ]
+            properties:
+              available:
+                type: boolean
+              fields:
+                type: array
+                uniqueItems: true
+                description: The settings PATCH /runtime/settings accepts on this backend; others return 400.
+                items:
+                  $ref: ./openapi.yaml#/components/schemas/RuntimeSettingField
+          geodata:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ can_update, assets ]
+            properties:
+              available:
+                type: boolean
+              can_update:
+                type: boolean
+                description: POST /geodata/update is implemented. Requires operations.available and configured asset sources.
+              assets:
+                type: array
+                uniqueItems: true
+                description: The asset kinds GET /geodata reports on this backend.
+                items:
+                  $ref: ./openapi.yaml#/components/schemas/GeoAssetKind
+          operations:
+            type: object
+            required: [ available ]
+            if:
+              properties:
+                available:
+                  const: true
+            then:
+              required: [ retention_seconds ]
+            properties:
+              available:
+                type: boolean
+              retention_seconds:
+                type: integer
+                minimum: 0
+          reload:
+            $ref: ./openapi.yaml#/components/schemas/AvailableResource
+          suspend:
+            $ref: ./openapi.yaml#/components/schemas/AvailableResource
+          resume:
+            $ref: ./openapi.yaml#/components/schemas/AvailableResource

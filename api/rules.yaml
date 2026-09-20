@@ -1,0 +1,176 @@
+paths:
+  /api/v1/rules:
+    get:
+      operationId: listRules
+      summary: Read the running generation's routing rules
+      description: |
+        Return one coherent, complete rule dictionary for the running routing generation,
+        in evaluation order, including its fallback entry. This resource is read-only;
+        it neither evaluates traffic nor reads back raw configuration. rule_id is identical
+        to the ID used by POST /api/v1/routing/trace and FlowSummary.rule_id for the same
+        generation. Join by generation_id and rule_id, never by expression or index alone.
+        generation_id is the invalidation cursor, not a pagination token. Refetch after
+        generation.changed; old flow evidence must not be joined to a new generation.
+        There is no paginated snapshot and no 410 snapshot_expired response. If a coherent
+        generation cannot be pinned, return 409 snapshot_unavailable. If the complete
+        dictionary exceeds resources.rules.max_rules, return 503 temporarily_unavailable
+        rather than silently truncate it. Redact local paths and secret-bearing expression
+        values without changing rule identities or order; never expose raw configuration.
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        "200":
+          description: Ordered rules and fallback from one running generation
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/RuleList
+              examples:
+                running:
+                  value:
+                    generation_id: generation-42
+                    rules:
+                      - rule_id: traffic:0
+                        index: 0
+                        expression: pname(curl) -> direct
+                        outbound: direct
+                        must: false
+                        source:
+                          file: "[redacted]/routing.dae"
+                          line: 12
+                        kind: rule
+                      - rule_id: traffic:1
+                        index: 1
+                        expression: dip(198.51.100.0/24) -> proxy
+                        outbound: proxy
+                        must: false
+                        source:
+                          file: "[redacted]/routing.dae"
+                          line: 13
+                        kind: rule
+                      - rule_id: traffic:2
+                        index: 2
+                        expression: "fallback: block"
+                        outbound: block
+                        must: false
+                        source: null
+                        kind: fallback
+                    fallback:
+                      outbound: block
+                      source: null
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "409":
+          description: The running routing generation could not be pinned coherently
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                snapshot_unavailable:
+                  value:
+                    error:
+                      code: snapshot_unavailable
+                      message: A coherent routing generation is unavailable; retry the read.
+                      details: null
+                    request_id: request-01HZX4K8W6
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "503":
+          $ref: ./openapi.yaml#/components/responses/Unavailable
+schemas:
+  RuleSource:
+    oneOf:
+      - type: "null"
+      - type: object
+        required: [ file, line ]
+        properties:
+          file:
+            type: string
+            minLength: 1
+            description: Redacted source label; never an absolute local path or credential-bearing URL.
+          line:
+            $ref: ./openapi.yaml#/components/schemas/SafeUInt
+            minimum: 1
+    description: Source location, or null when unavailable or unsafe to disclose.
+  RoutingRule:
+    type: object
+    required: [ rule_id, index, expression, outbound, must, source, kind ]
+    properties:
+      rule_id:
+        type: string
+        minLength: 1
+        description: Identical to POST /routing/trace rule IDs and FlowSummary.rule_id within the same generation; opaque to clients.
+      index:
+        $ref: ./openapi.yaml#/components/schemas/SafeUInt
+        description: Zero-based evaluation order within this generation, not a cross-generation identity.
+      expression:
+        type: string
+        minLength: 1
+        description: Safe display expression, not raw configuration or an editable source representation.
+      outbound:
+        type: string
+        minLength: 1
+        description: Rule outbound, not a resolved leaf node or a claim of a successful dial.
+      must:
+        type: boolean
+      source:
+        $ref: ./openapi.yaml#/components/schemas/RuleSource
+      kind:
+        type: string
+        enum: [ rule, fallback ]
+  RuleFallback:
+    type: object
+    required: [ outbound, source ]
+    properties:
+      outbound:
+        type: string
+        minLength: 1
+      source:
+        $ref: ./openapi.yaml#/components/schemas/RuleSource
+    description: Same outbound and source as the fallback entry in rules; the entry carries its rule_id.
+  RuleList:
+    type: object
+    required: [ generation_id, rules, fallback ]
+    properties:
+      generation_id:
+        type: string
+        minLength: 1
+      rules:
+        type: array
+        minItems: 1
+        items:
+          $ref: ./openapi.yaml#/components/schemas/RoutingRule
+        contains:
+          type: object
+          required: [ kind ]
+          properties:
+            kind:
+              const: fallback
+        minContains: 1
+        maxContains: 1
+        description: Complete evaluation order with unique rule_id and index values, including exactly one final fallback entry.
+      fallback:
+        $ref: ./openapi.yaml#/components/schemas/RuleFallback

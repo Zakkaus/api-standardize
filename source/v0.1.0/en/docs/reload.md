@@ -2,50 +2,48 @@
 title: Reload
 ---
 
-# POST /api/reload
+# POST /api/v1/operations/reload
 
-Triggers a configuration reload. This is equivalent to running `dae reload` from the command line.
+> Draft endpoint. Reload is capability-gated and asynchronous. Queueing a
+> reload is not proof that a new generation was validated and published.
+
+Starts a configuration reload operation.
 
 ## Request
 
-```http
-POST /api/reload HTTP/1.1
-Host: localhost:9527
-Content-Length: 0
-```
+{% api_example startReload request empty http %}
 
 ## Response
 
-### Success (200 OK)
+### Accepted (202 Accepted)
 
-```json
-{
-  "ok": true,
-  "message": "Reload triggered"
-}
-```
+{% api_example startReload 202 queued http %}
 
-### Error (500 Internal Server Error)
+Poll [`GET /api/v1/operations/{id}`](operations.html) for completion.
 
-```json
-{
-  "ok": false,
-  "error": "Failed to reload configuration"
-}
-```
+### Completed result
+
+{% api_example getOperation 200 reload_complete_reload %}
 
 ### Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| ok | bool | Whether the operation succeeded |
-| message | string | Human-readable message (on success) |
-| error | string | Error message (on failure) |
+| operation_id | string | Reload operation identifier. |
+| status | string | `queued`, `running`, `succeeded`, or `failed`. |
+| result.active_generation_id | string or null | Generation active after completion. |
+| result.datapath_generation_id | string or null | Generation published to the datapath. |
+| finished_at | string or null | Completion timestamp (RFC3339). |
+| error | object or null | Shared safe error object, when present. |
+
+An operation may report `succeeded` only after configuration validation,
+datapath routing publication, and active-generation promotion all complete.
+When reload fails, the previous active generation remains active.
 
 ## Example
 
 ```bash
-curl -X POST http://localhost:9527/api/reload
+curl -X POST http://localhost:9527/api/v1/operations/reload \
+  -H 'Content-Type: application/json' \
+  -d '{}'
 ```
-
-> **Note:** Reload is an asynchronous operation. Use `GET /api/runtime/status` or `GET /api/config` to verify the new configuration is active.

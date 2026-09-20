@@ -1,0 +1,566 @@
+openapi: 3.1.0
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+info:
+  title: dae/honk Native API
+  version: 0.1.0-draft
+  description: |
+    Normative wire contract for the native control-plane API. Unknown response
+    extension fields are permitted. Request objects reject unknown fields.
+    Published as a generated bundle at source/openapi.yaml; edit the api/ sources,
+    not the published file.
+servers:
+  - url: http://localhost:9527
+security: []
+paths:
+  /api:
+    $ref: ./discovery.yaml#/paths/~1api
+  /api/v1/version:
+    $ref: ./discovery.yaml#/paths/~1api~1v1~1version
+  /api/v1/capabilities:
+    $ref: ./discovery.yaml#/paths/~1api~1v1~1capabilities
+  /api/v1/config:
+    $ref: ./config.yaml#/paths/~1api~1v1~1config
+  /api/v1/config/validate:
+    $ref: ./config.yaml#/paths/~1api~1v1~1config~1validate
+  /api/v1/config/sources/{source_id}:
+    $ref: ./config.yaml#/paths/~1api~1v1~1config~1sources~1{source_id}
+  /api/v1/runtime:
+    $ref: ./runtime.yaml#/paths/~1api~1v1~1runtime
+  /api/v1/runtime/memory:
+    $ref: ./runtime.yaml#/paths/~1api~1v1~1runtime~1memory
+  /api/v1/runtime/outbounds:
+    $ref: ./runtime.yaml#/paths/~1api~1v1~1runtime~1outbounds
+  /api/v1/runtime/traffic/history:
+    $ref: ./runtime.yaml#/paths/~1api~1v1~1runtime~1traffic~1history
+  /api/v1/runtime/memory/history:
+    $ref: ./runtime.yaml#/paths/~1api~1v1~1runtime~1memory~1history
+  /api/v1/datapath:
+    $ref: ./runtime.yaml#/paths/~1api~1v1~1datapath
+  /api/v1/nodes:
+    $ref: ./nodes-groups.yaml#/paths/~1api~1v1~1nodes
+  /api/v1/providers:
+    $ref: ./providers.yaml#/paths/~1api~1v1~1providers
+  /api/v1/providers/{id}:
+    $ref: ./providers.yaml#/paths/~1api~1v1~1providers~1{id}
+  /api/v1/providers/{id}/refresh:
+    $ref: ./providers.yaml#/paths/~1api~1v1~1providers~1{id}~1refresh
+  /api/v1/nodes/{id}:
+    $ref: ./nodes-groups.yaml#/paths/~1api~1v1~1nodes~1{id}
+  /api/v1/geodata:
+    $ref: ./geodata.yaml#/paths/~1api~1v1~1geodata
+  /api/v1/geodata/update:
+    $ref: ./geodata.yaml#/paths/~1api~1v1~1geodata~1update
+  /api/v1/groups:
+    $ref: ./nodes-groups.yaml#/paths/~1api~1v1~1groups
+  /api/v1/groups/{groupId}:
+    $ref: ./nodes-groups.yaml#/paths/~1api~1v1~1groups~1{groupId}
+  /api/v1/groups/{groupId}/selection:
+    $ref: ./nodes-groups.yaml#/paths/~1api~1v1~1groups~1{groupId}~1selection
+  /api/v1/probes:
+    $ref: ./operations-probes.yaml#/paths/~1api~1v1~1probes
+  /api/v1/connections:
+    $ref: ./flows.yaml#/paths/~1api~1v1~1connections
+  /api/v1/connections/{connection_id}:
+    $ref: ./flows.yaml#/paths/~1api~1v1~1connections~1{connection_id}
+  /api/v1/flows:
+    $ref: ./flows.yaml#/paths/~1api~1v1~1flows
+  /api/v1/flows/{flow_id}:
+    $ref: ./flows.yaml#/paths/~1api~1v1~1flows~1{flow_id}
+  /api/v1/routing/trace:
+    $ref: ./routing.yaml#/paths/~1api~1v1~1routing~1trace
+  /api/v1/rules:
+    $ref: ./rules.yaml#/paths/~1api~1v1~1rules
+  /api/v1/events:
+    $ref: ./events.yaml#/paths/~1api~1v1~1events
+  /api/v1/logs:
+    $ref: ./logs.yaml#/paths/~1api~1v1~1logs
+  /api/v1/runtime/settings:
+    $ref: ./settings.yaml#/paths/~1api~1v1~1runtime~1settings
+  /api/v1/dns/query:
+    $ref: ./dns.yaml#/paths/~1api~1v1~1dns~1query
+  /api/v1/dns/log:
+    $ref: ./dns.yaml#/paths/~1api~1v1~1dns~1log
+  /api/v1/dns/cache:
+    $ref: ./dns.yaml#/paths/~1api~1v1~1dns~1cache
+  /api/v1/dns/cache/{entry_id}:
+    $ref: ./dns.yaml#/paths/~1api~1v1~1dns~1cache~1{entry_id}
+  /api/v1/dns/cache/flush:
+    $ref: ./dns.yaml#/paths/~1api~1v1~1dns~1cache~1flush
+  /api/v1/operations/reload:
+    $ref: ./operations-probes.yaml#/paths/~1api~1v1~1operations~1reload
+  /api/v1/operations/suspend:
+    $ref: ./operations-probes.yaml#/paths/~1api~1v1~1operations~1suspend
+  /api/v1/operations/resume:
+    $ref: ./operations-probes.yaml#/paths/~1api~1v1~1operations~1resume
+  /api/v1/operations/{id}:
+    $ref: ./operations-probes.yaml#/paths/~1api~1v1~1operations~1{id}
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: ./common.yaml#/securitySchemes/bearerAuth
+  headers:
+    NoStore:
+      $ref: ./common.yaml#/headers/NoStore
+    NoSniff:
+      $ref: ./common.yaml#/headers/NoSniff
+    ETag:
+      $ref: ./common.yaml#/headers/ETag
+  parameters:
+    Detail:
+      $ref: ./common.yaml#/parameters/Detail
+    Limit1000:
+      $ref: ./common.yaml#/parameters/Limit1000
+    Cursor:
+      $ref: ./common.yaml#/parameters/Cursor
+    GroupId:
+      $ref: ./common.yaml#/parameters/GroupId
+    ConnectionId:
+      $ref: ./common.yaml#/parameters/ConnectionId
+    FlowId:
+      $ref: ./common.yaml#/parameters/FlowId
+    DnsEntryId:
+      $ref: ./common.yaml#/parameters/DnsEntryId
+    OperationId:
+      $ref: ./common.yaml#/parameters/OperationId
+    IfMatch:
+      $ref: ./common.yaml#/parameters/IfMatch
+    IdempotencyKey:
+      $ref: ./common.yaml#/parameters/IdempotencyKey
+    LastEventId:
+      $ref: ./common.yaml#/parameters/LastEventId
+    ProviderId:
+      $ref: ./common.yaml#/parameters/ProviderId
+    NodeId:
+      $ref: ./common.yaml#/parameters/NodeId
+  responses:
+    OperationAccepted:
+      $ref: ./common.yaml#/responses/OperationAccepted
+    BadRequest:
+      $ref: ./common.yaml#/responses/BadRequest
+    Unauthorized:
+      $ref: ./common.yaml#/responses/Unauthorized
+    Forbidden:
+      $ref: ./common.yaml#/responses/Forbidden
+    NotFound:
+      $ref: ./common.yaml#/responses/NotFound
+    Conflict:
+      $ref: ./common.yaml#/responses/Conflict
+    Gone:
+      $ref: ./common.yaml#/responses/Gone
+    PreconditionFailed:
+      $ref: ./common.yaml#/responses/PreconditionFailed
+    TooLarge:
+      $ref: ./common.yaml#/responses/TooLarge
+    UnsupportedMediaType:
+      $ref: ./common.yaml#/responses/UnsupportedMediaType
+    Unprocessable:
+      $ref: ./common.yaml#/responses/Unprocessable
+    PreconditionRequired:
+      $ref: ./common.yaml#/responses/PreconditionRequired
+    RateLimited:
+      $ref: ./common.yaml#/responses/RateLimited
+    Unavailable:
+      $ref: ./common.yaml#/responses/Unavailable
+    ErrorResponseCommon:
+      $ref: ./common.yaml#/responses/ErrorResponseCommon
+    EventCursorExpired:
+      $ref: ./common.yaml#/responses/EventCursorExpired
+  schemas:
+    EmptyObject:
+      $ref: ./common.yaml#/schemas/EmptyObject
+    SafeUInt:
+      $ref: ./common.yaml#/schemas/SafeUInt
+    NullableSafeUInt:
+      $ref: ./common.yaml#/schemas/NullableSafeUInt
+    UInt64:
+      $ref: ./common.yaml#/schemas/UInt64
+    NullableUInt64:
+      $ref: ./common.yaml#/schemas/NullableUInt64
+    Timestamp:
+      $ref: ./common.yaml#/schemas/Timestamp
+    NullableTimestamp:
+      $ref: ./common.yaml#/schemas/NullableTimestamp
+    ErrorCode:
+      $ref: ./common.yaml#/schemas/ErrorCode
+    SafeError:
+      $ref: ./common.yaml#/schemas/SafeError
+    ApiError:
+      $ref: ./common.yaml#/schemas/ApiError
+    ErrorResponse:
+      $ref: ./common.yaml#/schemas/ErrorResponse
+    Discovery:
+      $ref: ./discovery.yaml#/schemas/Discovery
+    Version:
+      $ref: ./discovery.yaml#/schemas/Version
+    AvailableResource:
+      $ref: ./discovery.yaml#/schemas/AvailableResource
+    Capabilities:
+      $ref: ./discovery.yaml#/schemas/Capabilities
+    EffectiveConfig:
+      $ref: ./config.yaml#/schemas/EffectiveConfig
+    ConfigSource:
+      $ref: ./config.yaml#/schemas/ConfigSource
+    ConfigDiagnostic:
+      $ref: ./common.yaml#/schemas/ConfigDiagnostic
+    ConfigDiagnosticSpan:
+      $ref: ./common.yaml#/schemas/ConfigDiagnosticSpan
+    ConfigValidationMode:
+      $ref: ./config.yaml#/schemas/ConfigValidationMode
+    ConfigValidationSource:
+      $ref: ./config.yaml#/schemas/ConfigValidationSource
+    ConfigValidationRequest:
+      $ref: ./config.yaml#/schemas/ConfigValidationRequest
+    ConfigValidationResult:
+      $ref: ./config.yaml#/schemas/ConfigValidationResult
+    ProbeLimits:
+      $ref: ./operations-probes.yaml#/schemas/ProbeLimits
+    DnsQueryLimits:
+      $ref: ./dns.yaml#/schemas/DnsQueryLimits
+    Runtime:
+      $ref: ./runtime.yaml#/schemas/Runtime
+    LastReload:
+      $ref: ./runtime.yaml#/schemas/LastReload
+    TrafficSummary:
+      $ref: ./runtime.yaml#/schemas/TrafficSummary
+    RuntimeMemory:
+      $ref: ./runtime.yaml#/schemas/RuntimeMemory
+    RuntimeOutbounds:
+      $ref: ./runtime.yaml#/schemas/RuntimeOutbounds
+    OutboundCounters:
+      $ref: ./runtime.yaml#/schemas/OutboundCounters
+    TrafficHistory:
+      $ref: ./runtime.yaml#/schemas/TrafficHistory
+    TrafficHistorySample:
+      $ref: ./runtime.yaml#/schemas/TrafficHistorySample
+    MemoryHistory:
+      $ref: ./runtime.yaml#/schemas/MemoryHistory
+    MemoryHistorySample:
+      $ref: ./runtime.yaml#/schemas/MemoryHistorySample
+    DatapathKind:
+      $ref: ./runtime.yaml#/schemas/DatapathKind
+    DatapathState:
+      $ref: ./runtime.yaml#/schemas/DatapathState
+    Visibility:
+      $ref: ./common.yaml#/schemas/Visibility
+    ObservedBy:
+      $ref: ./common.yaml#/schemas/ObservedBy
+    EbpfRoutingSummary:
+      $ref: ./runtime.yaml#/schemas/EbpfRoutingSummary
+    EbpfSummary:
+      $ref: ./runtime.yaml#/schemas/EbpfSummary
+    DatapathSummary:
+      $ref: ./runtime.yaml#/schemas/DatapathSummary
+    Datapath:
+      $ref: ./runtime.yaml#/schemas/Datapath
+    EbpfDetail:
+      $ref: ./runtime.yaml#/schemas/EbpfDetail
+    EbpfAttachment:
+      $ref: ./runtime.yaml#/schemas/EbpfAttachment
+    EbpfMaps:
+      $ref: ./runtime.yaml#/schemas/EbpfMaps
+    MapOccupancy:
+      $ref: ./runtime.yaml#/schemas/MapOccupancy
+    Transport:
+      $ref: ./common.yaml#/schemas/Transport
+    IpVersion:
+      $ref: ./common.yaml#/schemas/IpVersion
+    HealthObservation:
+      $ref: ./nodes-groups.yaml#/schemas/HealthObservation
+    Node:
+      $ref: ./nodes-groups.yaml#/schemas/Node
+    NodeList:
+      $ref: ./nodes-groups.yaml#/schemas/NodeList
+    Provider:
+      $ref: ./providers.yaml#/schemas/Provider
+    ProviderTraffic:
+      $ref: ./providers.yaml#/schemas/ProviderTraffic
+    ProviderList:
+      $ref: ./providers.yaml#/schemas/ProviderList
+    ProviderRefreshAccepted:
+      $ref: ./providers.yaml#/schemas/ProviderRefreshAccepted
+    ProviderRefreshSucceededOperation:
+      $ref: ./providers.yaml#/schemas/ProviderRefreshSucceededOperation
+    ProviderCreate:
+      $ref: ./providers.yaml#/schemas/ProviderCreate
+    NodeCreate:
+      $ref: ./nodes-groups.yaml#/schemas/NodeCreate
+    GeoAssetKind:
+      $ref: ./geodata.yaml#/schemas/GeoAssetKind
+    GeoAsset:
+      $ref: ./geodata.yaml#/schemas/GeoAsset
+    GeoData:
+      $ref: ./geodata.yaml#/schemas/GeoData
+    GeoDataUpdateAccepted:
+      $ref: ./geodata.yaml#/schemas/GeoDataUpdateAccepted
+    GeoDataUpdateSucceededOperation:
+      $ref: ./geodata.yaml#/schemas/GeoDataUpdateSucceededOperation
+    GroupPolicy:
+      $ref: ./nodes-groups.yaml#/schemas/GroupPolicy
+    GroupPolicyRequest:
+      $ref: ./nodes-groups.yaml#/schemas/GroupPolicyRequest
+    GroupMember:
+      $ref: ./nodes-groups.yaml#/schemas/GroupMember
+    GroupConfig:
+      $ref: ./nodes-groups.yaml#/schemas/GroupConfig
+    SafeHttpUrl:
+      $ref: ./nodes-groups.yaml#/schemas/SafeHttpUrl
+    GroupSelection:
+      $ref: ./nodes-groups.yaml#/schemas/GroupSelection
+    GroupRanking:
+      $ref: ./nodes-groups.yaml#/schemas/GroupRanking
+    GroupHealthObservation:
+      $ref: ./nodes-groups.yaml#/schemas/GroupHealthObservation
+    GroupRuntime:
+      $ref: ./nodes-groups.yaml#/schemas/GroupRuntime
+    GroupCapabilities:
+      $ref: ./nodes-groups.yaml#/schemas/GroupCapabilities
+    Group:
+      $ref: ./nodes-groups.yaml#/schemas/Group
+    GroupSummary:
+      $ref: ./nodes-groups.yaml#/schemas/GroupSummary
+    GroupList:
+      $ref: ./nodes-groups.yaml#/schemas/GroupList
+    JsonPatch:
+      $ref: ./nodes-groups.yaml#/schemas/JsonPatch
+    PolicyPatch:
+      $ref: ./nodes-groups.yaml#/schemas/PolicyPatch
+    MemberIdPatch:
+      $ref: ./nodes-groups.yaml#/schemas/MemberIdPatch
+    OutboundPatch:
+      $ref: ./nodes-groups.yaml#/schemas/OutboundPatch
+    CheckUrlPatch:
+      $ref: ./nodes-groups.yaml#/schemas/CheckUrlPatch
+    PositiveIntegerPatch:
+      $ref: ./nodes-groups.yaml#/schemas/PositiveIntegerPatch
+    TolerancePatch:
+      $ref: ./nodes-groups.yaml#/schemas/TolerancePatch
+    IdleTimeoutPatch:
+      $ref: ./nodes-groups.yaml#/schemas/IdleTimeoutPatch
+    InterruptPatch:
+      $ref: ./nodes-groups.yaml#/schemas/InterruptPatch
+    MutableGroupPath:
+      $ref: ./nodes-groups.yaml#/schemas/MutableGroupPath
+    RemovePatch:
+      $ref: ./nodes-groups.yaml#/schemas/RemovePatch
+    CopyMovePatch:
+      $ref: ./nodes-groups.yaml#/schemas/CopyMovePatch
+    GroupSelectionRequest:
+      $ref: ./nodes-groups.yaml#/schemas/GroupSelectionRequest
+    GroupSelectionResult:
+      $ref: ./nodes-groups.yaml#/schemas/GroupSelectionResult
+    GroupOverrideCleared:
+      $ref: ./nodes-groups.yaml#/schemas/GroupOverrideCleared
+    ProbeKind:
+      $ref: ./operations-probes.yaml#/schemas/ProbeKind
+    ProbeTarget:
+      $ref: ./operations-probes.yaml#/schemas/ProbeTarget
+    NodeProbeTarget:
+      $ref: ./operations-probes.yaml#/schemas/NodeProbeTarget
+    GroupProbeTarget:
+      $ref: ./operations-probes.yaml#/schemas/GroupProbeTarget
+    ProbeTargetResponse:
+      $ref: ./operations-probes.yaml#/schemas/ProbeTargetResponse
+    ProbeMembers:
+      $ref: ./operations-probes.yaml#/schemas/ProbeMembers
+    ProbeRequest:
+      $ref: ./operations-probes.yaml#/schemas/ProbeRequest
+    ProbeResultItem:
+      $ref: ./operations-probes.yaml#/schemas/ProbeResultItem
+    ProbeResult:
+      $ref: ./operations-probes.yaml#/schemas/ProbeResult
+    TransportBooleanMap:
+      $ref: ./operations-probes.yaml#/schemas/TransportBooleanMap
+    TransportSelectionMap:
+      $ref: ./operations-probes.yaml#/schemas/TransportSelectionMap
+    ConnectionState:
+      $ref: ./flows.yaml#/schemas/ConnectionState
+    Connection:
+      $ref: ./flows.yaml#/schemas/Connection
+    ConnectionList:
+      $ref: ./flows.yaml#/schemas/ConnectionList
+    BulkCloseResult:
+      $ref: ./flows.yaml#/schemas/BulkCloseResult
+    FlowScope:
+      $ref: ./flows.yaml#/schemas/FlowScope
+    TraceStatus:
+      $ref: ./flows.yaml#/schemas/TraceStatus
+    FlowInput:
+      $ref: ./flows.yaml#/schemas/FlowInput
+    TrafficRoutingInput:
+      $ref: ./flow-steps.yaml#/schemas/TrafficRoutingInput
+    DnsRequestRoutingInput:
+      $ref: ./flow-steps.yaml#/schemas/DnsRequestRoutingInput
+    DnsResponseRoutingInput:
+      $ref: ./flow-steps.yaml#/schemas/DnsResponseRoutingInput
+    DomainSource:
+      $ref: ./flows.yaml#/schemas/DomainSource
+    FlowSummary:
+      $ref: ./flows.yaml#/schemas/FlowSummary
+    FlowCoverage:
+      $ref: ./flows.yaml#/schemas/FlowCoverage
+    FlowList:
+      $ref: ./flows.yaml#/schemas/FlowList
+    FlowDetail:
+      $ref: ./flows.yaml#/schemas/FlowDetail
+    FlowTrace:
+      $ref: ./flows.yaml#/schemas/FlowTrace
+    FlowStep:
+      $ref: ./flows.yaml#/schemas/FlowStep
+    InputStep:
+      $ref: ./flow-steps.yaml#/schemas/InputStep
+    InputStepData:
+      $ref: ./flow-steps.yaml#/schemas/InputStepData
+    RouteStep:
+      $ref: ./flow-steps.yaml#/schemas/RouteStep
+    RouteStepData:
+      $ref: ./flow-steps.yaml#/schemas/RouteStepData
+    DatapathStep:
+      $ref: ./flow-steps.yaml#/schemas/DatapathStep
+    DatapathStepData:
+      $ref: ./flow-steps.yaml#/schemas/DatapathStepData
+    DialModeStep:
+      $ref: ./flow-steps.yaml#/schemas/DialModeStep
+    DialModeStepData:
+      $ref: ./flow-steps.yaml#/schemas/DialModeStepData
+    DnsStep:
+      $ref: ./flow-steps.yaml#/schemas/DnsStep
+    DnsStepData:
+      $ref: ./flow-steps.yaml#/schemas/DnsStepData
+    RerouteStep:
+      $ref: ./flow-steps.yaml#/schemas/RerouteStep
+    RerouteStepData:
+      $ref: ./flow-steps.yaml#/schemas/RerouteStepData
+    OutboundStep:
+      $ref: ./flow-steps.yaml#/schemas/OutboundStep
+    OutboundStepData:
+      $ref: ./flow-steps.yaml#/schemas/OutboundStepData
+    SelectionPathItem:
+      $ref: ./flow-steps.yaml#/schemas/SelectionPathItem
+    SelectionDecision:
+      $ref: ./flow-steps.yaml#/schemas/SelectionDecision
+    SelectionCandidate:
+      $ref: ./flow-steps.yaml#/schemas/SelectionCandidate
+    ConnectionStep:
+      $ref: ./flow-steps.yaml#/schemas/ConnectionStep
+    ConnectionStepData:
+      $ref: ./flow-steps.yaml#/schemas/ConnectionStepData
+    RuleResult:
+      $ref: ./flow-steps.yaml#/schemas/RuleResult
+    RuleCondition:
+      $ref: ./flow-steps.yaml#/schemas/RuleCondition
+    RuleEvaluation:
+      $ref: ./flow-steps.yaml#/schemas/RuleEvaluation
+    IpAddress:
+      $ref: ./common.yaml#/schemas/IpAddress
+    RoutingTraceInput:
+      $ref: ./routing.yaml#/schemas/RoutingTraceInput
+    RoutingTraceRequest:
+      $ref: ./routing.yaml#/schemas/RoutingTraceRequest
+    RoutingEvaluation:
+      $ref: ./routing.yaml#/schemas/RoutingEvaluation
+    SimulationDnsData:
+      $ref: ./routing.yaml#/schemas/SimulationDnsData
+    RoutingTraceResponse:
+      $ref: ./routing.yaml#/schemas/RoutingTraceResponse
+    RuleSource:
+      $ref: ./rules.yaml#/schemas/RuleSource
+    RoutingRule:
+      $ref: ./rules.yaml#/schemas/RoutingRule
+    RuleFallback:
+      $ref: ./rules.yaml#/schemas/RuleFallback
+    RuleList:
+      $ref: ./rules.yaml#/schemas/RuleList
+    DnsRecordType:
+      $ref: ./dns.yaml#/schemas/DnsRecordType
+    DnsAnswer:
+      $ref: ./dns.yaml#/schemas/DnsAnswer
+    DnsQuestion:
+      $ref: ./dns.yaml#/schemas/DnsQuestion
+    DnsRoute:
+      $ref: ./dns.yaml#/schemas/DnsRoute
+    DnsQueryResult:
+      $ref: ./dns.yaml#/schemas/DnsQueryResult
+    DnsQueryResponse:
+      $ref: ./dns.yaml#/schemas/DnsQueryResponse
+    DnsCacheCoverage:
+      $ref: ./dns.yaml#/schemas/DnsCacheCoverage
+    DnsCacheEntry:
+      $ref: ./dns.yaml#/schemas/DnsCacheEntry
+    DnsCacheList:
+      $ref: ./dns.yaml#/schemas/DnsCacheList
+    DnsLogRecord:
+      $ref: ./dns.yaml#/schemas/DnsLogRecord
+    DnsLogList:
+      $ref: ./dns.yaml#/schemas/DnsLogList
+    DeleteCount:
+      $ref: ./dns.yaml#/schemas/DeleteCount
+    DeleteMatchingCount:
+      $ref: ./dns.yaml#/schemas/DeleteMatchingCount
+    OperationKind:
+      type: string
+      enum: [ probe, reload, suspend, resume, group_update, provider_refresh, geodata_update ]
+    OperationAccepted:
+      $ref: ./operations-probes.yaml#/schemas/OperationAccepted
+    Operation:
+      oneOf:
+        - $ref: ./openapi.yaml#/components/schemas/QueuedOperation
+        - $ref: ./openapi.yaml#/components/schemas/RunningOperation
+        - $ref: ./openapi.yaml#/components/schemas/FailedOperation
+        - $ref: ./openapi.yaml#/components/schemas/ProbeSucceededOperation
+        - $ref: ./openapi.yaml#/components/schemas/ReloadSucceededOperation
+        - $ref: ./openapi.yaml#/components/schemas/SuspendSucceededOperation
+        - $ref: ./openapi.yaml#/components/schemas/ResumeSucceededOperation
+        - $ref: ./openapi.yaml#/components/schemas/GroupUpdateSucceededOperation
+        - $ref: ./openapi.yaml#/components/schemas/ProviderRefreshSucceededOperation
+        - $ref: ./openapi.yaml#/components/schemas/GeoDataUpdateSucceededOperation
+    QueuedOperation:
+      $ref: ./operations-probes.yaml#/schemas/QueuedOperation
+    RunningOperation:
+      $ref: ./operations-probes.yaml#/schemas/RunningOperation
+    FailedOperation:
+      $ref: ./operations-probes.yaml#/schemas/FailedOperation
+    ProbeSucceededOperation:
+      $ref: ./operations-probes.yaml#/schemas/ProbeSucceededOperation
+    ReloadSucceededOperation:
+      $ref: ./operations-probes.yaml#/schemas/ReloadSucceededOperation
+    ReloadResult:
+      $ref: ./operations-probes.yaml#/schemas/ReloadResult
+    SuspendSucceededOperation:
+      $ref: ./operations-probes.yaml#/schemas/SuspendSucceededOperation
+    ResumeSucceededOperation:
+      $ref: ./operations-probes.yaml#/schemas/ResumeSucceededOperation
+    GroupUpdateSucceededOperation:
+      $ref: ./operations-probes.yaml#/schemas/GroupUpdateSucceededOperation
+    GroupUpdateResult:
+      $ref: ./operations-probes.yaml#/schemas/GroupUpdateResult
+    EventKind:
+      $ref: ./events.yaml#/schemas/EventKind
+    LogLevel:
+      $ref: ./logs.yaml#/schemas/LogLevel
+    LogRecord:
+      $ref: ./logs.yaml#/schemas/LogRecord
+    RuntimeSettingField:
+      $ref: ./settings.yaml#/schemas/RuntimeSettingField
+    RuntimeSettings:
+      $ref: ./settings.yaml#/schemas/RuntimeSettings
+    RuntimeSettingsPatch:
+      $ref: ./settings.yaml#/schemas/RuntimeSettingsPatch
+    StreamReadyEvent:
+      $ref: ./events.yaml#/schemas/StreamReadyEvent
+    RuntimeUpdatedEvent:
+      $ref: ./events.yaml#/schemas/RuntimeUpdatedEvent
+    FlowUpdatedEvent:
+      $ref: ./events.yaml#/schemas/FlowUpdatedEvent
+    FlowGapEvent:
+      $ref: ./events.yaml#/schemas/FlowGapEvent
+    OperationUpdatedEvent:
+      $ref: ./events.yaml#/schemas/OperationUpdatedEvent
+    GenerationChangedEvent:
+      $ref: ./events.yaml#/schemas/GenerationChangedEvent
+    StepCommon:
+      $ref: ./flow-steps.yaml#/schemas/StepCommon
+    OperationCommon:
+      $ref: ./operations-probes.yaml#/schemas/OperationCommon
+  examples:
+    FlowUpdated:
+      $ref: ./events.yaml#/examples/FlowUpdated

@@ -1,0 +1,168 @@
+paths:
+  /api/v1/events:
+    get:
+      operationId: streamEvents
+      summary: Follow bounded resumable invalidation events
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - name: kinds
+          in: query
+          description: Comma-separated advertised event kinds.
+          schema:
+            type: string
+            minLength: 1
+          example: flow.updated,flow.gap
+        - name: flow_id
+          in: query
+          schema:
+            type: string
+            minLength: 1
+        - $ref: ./openapi.yaml#/components/parameters/LastEventId
+      responses:
+        "200":
+          description: Server-sent events; validate data using the schema selected by the event name.
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              x-event-data-schemas:
+                stream.ready: "#/components/schemas/StreamReadyEvent"
+                runtime.updated: "#/components/schemas/RuntimeUpdatedEvent"
+                flow.updated: "#/components/schemas/FlowUpdatedEvent"
+                flow.gap: "#/components/schemas/FlowGapEvent"
+                operation.updated: "#/components/schemas/OperationUpdatedEvent"
+                generation.changed: "#/components/schemas/GenerationChangedEvent"
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "409":
+          $ref: ./openapi.yaml#/components/responses/EventCursorExpired
+        "429":
+          $ref: ./openapi.yaml#/components/responses/RateLimited
+        "503":
+          $ref: ./openapi.yaml#/components/responses/Unavailable
+schemas:
+  EventKind:
+    type: string
+    enum: [ stream.ready, runtime.updated, flow.updated, flow.gap, operation.updated, generation.changed ]
+  StreamReadyEvent:
+    type: object
+    required: [ instance_id, observed_at ]
+    properties:
+      instance_id:
+        type: string
+        minLength: 1
+      observed_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+    not:
+      anyOf:
+        - required: [ href ]
+        - required: [ resource_id ]
+        - required: [ revision ]
+        - required: [ status ]
+        - required: [ reason ]
+        - required: [ previous_generation_id ]
+        - required: [ generation_id ]
+  RuntimeUpdatedEvent:
+    type: object
+    required: [ instance_id, observed_at, href ]
+    properties:
+      instance_id:
+        type: string
+        minLength: 1
+      observed_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      href:
+        const: /api/v1/runtime
+  FlowUpdatedEvent:
+    type: object
+    required: [ instance_id, observed_at, resource_id, revision, href ]
+    properties:
+      instance_id:
+        type: string
+        minLength: 1
+      observed_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      resource_id:
+        type: string
+        minLength: 1
+      revision:
+        type: integer
+        minimum: 1
+        maximum: 9007199254740991
+      href:
+        type: string
+        pattern: ^/api/v1/flows/[^/]+$
+  FlowGapEvent:
+    type: object
+    required: [ instance_id, observed_at, resource_id, reason, dropped_records ]
+    properties:
+      instance_id:
+        type: string
+        minLength: 1
+      observed_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      resource_id:
+        type: [ string, "null" ]
+      reason:
+        type: string
+        enum: [ buffer_overflow, sampled, evicted, recording_changed ]
+      dropped_records:
+        $ref: ./openapi.yaml#/components/schemas/NullableUInt64
+  OperationUpdatedEvent:
+    type: object
+    required: [ instance_id, observed_at, resource_id, status, href ]
+    properties:
+      instance_id:
+        type: string
+        minLength: 1
+      observed_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      resource_id:
+        type: string
+        minLength: 1
+      status:
+        type: string
+        enum: [ queued, running, succeeded, failed ]
+      href:
+        type: string
+        pattern: ^/api/v1/operations/[^/]+$
+  GenerationChangedEvent:
+    type: object
+    required: [ instance_id, observed_at, previous_generation_id, generation_id ]
+    properties:
+      instance_id:
+        type: string
+        minLength: 1
+      observed_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      previous_generation_id:
+        type: string
+        minLength: 1
+      generation_id:
+        type: string
+        minLength: 1
+examples:
+  FlowUpdated:
+    summary: Flow revision notification
+    x-event: flow.updated
+    x-event-id: instance-7:124
+    value:
+      instance_id: instance-7
+      observed_at: 2026-09-14T10:00:00Z
+      resource_id: flow-23
+      revision: 8
+      href: /api/v1/flows/flow-23

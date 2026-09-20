@@ -1,0 +1,9 @@
+extends:
+  - spec
+rules:
+  no-invalid-media-type-examples:
+    severity: error
+    allowAdditionalProperties: true
+  no-invalid-parameter-examples:
+    severity: error
+    allowAdditionalProperties: true

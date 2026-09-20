@@ -1,0 +1,1176 @@
+paths:
+  /api/v1/nodes:
+    get:
+      operationId: listNodes
+      summary: List nodes and latest typed health samples
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - name: group_id
+          in: query
+          schema:
+            type: string
+            minLength: 1
+          example: group-proxy
+        - $ref: ./openapi.yaml#/components/parameters/Limit1000
+        - $ref: ./openapi.yaml#/components/parameters/Cursor
+      responses:
+        "200":
+          description: Node page
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/NodeList
+              examples:
+                nodes:
+                  value:
+                    observed_at: 2026-08-15T10:00:00Z
+                    nodes:
+                      - id: node-hk-01
+                        name: hk-01
+                        protocol: vless
+                        subscription_tag: provider-a
+                        provider_id: provider-a
+                        group_ids: [ group-proxy ]
+                        health:
+                          - transport: tcp
+                            purpose: shared
+                            ip_version: ipv4
+                            warmth: cold
+                            measurement: http_round_trip
+                            sample_source: probe
+                            state: healthy
+                            latency_ms: 45
+                            moving_avg_ms: 47.5
+                            avg10_ms: null
+                            observed_at: 2026-08-15T10:00:00Z
+                            error: null
+                    next_cursor: null
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+    post:
+      operationId: createNode
+      summary: Add an inline node from a share link
+      description: |
+        Requires resources.nodes.can_manage; otherwise returns 404
+        capability_not_supported. The backend parses the link with the engine's own
+        share-link support, writes it into the node section of its managed main
+        source under the given name, advances the configuration revision and emits
+        generation.changed. The link is stored, never returned. A link the engine
+        cannot parse returns 422 unprocessable with the engine's reason in message;
+        a name already in use returns 409 state_conflict. The node belongs to the
+        inline provider and to every group whose filter matches it after reload.
+      x-permission: control
+      security:
+        - bearerAuth: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./openapi.yaml#/components/schemas/NodeCreate
+            examples:
+              link:
+                value:
+                  name: hk-03
+                  link: vless://uuid@example.com:443?security=tls#hk-03
+      responses:
+        "201":
+          description: Node written to the managed configuration
+          headers:
+            Location:
+              description: The new node in the node list.
+              required: true
+              schema:
+                type: string
+                pattern: ^/api/v1/nodes/[^/]+$
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/Node
+              examples:
+                created:
+                  value:
+                    id: node-hk-03
+                    name: hk-03
+                    protocol: vless
+                    subscription_tag: null
+                    provider_id: inline
+                    group_ids: [ group-proxy ]
+                    health: []
+                  x-headers:
+                    Content-Type: application/json
+                    Location: /api/v1/nodes/node-hk-03
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "409":
+          description: A node with this name exists
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                name_taken:
+                  value:
+                    error:
+                      code: state_conflict
+                      message: An inline node named hk-03 already exists.
+                      details: null
+                    request_id: request-01HZX4K8W6
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "413":
+          description: Request body exceeds limits.max_json_body_bytes
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                too_large:
+                  value:
+                    error:
+                      code: request_too_large
+                      message: The request body exceeds the advertised limit.
+                      details: null
+                    request_id: request-01HZX4K8W6
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "415":
+          description: Request body is not application/json
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                unsupported:
+                  value:
+                    error:
+                      code: unsupported_media_type
+                      message: The request body must be application/json.
+                      details: null
+                    request_id: request-01HZX4K8W6
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "422":
+          description: The engine cannot parse the link
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                bad_link:
+                  value:
+                    error:
+                      code: unsupported_value
+                      message: Unsupported share link scheme "foo".
+                      details: null
+                    request_id: request-01HZX4K8W6
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "503":
+          $ref: ./openapi.yaml#/components/responses/Unavailable
+  /api/v1/nodes/{id}:
+    parameters:
+      - $ref: ./openapi.yaml#/components/parameters/NodeId
+    delete:
+      operationId: deleteNode
+      summary: Remove an inline node from the managed configuration
+      description: |
+        Requires resources.nodes.can_manage; otherwise returns 404
+        capability_not_supported, as does a node that came from a subscription or
+        file provider: those are removed by refreshing or deleting their provider.
+        Removes the node's line from the node section of the managed main source and
+        the node from the running groups, advances the configuration revision and
+        emits generation.changed. Idempotent: an unknown id returns deleted 0.
+      x-permission: control
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        "200":
+          description: Idempotent deletion result
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/DeleteCount
+              examples:
+                deleted:
+                  value:
+                    deleted: 1
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "503":
+          $ref: ./openapi.yaml#/components/responses/Unavailable
+  /api/v1/groups:
+    get:
+      operationId: listGroups
+      summary: List group summaries
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        "200":
+          description: Group summaries
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/GroupList
+              examples:
+                groups:
+                  value:
+                    - id: group-proxy
+                      name: proxy
+                      icon: https://icons.example/proxy.png
+                      config_revision: "17"
+                      policy:
+                        kind: urltest
+                        native: min_moving_avg
+                      member_count: 2
+                      selection:
+                        tcp_member_id: node-hk-01
+                        udp_member_id: null
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+  /api/v1/groups/{groupId}:
+    parameters:
+      - $ref: ./openapi.yaml#/components/parameters/GroupId
+    get:
+      operationId: getGroup
+      summary: Read a complete group resource
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        "200":
+          description: Current group
+          headers:
+            ETag:
+              $ref: ./openapi.yaml#/components/headers/ETag
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/Group
+              examples:
+                current:
+                  value:
+                    id: group-proxy
+                    name: proxy
+                    icon: https://icons.example/proxy.png
+                    config_revision: "17"
+                    policy:
+                      kind: urltest
+                      native: min_moving_avg
+                    members:
+                      - id: node-hk-01
+                        name: hk-01
+                        kind: node
+                      - id: group-jp
+                        name: jp
+                        kind: group
+                    config:
+                      default_member_id: null
+                      final_outbound: direct
+                      check_url: null
+                      check_interval: 30
+                      tolerance: 50
+                      idle_timeout: null
+                      interrupt_connections: false
+                    runtime:
+                      selection:
+                        tcp:
+                          member_id: node-hk-01
+                          resolved_leaf_node_id: node-hk-01
+                          source: health
+                        udp: null
+                      health:
+                        - member_id: node-hk-01
+                          resolved_leaf_node_id: node-hk-01
+                          transport: tcp
+                          purpose: shared
+                          ip_version: ipv4
+                          warmth: unknown
+                          measurement: http_round_trip
+                          sample_source: probe
+                          state: healthy
+                          latency_ms: 45
+                          moving_avg_ms: 47.5
+                          avg10_ms: null
+                          sorting_latency_ms: 72.5
+                          ranking:
+                            metric: moving_avg_ms
+                            recovery_penalty_ms: 10
+                            group_offset_ms: 15
+                            score: null
+                            reason: minimum_with_hysteresis
+                          observed_at: 2026-08-15T10:00:00Z
+                          error: null
+                    capabilities:
+                      can_select: false
+                      can_override: true
+                      supports_nested_groups: true
+                      mutable_config: [ policy, default_member_id, final_outbound, check_url, check_interval, tolerance, idle_timeout, interrupt_connections ]
+                      probe_transports: [ tcp, udp ]
+                  x-headers:
+                    Content-Type: application/json
+                    ETag: '"17"'
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+    patch:
+      operationId: patchGroup
+      summary: Patch mutable group configuration
+      x-permission: control
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - $ref: ./openapi.yaml#/components/parameters/IfMatch
+        - $ref: ./openapi.yaml#/components/parameters/IdempotencyKey
+      requestBody:
+        required: true
+        content:
+          application/json-patch+json:
+            schema:
+              $ref: ./openapi.yaml#/components/schemas/JsonPatch
+            examples:
+              tolerance:
+                value:
+                  - op: replace
+                    path: /config/tolerance
+                    value: 100
+                  - op: replace
+                    path: /config/interrupt_connections
+                    value: true
+      responses:
+        "200":
+          description: Updated group
+          headers:
+            ETag:
+              $ref: ./openapi.yaml#/components/headers/ETag
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/Group
+        "202":
+          description: Operation accepted
+          headers:
+            Location:
+              description: Operation status URL; equal to body href.
+              required: true
+              schema:
+                type: string
+                pattern: ^/api/v1/operations/[^/]+$
+            Retry-After:
+              description: Positive polling floor in seconds.
+              required: true
+              schema:
+                type: integer
+                minimum: 1
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/OperationAccepted
+              examples:
+                queued:
+                  value:
+                    operation_id: op-01HZX4K8WA
+                    kind: group_update
+                    status: queued
+                    href: /api/v1/operations/op-01HZX4K8WA
+                  x-headers:
+                    Content-Type: application/json
+                    Location: /api/v1/operations/op-01HZX4K8WA
+                    Retry-After: 1
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "409":
+          $ref: ./openapi.yaml#/components/responses/Conflict
+        "412":
+          description: If-Match does not equal the current configuration revision
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                stale_revision:
+                  value:
+                    error:
+                      code: stale_revision
+                      message: The resource changed; fetch it again before retrying.
+                      details:
+                        field: null
+                    request_id: request-01HZX4K8W5
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
+        "415":
+          $ref: ./openapi.yaml#/components/responses/UnsupportedMediaType
+        "422":
+          $ref: ./openapi.yaml#/components/responses/Unprocessable
+        "428":
+          $ref: ./openapi.yaml#/components/responses/PreconditionRequired
+  /api/v1/groups/{groupId}/selection:
+    parameters:
+      - $ref: ./openapi.yaml#/components/parameters/GroupId
+    put:
+      operationId: selectGroupMember
+      summary: Replace a selector's choice, or pin a member on an automatic group
+      x-permission: control
+      security:
+        - bearerAuth: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./openapi.yaml#/components/schemas/GroupSelectionRequest
+            examples:
+              tcp_udp:
+                value:
+                  member_id: node-hk-01
+                  network: both
+      responses:
+        "200":
+          description: Applied runtime selection
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/GroupSelectionResult
+              examples:
+                selected:
+                  value:
+                    group_id: group-proxy
+                    member_id: node-hk-01
+                    resolved_leaf_node_id: node-hk-01
+                    network: both
+                    source: runtime
+                    selection_revision: "8"
+                    connections_interrupted: false
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "409":
+          $ref: ./openapi.yaml#/components/responses/Conflict
+        "415":
+          $ref: ./openapi.yaml#/components/responses/UnsupportedMediaType
+        "422":
+          $ref: ./openapi.yaml#/components/responses/Unprocessable
+    delete:
+      operationId: clearGroupOverride
+      summary: Clear a pinned member so the automatic policy chooses again
+      x-permission: control
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - name: network
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ tcp, udp, both ]
+            default: both
+      responses:
+        "200":
+          description: |
+            The group's selection per network after the override is cleared;
+            unchanged when none stood. A network the policy has not chosen a
+            member for is null, so clearing both networks when only one had a
+            pin, or when one side is still unselected, is stated as it is.
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/GroupOverrideCleared
+              examples:
+                automatic_again:
+                  value:
+                    group_id: group-auto
+                    network: both
+                    selection_revision: "9"
+                    connections_interrupted: false
+                    selection:
+                      tcp:
+                        member_id: node-sg-01
+                        resolved_leaf_node_id: node-sg-01
+                        source: policy
+                      udp: null
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "409":
+          $ref: ./openapi.yaml#/components/responses/Conflict
+schemas:
+  HealthObservation:
+    type: object
+    required: [ transport, purpose, ip_version, warmth, measurement, sample_source, state, latency_ms, moving_avg_ms, avg10_ms, observed_at, error ]
+    properties:
+      transport:
+        $ref: ./openapi.yaml#/components/schemas/Transport
+      purpose:
+        type: string
+        enum: [ data, dns, shared ]
+      ip_version:
+        $ref: ./openapi.yaml#/components/schemas/IpVersion
+      warmth:
+        type: string
+        enum: [ cold, warm, mixed, unknown ]
+      measurement:
+        type: string
+        enum: [ tcp_connect, http_headers, http_round_trip, dns_round_trip, quic_handshake, mixed, unknown ]
+      sample_source:
+        type: string
+        enum: [ probe, traffic, restored, derived, mixed, unknown ]
+      state:
+        type: string
+        enum: [ healthy, unavailable, unknown ]
+      latency_ms:
+        type: [ number, "null" ]
+        minimum: 0
+      moving_avg_ms:
+        type: [ number, "null" ]
+        minimum: 0
+      avg10_ms:
+        type: [ number, "null" ]
+        minimum: 0
+      observed_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      error:
+        type: [ string, "null" ]
+    allOf:
+      - if:
+          properties:
+            state:
+              enum: [ unavailable, unknown ]
+        then:
+          properties:
+            latency_ms:
+              type: "null"
+  Node:
+    type: object
+    required: [ id, name, protocol, subscription_tag, group_ids, health ]
+    properties:
+      id:
+        type: string
+        minLength: 1
+      name:
+        type: string
+        minLength: 1
+      protocol:
+        type: [ string, "null" ]
+      subscription_tag:
+        type: [ string, "null" ]
+      provider_id:
+        type: [ string, "null" ]
+        minLength: 1
+        description: Provider identity from GET /providers; omitted or null when provenance is unavailable. Never infer it from the node name.
+      group_ids:
+        type: array
+        uniqueItems: true
+        items:
+          type: string
+          minLength: 1
+      health:
+        type: array
+        description: Latest observations, unique by (transport, purpose, measurement, ip_version, warmth) within this node.
+        items:
+          $ref: ./openapi.yaml#/components/schemas/HealthObservation
+  NodeCreate:
+    type: object
+    additionalProperties: false
+    required: [ name, link ]
+    properties:
+      name:
+        type: string
+        minLength: 1
+        maxLength: 64
+        description: The node name as written in the configuration; unique among inline nodes.
+      link:
+        type: string
+        minLength: 1
+        maxLength: 8192
+        description: A share link in a scheme the engine parses (for example vless, vmess, trojan, ss); stored in the managed main source and never returned.
+  NodeList:
+    type: object
+    required: [ observed_at, nodes, next_cursor ]
+    properties:
+      observed_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
+      nodes:
+        type: array
+        items:
+          $ref: ./openapi.yaml#/components/schemas/Node
+      next_cursor:
+        type: [ string, "null" ]
+  GroupPolicy:
+    type: object
+    required: [ kind, native ]
+    properties:
+      kind:
+        type: string
+        enum: [ selector, urltest, loadbalance, fallback, random, score ]
+      native:
+        type: string
+        minLength: 1
+  GroupPolicyRequest:
+    type: object
+    additionalProperties: false
+    required: [ kind, native ]
+    properties:
+      kind:
+        type: string
+        enum: [ selector, urltest, loadbalance, fallback, random, score ]
+      native:
+        type: string
+        minLength: 1
+  GroupMember:
+    type: object
+    required: [ id, name, kind ]
+    properties:
+      id:
+        type: string
+        minLength: 1
+      name:
+        type: string
+        minLength: 1
+      kind:
+        type: string
+        enum: [ node, group ]
+  GroupConfig:
+    type: object
+    required: [ default_member_id, final_outbound, check_url, check_interval, tolerance, idle_timeout, interrupt_connections ]
+    properties:
+      default_member_id:
+        type: [ string, "null" ]
+      final_outbound:
+        type: [ string, "null" ]
+      check_url:
+        oneOf:
+          - type: "null"
+          - $ref: ./openapi.yaml#/components/schemas/SafeHttpUrl
+      check_interval:
+        type: [ integer, "null" ]
+        minimum: 1
+      tolerance:
+        type: [ number, "null" ]
+        minimum: 0
+      idle_timeout:
+        type: [ integer, "null" ]
+        minimum: 0
+      interrupt_connections:
+        type: boolean
+  SafeHttpUrl:
+    type: string
+    format: uri
+    pattern: ^https?://(?![^/?#]*@)
+    description: Absolute HTTP(S) URL without userinfo; server also enforces administrator SSRF policy.
+  GroupSelection:
+    type: object
+    required: [ member_id, source ]
+    properties:
+      member_id:
+        type: string
+        minLength: 1
+      resolved_leaf_node_id:
+        type: [ string, "null" ]
+      source:
+        type: string
+        minLength: 1
+        description: How the member was chosen. `override` while a pinned member stands in for an automatic policy; other values (health, runtime, policy, ...) are the engine's own.
+  GroupRanking:
+    type: object
+    required: [ metric, recovery_penalty_ms, group_offset_ms, score, reason ]
+    properties:
+      metric:
+        type: [ string, "null" ]
+      recovery_penalty_ms:
+        type: [ number, "null" ]
+      group_offset_ms:
+        type: [ number, "null" ]
+      score:
+        type: [ number, "null" ]
+      reason:
+        type: [ string, "null" ]
+  GroupHealthObservation:
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/HealthObservation
+      - type: object
+        required: [ member_id, sorting_latency_ms, ranking ]
+        properties:
+          member_id:
+            type: string
+            minLength: 1
+          resolved_leaf_node_id:
+            type: [ string, "null" ]
+          sorting_latency_ms:
+            type: [ number, "null" ]
+          ranking:
+            oneOf:
+              - type: "null"
+              - $ref: ./openapi.yaml#/components/schemas/GroupRanking
+  GroupRuntime:
+    type: object
+    required: [ selection, health ]
+    properties:
+      selection:
+        type: object
+        required: [ tcp, udp ]
+        properties:
+          tcp:
+            oneOf:
+              - type: "null"
+              - $ref: ./openapi.yaml#/components/schemas/GroupSelection
+          udp:
+            oneOf:
+              - type: "null"
+              - $ref: ./openapi.yaml#/components/schemas/GroupSelection
+      health:
+        type: array
+        items:
+          $ref: ./openapi.yaml#/components/schemas/GroupHealthObservation
+  GroupCapabilities:
+    type: object
+    required: [ can_select, can_override, supports_nested_groups, mutable_config, probe_transports ]
+    properties:
+      can_select:
+        type: boolean
+        description: The policy is a manual selector; PUT selection replaces its choice.
+      can_override:
+        type: boolean
+        description: The policy chooses automatically but accepts a pinned member; PUT selection pins, DELETE selection returns to automatic.
+      supports_nested_groups:
+        type: boolean
+      mutable_config:
+        type: array
+        uniqueItems: true
+        items:
+          type: string
+          enum: [ policy, default_member_id, final_outbound, check_url, check_interval, tolerance, idle_timeout, interrupt_connections ]
+      probe_transports:
+        type: array
+        uniqueItems: true
+        items:
+          $ref: ./openapi.yaml#/components/schemas/Transport
+  Group:
+    type: object
+    required: [ id, name, icon, config_revision, policy, members, config, runtime, capabilities ]
+    properties:
+      id:
+        type: string
+        minLength: 1
+      name:
+        type: string
+        minLength: 1
+      icon:
+        type: [ string, "null" ]
+        maxLength: 2048
+        description: An icon the configuration names for this group, as an absolute http(s) URL or a data URI the client shows beside the name; null when none is configured. Clients may let the user override it locally.
+      config_revision:
+        type: string
+        minLength: 1
+      policy:
+        $ref: ./openapi.yaml#/components/schemas/GroupPolicy
+      members:
+        type: array
+        items:
+          $ref: ./openapi.yaml#/components/schemas/GroupMember
+      config:
+        $ref: ./openapi.yaml#/components/schemas/GroupConfig
+      runtime:
+        $ref: ./openapi.yaml#/components/schemas/GroupRuntime
+      capabilities:
+        $ref: ./openapi.yaml#/components/schemas/GroupCapabilities
+  GroupSummary:
+    type: object
+    required: [ id, name, icon, config_revision, policy, member_count, selection ]
+    properties:
+      id:
+        type: string
+        minLength: 1
+      name:
+        type: string
+        minLength: 1
+      icon:
+        type: [ string, "null" ]
+        maxLength: 2048
+        description: An icon the configuration names for this group, as an absolute http(s) URL or a data URI the client shows beside the name; null when none is configured. Clients may let the user override it locally.
+      config_revision:
+        type: string
+        minLength: 1
+        description: Same opaque configuration revision as Group.config_revision; preserve without numeric parsing.
+      policy:
+        $ref: ./openapi.yaml#/components/schemas/GroupPolicy
+      member_count:
+        type: integer
+        minimum: 0
+      selection:
+        type: object
+        required: [ tcp_member_id, udp_member_id ]
+        properties:
+          tcp_member_id:
+            type: [ string, "null" ]
+          udp_member_id:
+            type: [ string, "null" ]
+  GroupList:
+    type: array
+    items:
+      $ref: ./openapi.yaml#/components/schemas/GroupSummary
+  JsonPatch:
+    type: array
+    minItems: 1
+    items:
+      oneOf:
+        - $ref: ./openapi.yaml#/components/schemas/PolicyPatch
+        - $ref: ./openapi.yaml#/components/schemas/MemberIdPatch
+        - $ref: ./openapi.yaml#/components/schemas/OutboundPatch
+        - $ref: ./openapi.yaml#/components/schemas/CheckUrlPatch
+        - $ref: ./openapi.yaml#/components/schemas/PositiveIntegerPatch
+        - $ref: ./openapi.yaml#/components/schemas/TolerancePatch
+        - $ref: ./openapi.yaml#/components/schemas/IdleTimeoutPatch
+        - $ref: ./openapi.yaml#/components/schemas/InterruptPatch
+        - $ref: ./openapi.yaml#/components/schemas/RemovePatch
+        - $ref: ./openapi.yaml#/components/schemas/CopyMovePatch
+    description: Bounded by resources.groups.max_patch_operations.
+  PolicyPatch:
+    type: object
+    additionalProperties: false
+    required: [ op, path, value ]
+    properties:
+      op:
+        type: string
+        enum: [ add, replace, test ]
+      path:
+        type: string
+        const: /policy
+      value:
+        $ref: "./openapi.yaml#/components/schemas/GroupPolicyRequest"
+  MemberIdPatch:
+    type: object
+    additionalProperties: false
+    required: [ op, path, value ]
+    properties:
+      op:
+        type: string
+        enum: [ add, replace, test ]
+      path:
+        type: string
+        const: /config/default_member_id
+      value:
+        type: [ string, "null" ]
+  OutboundPatch:
+    type: object
+    additionalProperties: false
+    required: [ op, path, value ]
+    properties:
+      op:
+        type: string
+        enum: [ add, replace, test ]
+      path:
+        type: string
+        const: /config/final_outbound
+      value:
+        type: [ string, "null" ]
+  CheckUrlPatch:
+    type: object
+    additionalProperties: false
+    required: [ op, path, value ]
+    properties:
+      op:
+        type: string
+        enum: [ add, replace, test ]
+      path:
+        type: string
+        const: /config/check_url
+      value:
+        oneOf:
+          - type: "null"
+          - $ref: "./openapi.yaml#/components/schemas/SafeHttpUrl"
+  PositiveIntegerPatch:
+    type: object
+    additionalProperties: false
+    required: [ op, path, value ]
+    properties:
+      op:
+        type: string
+        enum: [ add, replace, test ]
+      path:
+        type: string
+        enum: [ /config/check_interval ]
+      value:
+        type: [ integer, "null" ]
+        minimum: 1
+  TolerancePatch:
+    type: object
+    additionalProperties: false
+    required: [ op, path, value ]
+    properties:
+      op:
+        type: string
+        enum: [ add, replace, test ]
+      path:
+        type: string
+        const: /config/tolerance
+      value:
+        type: [ number, "null" ]
+        minimum: 0
+  IdleTimeoutPatch:
+    type: object
+    additionalProperties: false
+    required: [ op, path, value ]
+    properties:
+      op:
+        type: string
+        enum: [ add, replace, test ]
+      path:
+        type: string
+        const: /config/idle_timeout
+      value:
+        type: [ integer, "null" ]
+        minimum: 0
+  InterruptPatch:
+    type: object
+    additionalProperties: false
+    required: [ op, path, value ]
+    properties:
+      op:
+        type: string
+        enum: [ add, replace, test ]
+      path:
+        type: string
+        const: /config/interrupt_connections
+      value:
+        type: boolean
+  MutableGroupPath:
+    type: string
+    enum: [ /policy, /config/default_member_id, /config/final_outbound, /config/check_url, /config/check_interval, /config/tolerance, /config/idle_timeout, /config/interrupt_connections ]
+  RemovePatch:
+    type: object
+    additionalProperties: false
+    required: [ op, path ]
+    properties:
+      op:
+        const: remove
+      path:
+        $ref: ./openapi.yaml#/components/schemas/MutableGroupPath
+  CopyMovePatch:
+    type: object
+    additionalProperties: false
+    required: [ op, path, from ]
+    properties:
+      op:
+        enum: [ copy, move ]
+      path:
+        $ref: ./openapi.yaml#/components/schemas/MutableGroupPath
+      from:
+        $ref: ./openapi.yaml#/components/schemas/MutableGroupPath
+  GroupSelectionRequest:
+    type: object
+    additionalProperties: false
+    required: [ member_id, network ]
+    properties:
+      member_id:
+        type: string
+        minLength: 1
+      network:
+        type: string
+        enum: [ tcp, udp, both ]
+  GroupOverrideCleared:
+    type: object
+    description: The outcome of clearing an override, one selection per network like GroupRuntime.selection.
+    required: [ group_id, network, selection_revision, connections_interrupted, selection ]
+    properties:
+      group_id:
+        type: string
+        minLength: 1
+      network:
+        type: string
+        enum: [ tcp, udp, both ]
+        description: The networks the request cleared.
+      selection_revision:
+        type: string
+        minLength: 1
+      connections_interrupted:
+        type: boolean
+      selection:
+        type: object
+        required: [ tcp, udp ]
+        properties:
+          tcp:
+            oneOf:
+              - type: "null"
+              - $ref: ./openapi.yaml#/components/schemas/GroupSelection
+          udp:
+            oneOf:
+              - type: "null"
+              - $ref: ./openapi.yaml#/components/schemas/GroupSelection
+  GroupSelectionResult:
+    type: object
+    required: [ group_id, member_id, network, source, selection_revision, connections_interrupted ]
+    properties:
+      group_id:
+        type: string
+        minLength: 1
+      member_id:
+        type: string
+        minLength: 1
+      resolved_leaf_node_id:
+        type: [ string, "null" ]
+      network:
+        type: string
+        enum: [ tcp, udp, both ]
+      source:
+        type: string
+        enum: [ runtime, override, policy ]
+        description: runtime for a selector, override while a pinned member stands, policy once the automatic choice is back.
+      selection_revision:
+        type: string
+        minLength: 1
+      connections_interrupted:
+        type: boolean
