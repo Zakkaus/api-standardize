@@ -5,8 +5,8 @@ title: Configuration
 # Configuration
 
 The native API exposes accepted configuration sources, dry-run validation, and
-single-source replacement followed by a reload. Source text uses dae syntax;
-the API rejects partial patches and multi-source writes.
+single-source replacement followed by reload. Source replacement accepts a
+complete dae file, not a partial patch or a multi-source write.
 
 ## GET /api/v1/config
 
@@ -28,22 +28,14 @@ configuration.
 
 ### Fields
 
-| Field | Type | Description |
-|-------|------|-------------|
-| generation_id | string | Running generation for this accepted configuration. |
-| revision | string | Opaque configuration revision used by `Runtime.generation.config_revision` and `GroupSummary.config_revision`; never parse it as a number. |
-| sources | array | Complete accepted source set, bounded by `resources.config.max_sources`. |
-| sources[].id | string | Unique opaque ID within the snapshot; never a private path or credential-bearing URL. |
-| sources[].path | string | Display path, or `<redacted>` when hidden by visibility policy. |
-| sources[].kind | string | `main`, `include`, `subscription`, or `generated`. |
-| sources[].content_sha256 | string | Lowercase 64-hex SHA-256 of accepted bytes before redaction. |
-| sources[].bytes | integer | Accepted byte count before redaction; nonnegative safe integer. |
-| sources[].writable | boolean | Whether a `control` caller may replace this source under the server-wide write switch. Engine-written sources are read-only. |
-| sources[].loaded_at | string | RFC 3339 time when the engine accepted these bytes, not file modification time. |
-| sources[].content | string, optional | Engine-native text, only when `resources.config.content` is true; secret redaction still applies. |
-| sources[].line_count | integer | Lines before redaction; empty text has zero lines, and a final newline adds no empty line. |
-| diagnostics | array | Retained diagnostics for the accepted configuration, using the shared shape below. |
-| secrets_redacted | boolean | True when the adapter withholds content or redacts paths, text, or diagnostic messages. |
+`generation_id` identifies the accepted runtime generation. `revision` is the
+opaque configuration revision used by runtime and group responses; it is not
+the source-write precondition.
+
+Each source has an opaque `id` and an accepted-byte `content_sha256`. Hashes,
+sizes, line counts, and diagnostic positions describe the original accepted
+source before redaction. Use the source hash, not `revision`, in a replacement
+request's `If-Match`.
 
 ### Visibility
 
@@ -51,8 +43,7 @@ configuration.
 When false, every source omits `content`; it must not return an empty string as a
 substitute. When true, content remains optional and must not expose secrets to
 ordinary `observe` callers. Path redaction follows the existing visibility rules
-in [Capabilities](capabilities.html#Configuration-visibility) and
-[API Configuration](api-config.html#Permissions): apply privacy filters
+in [API Configuration](api-config.html#Permissions): apply privacy filters
 consistently, not only to one endpoint or detail tier. Diagnostics must not echo
 source excerpts, credentials, private paths, or raw engine errors. Hashes, byte
 counts, line counts, and positions describe the accepted source before redaction;
@@ -100,9 +91,9 @@ source writable. Includes and subscriptions written by the engine, including
 5. Poll the operation at `Location`, respecting the positive `Retry-After`
    polling floor, until it succeeds or fails. A `202` means the server wrote the
    file and queued reload, not that the new configuration is active.
-6. After successful reload, refetch `GET /config` for the new generation and
-   `content_sha256`. When events are available, `generation.changed` announces
-   the new generation; it does not waive the polling floor.
+6. After successful reload, refetch `GET /config` for the accepted generation and
+   `content_sha256`. If reload publishes a new generation and events are available,
+   `generation.changed` announces it; the event does not waive the polling floor.
 
 ### Request
 
@@ -125,9 +116,9 @@ check. Reusing the key with a different body returns `409 idempotency_conflict`.
 For a new write, the server checks `If-Match` against the current on-disk content
 hash, then validates the resulting source set in `full` mode with the replacement
 substituted for the selected source. The check includes syntax, semantics, and
-dependencies, using authorized local files and cached data only. Missing or
-inaccessible dependencies produce errors. Validation performs no network access
-or cache refresh.
+dependencies, using authorized local files and cached data only. The dependency
+rules are the same as for [dry-run validation](#POST-api-v1-config-validate), including
+the unfetched-subscription warning. Validation performs no network access or cache refresh.
 
 If diagnostics contain any `error`, the server never writes a file or starts a
 reload. It returns `422 unsupported_value` in the shared `{error, request_id}`
@@ -185,15 +176,19 @@ applies configuration, publishes a generation, or starts an operation.
 | mode | string | Required `syntax` or `full`, selected from `resources.config_validate.modes`. |
 
 `syntax` parses only submitted text. `full` also checks semantics and resolves
-includes/subscriptions from submitted sources or adapter-authorized local files
-and cached data. Submitted content takes precedence at the same resolved path.
-Neither mode accesses the network. Missing or inaccessible dependencies produce
-error diagnostics, not a successful partial validation.
+dependencies from submitted sources, authorized local files, and cached data.
+Submitted content takes precedence at the same resolved path. Neither mode
+accesses the network.
 
-`max_bytes` bounds the sum of UTF-8 source bytes, not JavaScript string length.
-`max_sources` bounds the source count. Both include locally resolved dependencies
-in `full` mode. The shared `limits.max_json_body_bytes` separately bounds the
-encoded HTTP body. Exceeding any size or source-count limit returns
+Missing or inaccessible required local dependencies produce error diagnostics.
+An unfetched subscription produces a `subscription-not-fetched` warning and does
+not by itself invalidate the candidate; validation does not fetch it.
+
+`max_bytes` bounds the sum of UTF-8 configuration source bytes, not JavaScript
+string length. `max_sources` bounds the source count. Both include locally
+resolved source text in `full` mode. Geodata assets do not count toward the byte
+limit. The shared `limits.max_json_body_bytes` separately bounds the encoded
+HTTP body. Exceeding any size or source-count limit returns
 `413 request_too_large`, without truncation or partial success.
 
 ### Success (200 OK)
@@ -236,13 +231,9 @@ Coordinates refer to the original source before redaction. When known, `line`
 and `column` equal the span start. Unknown locations stay null; adapters must
 not invent positions from setting names.
 
-## honk mapping
+## Honk mapping
 
-These are new native resources, not aliases of honk's Clash `/configs`.
-That GET exposes compatibility settings and metadata diagnostics; its PUT is a
-no-op. Honk already retains accepted diagnostics, but native readback needs
-accepted-source bytes and metadata captured with the configuration. Candidate
-validation needs a separate bounded, side-effect-free path through the parser.
-Editing requires a new atomic source writer with hash preconditions and full
-validation before the existing reload machinery. See the
-[source evidence](honk-mapping.html) and [reload semantics](reload.html).
+Honk implements native configuration readback, validation, source replacement,
+and reload operations. These are separate from the Clash-compatible `/configs`
+endpoint. The [implementation evidence](honk-mapping.html) describes an older
+pinned source revision; it is not the current native API implementation status.

@@ -4,9 +4,9 @@ title: Providers
 
 # Providers
 
-> Proposed provider metadata, refresh and management endpoints. Reads require
-> `observe`; refresh, create and delete require `control`. Create and delete
-> edit the backend's managed main source; nothing else edits configuration.
+Reads require `observe`; refresh, create, and delete require `control`. Provider
+create and delete edit the managed main source. Provider reads and refreshes do
+not change the configured source.
 
 ## List providers
 
@@ -43,9 +43,9 @@ metadata; otherwise `upload_bytes`, `download_bytes`, and `total_bytes` are
 nullable UInt64 decimal strings. `total_bytes` is the reported allowance,
 not upload plus download; unknown or unlimited allowance is null.
 
-`status` is `ok` for usable current data, `stale` for retained older usable
-data, or `error` when a failure leaves no usable data. `last_error` is a
-[SafeError](errors.html) or null, never raw engine output.
+`status` is `ok` for usable current data, `stale` for retained older data or a
+newly created provider that has not been fetched, and `error` when a failure
+leaves no usable data. `last_error` is a [SafeError](errors.html) or null.
 
 ## Refresh a provider
 
@@ -77,10 +77,11 @@ created: file and inline providers are authored in the configuration sources.
 
 {% api_example createProvider 201 created http %}
 
-The backend writes the provider into the `subscription` section of its managed
-main source, advances the configuration revision and emits
-`generation.changed`; a configuration editor holding the previous revision
-receives `412 stale_revision` on its next write. The provider is created
+The backend writes the provider into the managed main source, advances the
+configuration revision, and emits `generation.changed`. A subsequent write to
+that changed source using its old `content_sha256` receives `412 stale_revision`;
+a generation change alone does not invalidate an unchanged source's hash.
+The provider is created
 unfetched (`node_count` 0, `updated_at` null, `status` stale); call refresh
 to load it. The URL is stored and never returned. A name already in use
 returns `409 state_conflict`; a URL that is not http(s) returns

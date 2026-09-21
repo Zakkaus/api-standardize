@@ -47,20 +47,12 @@ integers. They bound the look-back window and returned sample count, not a
 retention guarantee. `memory_history` declares the bounded memory ring with
 the same two limits. All three resources are optional and require `observe`.
 
-`connections.available` declares the live connection list. When true,
-`can_close` and `max_bulk_close` are required. `can_close` is a boolean:
-when false, both connection DELETE endpoints return
-`404 capability_not_supported`, even though listing may remain available.
-When true, closing still requires `control` permission and userspace ownership
-of a cancellable TCP transport or a retireable UDP session; observation alone
-does not make a connection closable.
-
-`max_bulk_close` is a positive safe JSON integer, used only when `can_close`
-is true. It caps all selected live entries, including non-closable entries,
-not just the returned `closed` count. Exceeding it returns
-`413 request_too_large` before any connection is closed; the server does not
-truncate the selected set. An unfiltered bulk close separately requires
-`all=true`, or returns `400 invalid_request`.
+`connections.available` gates the live list. When true, `can_close` and the
+positive safe-integer `max_bulk_close` are required. `can_close: false` disables
+both DELETE endpoints. When closing is enabled, `max_bulk_close` bounds the
+entire selected set, including non-closable entries. See
+[Closing connections](connections.html#Closing) for permissions, ownership,
+filters, and errors.
 
 `logs` advertises supported `levels` and `max_buffered_records`. Its bounded
 SSE feed carries sanitized log records, separately from invalidation events.
@@ -71,48 +63,33 @@ provider create and delete. `nodes` advertises `can_manage` on the same terms
 for inline nodes. `geodata` advertises `can_update` and the `assets` it reports
 (`geosite`, `geoip`); update requires `control` and the operation resource. `rules` advertises `max_rules`,
 including the fallback entry, for a complete running-generation dictionary.
-These three resources require `observe` for reads. When available, each
-resource must include its advertised fields; buffer and rule limits are
-positive safe integers. See [logs](logs.html), [providers](providers.html),
-[rules](rules.html) and [geodata](geodata.html).
+Reads of logs, providers, nodes, geodata, and rules require `observe`. Available
+resources must include their required capability fields; buffer and rule limits
+are positive safe integers. See [Logs](logs.html), [Providers](providers.html),
+[Nodes](node-latency.html), [Geodata](geodata.html), and [Rules](rules.html).
 
-## Configuration visibility
+`runtime_settings.available` declares `GET`/`PATCH /api/v1/runtime/settings`;
+when true, `fields` lists which settings the PATCH accepts on this backend.
 
-`resources.config.available` gates effective configuration readback under
-`observe`, including single-source GET. When available, the adapter must declare
-`content`, `writable`, `max_bytes`, and `max_sources`.
-`content` is a visibility flag, false by default: false forbids source text in
-the response; true permits optional text subject to secret redaction. It does
-not grant access to raw secrets. `max_sources` is a positive safe-integer bound
-on the complete source set, not permission to truncate it.
+`dns_log.available` declares the ring of recent client resolutions; when
+true, `max_records` and `max_page_size` are required positive safe integers.
 
-`writable` is the server-wide switch for source replacement under `control`.
-A source's own `writable` field can further restrict writes. A false switch or
-read-only source returns `403 permission_denied`; neither grants write access
-through `observe`. Generated and subscription sources are never writable.
-`max_bytes` is a positive safe-integer limit on UTF-8 replacement content, not
-character count. The shared JSON body limit also applies; excess returns
-`413 request_too_large`.
+## Configuration capabilities
 
-Advertising `writable: true` requires full validation and asynchronous reload
-support, with `resources.reload.available` and `resources.operations.available`
-both true. Editing is independent of the optional dry-run endpoint and of
-content visibility. It does not grant permission to read secrets.
+`resources.config.available` gates accepted-source readback. When available, it
+requires `content`, `writable`, `max_bytes`, and `max_sources`.
 
-Path redaction follows the [shared visibility rules](api-config.html#Permissions).
-Use `<redacted>` for hidden display paths. Apply privacy filters consistently
-to paths, source text, and diagnostics; `detail=summary` is not a privacy tier.
-The adapter sets `secrets_redacted` when it withholds content or redacts data.
+`content` defaults to false and permits source text only after secret redaction.
+It is independent of `writable`. Writing requires `control`, the server-wide
+switch, and a writable source. Advertising writes also requires full validation,
+reload, and operation support.
 
-`resources.config_validate.available` independently gates dry-run validation
-under `control`; the request body may contain secrets. When available, the
-adapter must declare `modes` as a nonempty unique subset of `syntax` and `full`.
-It must also declare `max_bytes` and `max_sources` as positive safe integers.
-The limits bound total UTF-8 source bytes and source count, including locally
-resolved dependencies in `full` mode. The shared JSON body ceiling also applies. Exceeding a size or
-source-count limit returns `413 request_too_large`; an unadvertised mode returns
-`422 unsupported_value`. Neither mode permits network access or state changes.
-See [Configuration](configuration.html) for request and diagnostic semantics.
+`resources.config_validate.available` independently gates dry-run validation.
+When available, it requires `modes`, `max_bytes`, and `max_sources`; `modes` is a
+nonempty unique subset of `syntax` and `full`.
+
+See [Configuration](configuration.html) for redaction, byte accounting,
+diagnostics, write preconditions, and recovery.
 
 ## Conformance profiles
 
@@ -146,12 +123,3 @@ Clash connection list, log parser, or map snapshot cannot satisfy it.
 ```bash
 curl http://localhost:9527/api/v1/capabilities
 ```
-
-`logs.available` declares the bounded log stream; when true, `levels` and
-`max_buffered_records` are required.
-
-`runtime_settings.available` declares `GET`/`PATCH /api/v1/runtime/settings`;
-when true, `fields` lists which settings the PATCH accepts on this backend.
-
-`dns_log.available` declares the ring of recent client resolutions; when
-true, `max_records` and `max_page_size` are required positive safe integers.

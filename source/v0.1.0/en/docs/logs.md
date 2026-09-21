@@ -60,18 +60,16 @@ The server reauthorizes each reconnect and closes streams after revocation.
 ## Settings
 
 The level the engine emits at and the replay ring size are runtime settings;
-see [`/runtime/settings`](runtime-status.html#get-apiv1runtimesettings).
-The stream's `level` query filters above the engine's level, never below it.
+see [`/runtime/settings`](runtime-status.html#GET-api-v1-runtime-settings).
+A lower stream `level` cannot recover records the engine did not emit.
 
-## What is retained, and for how long
+## Log retention
 
-| Record | Where | Bound | Adjustable at runtime |
-|--------|-------|-------|-----------------------|
-| Log records | replay ring | `log.buffered_records`, at most `logs.max_buffered_records` | yes, `/runtime/settings` |
-| Retained flows | flow store | `flows.max_flows` and `flows.retention_seconds` ceilings | yes, `/runtime/settings` |
-| DNS resolutions | DNS log ring | `dns_log.max_records` ceiling | yes, `/runtime/settings` |
-| Traffic samples | traffic ring | `traffic_history.max_window_seconds`, `max_points` | no, configuration |
-| Memory samples | memory ring | `memory_history.max_window_seconds`, `max_points` | no, configuration |
-| Operations | operation store | shared operation retention rules | no |
+The replay ring retains at most the configured `log.buffered_records`, bounded
+by `resources.logs.max_buffered_records`. It clears on process restart and does
+not provide durable storage.
 
-None of these is durable storage; every ring clears on process restart.
+[Recorded flows](flows.html), [traffic history](runtime-status.html#GET-api-v1-runtime-traffic-history),
+[memory history](runtime-memory.html#GET-api-v1-runtime-memory-history), and
+[operations](operations.html) have separate retention rules. History request
+limits do not guarantee ring retention.

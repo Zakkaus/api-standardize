@@ -74,8 +74,8 @@ paths:
         share-link support, writes it into the node section of its managed main
         source under the given name, advances the configuration revision and emits
         generation.changed. The link is stored, never returned. A link the engine
-        cannot parse returns 422 unprocessable with the engine's reason in message;
-        a name already in use returns 409 state_conflict. The node belongs to the
+        cannot parse returns 422 unsupported_value with a sanitized reason in
+        error.message. A name already in use returns 409 state_conflict. The node belongs to the
         inline provider and to every group whose filter matches it after reload.
       x-permission: control
       security:
@@ -301,7 +301,7 @@ paths:
                       config_revision: "17"
                       policy:
                         kind: urltest
-                        native: min_moving_avg
+                        native: urltest
                       member_count: 2
                       selection:
                         tcp_member_id: node-hk-01
@@ -349,7 +349,7 @@ paths:
                     config_revision: "17"
                     policy:
                       kind: urltest
-                      native: min_moving_avg
+                      native: urltest
                     members:
                       - id: node-hk-01
                         name: hk-01
@@ -607,10 +607,9 @@ paths:
       responses:
         "200":
           description: |
-            The group's selection per network after the override is cleared;
-            unchanged when none stood. A network the policy has not chosen a
-            member for is null, so clearing both networks when only one had a
-            pin, or when one side is still unselected, is stated as it is.
+            Selections after clearing the requested overrides. A network without
+            a selected member is null. If no override existed, its selection is
+            unchanged.
           headers:
             Cache-Control:
               $ref: ./openapi.yaml#/components/headers/NoStore
@@ -911,7 +910,7 @@ schemas:
       icon:
         type: [ string, "null" ]
         maxLength: 2048
-        description: An icon the configuration names for this group, as an absolute http(s) URL or a data URI the client shows beside the name; null when none is configured. Clients may let the user override it locally.
+        description: Configured group icon as an absolute HTTP(S) URL or data URI; null when no icon is configured.
       config_revision:
         type: string
         minLength: 1
@@ -940,7 +939,7 @@ schemas:
       icon:
         type: [ string, "null" ]
         maxLength: 2048
-        description: An icon the configuration names for this group, as an absolute http(s) URL or a data URI the client shows beside the name; null when none is configured. Clients may let the user override it locally.
+        description: Configured group icon as an absolute HTTP(S) URL or data URI; null when no icon is configured.
       config_revision:
         type: string
         minLength: 1
@@ -1167,8 +1166,8 @@ schemas:
         enum: [ tcp, udp, both ]
       source:
         type: string
-        enum: [ runtime, override, policy ]
-        description: runtime for a selector, override while a pinned member stands, policy once the automatic choice is back.
+        enum: [ runtime, override ]
+        description: runtime for a manual selector; override for a pinned member on an automatic policy.
       selection_revision:
         type: string
         minLength: 1

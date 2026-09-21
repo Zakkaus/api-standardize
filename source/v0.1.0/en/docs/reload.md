@@ -23,22 +23,17 @@ Poll [`GET /api/v1/operations/{id}`](operations.html) for completion.
 
 ### Completed result
 
-{% api_example getOperation 200 reload_complete_reload %}
+{% api_example getOperation 200 reload_complete %}
 
-### Fields
+The [operation envelope](operations.html) reports completion and failure. A
+successful reload result contains nullable `active_generation_id` and
+`datapath_generation_id`. These identify the active runtime and published
+datapath policy; they need not be equal when the engine reuses an unchanged policy.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| operation_id | string | Reload operation identifier. |
-| status | string | `queued`, `running`, `succeeded`, or `failed`. |
-| result.active_generation_id | string or null | Generation active after completion. |
-| result.datapath_generation_id | string or null | Generation published to the datapath. |
-| finished_at | string or null | Completion timestamp (RFC3339). |
-| error | object or null | Shared safe error object, when present. |
-
-An operation may report `succeeded` only after configuration validation,
-datapath routing publication, and active-generation promotion all complete.
-When reload fails, the previous active generation remains active.
+`succeeded` means the configuration was accepted and the required runtime and
+datapath state is active. Reload may reuse an unchanged policy, and an unchanged
+configuration need not advance the generation. On failure, the previous active
+generation remains active.
 
 ## Example
 

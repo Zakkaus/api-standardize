@@ -372,6 +372,7 @@ schemas:
       mode_override:
         type: string
         enum: [ none, direct, global, unknown ]
+        description: Clash-mode override observed for this outbound attempt, separate from the configured dial mode. This field does not expose a native runtime-mode setting. none means no override was applied; unknown means the recorder could not determine it.
       selection_path:
         type: array
         items:

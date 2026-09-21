@@ -20,21 +20,25 @@ title: Rules
 its complete evaluation order, including exactly one final `kind: fallback`
 entry. Each entry has `rule_id`, zero-based `index`, safe display `expression`,
 `outbound`, boolean `must`, nullable `source`, and `kind` (`rule` or `fallback`).
-`source` carries the redacted file label, the source ID from `GET /config`, the one-based line
-and the byte column of the rule's first token; return null when the location is unknown or unsafe to
-disclose. Do not expose absolute local paths or raw config.
+When present, `source` contains a redacted display `file`, the configuration
+`source_id`, a one-based `line`, and a one-based UTF-8 byte `column`. `column` is
+null when unknown; `source` is null when the location is unavailable or unsafe
+to disclose. Coordinates refer to the original source before redaction.
 The top-level `fallback` repeats that entry's `outbound` and `source`.
 
 `rule_id` is identical to the IDs used by
 [POST /routing/trace](routing-trace.html) and `FlowSummary.rule_id` within the
 same generation. Join by `(generation_id, rule_id)`, never by expression or
-index alone. The dictionary does not prove which rule decided a flow, and an
-outbound is not a resolved leaf or evidence of a successful dial.
+index alone. FlowSummary does not carry the rule's generation; obtain it from
+the corresponding traffic-route step in the retained flow detail. If that
+context is unavailable, do not join the summary to the current rule dictionary.
+The dictionary does not prove which rule decided a flow, and an outbound is not
+a resolved leaf or evidence of a successful dial.
 
 ## Generation changes and limits
 
-`generation_id` is the invalidation cursor; this endpoint has no pagination
-or `410 snapshot_expired` response. Refetch on `generation.changed` from the
+Use `generation_id` to detect a changed dictionary. This endpoint has no
+pagination or `410 snapshot_expired` response. Refetch on `generation.changed` from the
 [events feed](events.html). Do not join retained old-generation flows to the
 new dictionary. Without events, poll and replace the dictionary when its
 generation changes.
@@ -46,4 +50,9 @@ coherent generation. A generation change alone is not an expired snapshot.
 
 ## Editing
 
-Rules are part of the configuration. Each rule carries `source` with its file label, source ID, line and column. An editor opens the source by ID at that line and writes the whole file back through the configuration editing endpoints: `PUT /api/v1/config/sources/{source_id}` with `If-Match`, validation before any write, then a reload operation. There is no rule-level write endpoint.
+Rules are edited through their configuration sources, not a rule-level write
+endpoint. When `source` is non-null, use `source.source_id` to open the source at
+`source.line`; `source.file` is only a display label. Follow the
+[configuration editor flow](configuration.html#Editor-flow), including source
+writability, the content-hash check, quoted `If-Match`, and reload polling.
+Do not offer source editing when the location or complete editable text is unavailable.

@@ -35,10 +35,8 @@ response is independent of the engine implementation language.
 | build.target | string or null | Build target triple or platform identifier. |
 | build.built_at | string or null | Build timestamp (RFC3339), when reproducibility policy allows it. |
 
-Build metadata is optional and must not be required by clients. If an engine
-exposes it, the generic fields are `build.revision`, `build.target`, and
-`build.built_at`; `build.built_at` uses RFC3339. Implementation-specific fields
-such as `go_version` are not part of the native contract.
+Clients must accept an absent or null `build`. Language-specific fields such as
+`go_version` are not canonical native fields.
 
 The native response must not reuse the Clash-compatible `/version` response.
 For example, honk keeps its existing `version` string with the `honk ` prefix

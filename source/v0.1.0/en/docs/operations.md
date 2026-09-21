@@ -45,7 +45,7 @@ too soon may return `429` with a fresh `Retry-After`.
 | created_at | string | Creation timestamp (RFC3339). |
 | started_at | string or null | Execution start timestamp. |
 | finished_at | string or null | Terminal timestamp. |
-| result | object or null | Kind-specific result, present only after success. |
+| result | object or null | Required in every state; null until success, then the kind-specific result. |
 | error | object or null | Safe machine-readable error after failure. |
 
 A successful `group_update` result contains `group_id` and the applied

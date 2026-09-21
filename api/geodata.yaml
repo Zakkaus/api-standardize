@@ -166,7 +166,7 @@ schemas:
       source_redacted:
         type: [ string, "null" ]
         minLength: 1
-        description: Display-only download source with userinfo, query and fragment removed; null when the backend has no source for this asset.
+        description: Display-only download source with userinfo, query, fragment, and secret-bearing path segments removed or redacted. Null when no source is configured or safe display is impossible.
   GeoData:
     type: object
     required: [ observed_at, assets ]

@@ -209,7 +209,7 @@ responses:
               Cache-Control: no-store
               X-Content-Type-Options: nosniff
   Forbidden:
-    description: Authenticated caller lacks the required permission
+    description: The caller lacks the required permission, or listener security policy rejects the request.
     headers:
       Cache-Control:
         $ref: ./openapi.yaml#/components/headers/NoStore
@@ -414,10 +414,9 @@ schemas:
   ErrorCode:
     type: string
     description: >-
-      Closed catalogue of HTTP error codes (docs/errors.md keeps the prose). Adding a
-      code is a contract change; adapters never invent codes. Errors embedded in
-      resources (operation.error, datapath.errors, lifecycle.last_error) carry an
-      adapter-defined code and stay plain SafeError.
+      Closed catalogue of HTTP error codes. Adding a code changes the contract.
+      Embedded errors such as operation.error, datapath.errors, last_reload.error,
+      and provider.last_error use SafeError with adapter-defined codes.
     enum:
       - invalid_request
       - authentication_required

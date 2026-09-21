@@ -32,7 +32,6 @@ title: Discovery
 | links.runtime_outbounds | string | Stable `/api/v1/runtime/outbounds` link; availability is declared by capabilities. |
 | links.traffic_history | string | Stable `/api/v1/runtime/traffic/history` link; availability and limits are declared by capabilities. |
 | links.memory_history | string | Stable `/api/v1/runtime/memory/history` link; availability and limits are declared by capabilities. |
-
 | links.logs | string | Stable `/api/v1/logs` link; capabilities declare levels and buffer capacity. |
 | links.providers | string | Stable `/api/v1/providers` link; capabilities declare refresh, management support and page size. |
 | links.geodata | string | Stable `/api/v1/geodata` link; capabilities declare update support and asset kinds. |

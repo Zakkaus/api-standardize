@@ -8,9 +8,12 @@ paths:
         in evaluation order, including its fallback entry. This resource is read-only;
         it neither evaluates traffic nor reads back raw configuration. rule_id is identical
         to the ID used by POST /api/v1/routing/trace and FlowSummary.rule_id for the same
-        generation. Join by generation_id and rule_id, never by expression or index alone.
-        generation_id is the invalidation cursor, not a pagination token. Refetch after
-        generation.changed; old flow evidence must not be joined to a new generation.
+        generation. Join rules by generation_id and rule_id, never by expression or
+        index alone. FlowSummary does not carry the rule's generation; obtain it from
+        the corresponding traffic-route step in the retained flow detail. If that
+        context is unavailable, do not join the summary to the current rule dictionary.
+        generation_id identifies the dictionary's routing generation. Refetch after
+        generation.changed; do not join old flow evidence to a new generation.
         There is no paginated snapshot and no 410 snapshot_expired response. If a coherent
         generation cannot be pinned, return 409 snapshot_unavailable. If the complete
         dictionary exceeds resources.rules.max_rules, return 503 temporarily_unavailable
@@ -119,8 +122,8 @@ schemas:
             type: string
             minLength: 1
             description: |
-              Source ID in the effective snapshot, the same one `GET /config` lists. A client that edits a rule
-              opens that source by ID and its content permission; it never derives a path from `file`.
+              Source ID from GET /config. Open the source by ID under the configuration
+              visibility rules; never derive a path from file.
           line:
             $ref: ./openapi.yaml#/components/schemas/SafeUInt
             minimum: 1

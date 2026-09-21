@@ -43,10 +43,6 @@ Successful responses include `Cache-Control: no-store`.
 | kernel.ebpf_bytes | decimal uint64 string or null, optional | Memory attributable to eBPF maps and programs. |
 | kernel.sampled_at | string or null | Timestamp of the cached kernel-memory sample. |
 
-`process.rss_bytes`, `cgroup.current_bytes`, and `kernel.ebpf_bytes` have
-different accounting scopes and may overlap. Clients must display them
-separately.
-
 An implementation must not walk every eBPF map entry in the request path.
 Kernel memory may be sampled asynchronously and reused across requests;
 `kernel.sampled_at` lets clients show that it is older than the process and
@@ -56,10 +52,9 @@ Go heap statistics, Rust allocator statistics, and the Clash-compatible
 `memory` field are implementation-specific and are not canonical native fields.
 Feature availability is advertised by `GET /api/v1/capabilities`.
 
-Clients should not poll this resource more than once per second. Servers may
-return `429` with `Retry-After` when the advertised rate limit is exceeded.
-The `runtime_memory.metrics` capability lists every supported metric path;
-unadvertised metrics may be omitted or `null`. Consumers must not substitute `"0"` for either case.
+For dashboard polling, use an interval of at least one second. If the server
+returns `429`, honor `Retry-After`. `resources.runtime_memory.metrics` lists the
+supported snapshot metrics; it does not advertise a polling interval.
 
 ## Example
 
@@ -69,10 +64,10 @@ curl http://localhost:9527/api/v1/runtime/memory
 
 ## GET /api/v1/runtime/memory/history
 
-Requires `observe` and `resources.memory_history.available`. The producer
-samples the advertised memory metrics into a bounded in-memory ring
-independently of HTTP reads, so a dashboard has a curve on first open
-instead of collecting one poll at a time.
+Requires `observe` and `resources.memory_history.available`. The producer records
+process RSS, cgroup current usage, and optional eBPF memory in a bounded in-memory
+ring independently of HTTP reads. Unavailable measurements remain null.
+Cgroup limits and event counters are snapshot-only fields.
 
 ### Request
 
@@ -107,7 +102,7 @@ or non-integer values and requests above either advertised limit return
 | samples[].kernel_ebpf_bytes | decimal uint64 string or null | Kernel eBPF memory at the sample; omitted or null when not advertised. |
 
 Retention, thinning, gaps and restart clearing follow
-[traffic history](runtime-status.html#get-apiv1runtimetraffichistory): pick
+[traffic history](runtime-status.html#GET-api-v1-runtime-traffic-history): pick
 every Nth stored sample backwards from the newest to fit `max_points`, keep
 original timestamps and values, leave missed intervals as gaps, and never
 fabricate a zero. SSE does not replay memory history; fetch it on first open
