@@ -82,7 +82,8 @@ callers both permissions. Capability flags describe engine support, not caller
 authorization.
 
 `detail=summary` only reduces response size. It does not redact data for a
-less-privileged user. Fine-grained privacy filters must apply consistently to
-snapshots, recorded steps, errors and replayed events, and mark a trace
-partial when they hide required evidence. Do not grant ordinary `observe`
-access to raw configuration; credentials can be embedded in it.
+less-privileged user. An admitted caller is an administrator: configuration,
+rule values, provider URLs and paths are returned in the clear, and only
+listener-secret values are masked, consistently in snapshots, recorded steps,
+errors and replayed events; a trace is marked partial when a mask hid required
+evidence.

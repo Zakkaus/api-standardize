@@ -81,9 +81,9 @@ positive safe integers. See [logs](logs.html), [providers](providers.html),
 `resources.config.available` gates effective configuration readback under
 `observe`, including single-source GET. When available, the adapter must declare
 `content`, `writable`, `max_bytes`, and `max_sources`.
-`content` is a visibility flag, false by default: false forbids source text in
-the response; true permits optional text subject to secret redaction. It does
-not grant access to raw secrets. `max_sources` is a positive safe-integer bound
+`content` is reported for compatibility: an admitted caller receives source
+text with only listener-secret values (`native_api.secret`, `clash_api.secret`)
+masked. It does not grant access to those secrets. `max_sources` is a positive safe-integer bound
 on the complete source set, not permission to truncate it.
 
 `writable` is the server-wide switch for source replacement under `control`.
@@ -99,10 +99,10 @@ support, with `resources.reload.available` and `resources.operations.available`
 both true. Editing is independent of the optional dry-run endpoint and of
 content visibility. It does not grant permission to read secrets.
 
-Path redaction follows the [shared visibility rules](api-config.html#Permissions).
-Use `<redacted>` for hidden display paths. Apply privacy filters consistently
-to paths, source text, and diagnostics; `detail=summary` is not a privacy tier.
-The adapter sets `secrets_redacted` when it withholds content or redacts data.
+Paths are returned as the configuration references them, with `absolute_path`
+beside the relative `path`; only listener-secret values are masked, in paths,
+source text and diagnostics alike. `detail=summary` is not a privacy tier. The
+adapter sets `secrets_redacted` when it masked such a value in the response.
 
 `resources.config_validate.available` independently gates dry-run validation
 under `control`; the request body may contain secrets. When available, the

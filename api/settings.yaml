@@ -130,7 +130,26 @@ paths:
 schemas:
   RuntimeSettingField:
     type: string
-    enum: [ log.level, log.buffered_records, dns_log.max_records, flows.max_flows, flows.retention_seconds ]
+    enum: [ log.level, log.buffered_records, dns_log.max_records, flows.max_flows, flows.retention_seconds, record_flows, record_logs, record_dns_log ]
+  RecorderMode:
+    description: true pins a permitted recorder on, false forces it off, auto (the startup default) follows client attachment.
+    oneOf:
+      - type: boolean
+      - type: string
+        enum: [ auto ]
+  RecorderState:
+    type: object
+    required: [ allowed, mode, active ]
+    properties:
+      allowed:
+        type: boolean
+        description: The configuration permits this recorder; false means never, whatever the mode.
+      mode:
+        type: string
+        enum: [ auto, "on", "off" ]
+      active:
+        type: boolean
+        description: The recorder is capturing right now.
   RuntimeSettings:
     type: object
     required: [ observed_at, source, log, dns_log, flows ]
@@ -172,11 +191,43 @@ schemas:
             $ref: ./openapi.yaml#/components/schemas/SafeUInt
             minimum: 1
             description: How long a terminal flow stays, at most flows.retention_seconds.
+      recording:
+        type: object
+        required: [ flows, logs, dns_log, events, grace_remaining_seconds ]
+        description: |
+          Read-only recorder state. A client is attached while an admitted GET SSE stream on
+          /events or /logs is open, or for 60 seconds after the last stream closed or a successful
+          GET on /flows, /flows/{id} or /dns/log; other requests, including settings reads, do not
+          renew attachment. Recording starts on attachment, so the first history a client reads may
+          be empty.
+        properties:
+          flows:
+            $ref: ./openapi.yaml#/components/schemas/RecorderState
+          logs:
+            $ref: ./openapi.yaml#/components/schemas/RecorderState
+          dns_log:
+            $ref: ./openapi.yaml#/components/schemas/RecorderState
+          events:
+            type: object
+            required: [ active ]
+            properties:
+              active:
+                type: boolean
+                description: Event capture runs while a client is attached or any permitted recorder is pinned on.
+          grace_remaining_seconds:
+            $ref: ./openapi.yaml#/components/schemas/SafeUInt
+            description: Seconds left before automatic recorders stop, 0 while a stream is open or nothing is attached.
   RuntimeSettingsPatch:
     type: object
     additionalProperties: false
     minProperties: 1
     properties:
+      record_flows:
+        $ref: ./openapi.yaml#/components/schemas/RecorderMode
+      record_logs:
+        $ref: ./openapi.yaml#/components/schemas/RecorderMode
+      record_dns_log:
+        $ref: ./openapi.yaml#/components/schemas/RecorderMode
       log:
         type: object
         additionalProperties: false

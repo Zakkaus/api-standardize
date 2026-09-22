@@ -34,7 +34,7 @@ paths:
                     revision: "17"
                     sources:
                       - id: source-main
-                        path: <redacted>
+                        path: api.dae
                         kind: main
                         content_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
                         bytes: 128
@@ -218,7 +218,7 @@ paths:
                 redacted:
                   value:
                     id: source-main
-                    path: <redacted>
+                    path: api.dae
                     kind: main
                     content_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
                     bytes: 128
@@ -793,7 +793,7 @@ schemas:
           $ref: ./openapi.yaml#/components/schemas/ConfigDiagnostic
       secrets_redacted:
         type: boolean
-        description: True when content is withheld or paths, text, or diagnostic messages are redacted under visibility policy.
+        description: True when a listener-secret value (native_api.secret, clash_api.secret) was masked somewhere in this response. Content, paths and diagnostics are otherwise returned in the clear to an admitted request.
   ConfigSource:
     type: object
     required: [ id, path, kind, content_sha256, bytes, writable, loaded_at, line_count ]
@@ -805,7 +805,11 @@ schemas:
       path:
         type: string
         minLength: 1
-        description: Display path only, replaced with <redacted> when hidden by visibility policy; not a file-access capability.
+        description: The path relative to the entry directory, as the configuration references it; not a file-access capability.
+      absolute_path:
+        type: string
+        minLength: 1
+        description: The file's absolute path on the engine host.
       kind:
         type: string
         enum: [ main, include, subscription, generated ]
