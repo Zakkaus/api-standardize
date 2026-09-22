@@ -470,7 +470,7 @@ schemas:
       url_redacted:
         type: [ string, "null" ]
         minLength: 1
-        description: Display-only source URL with userinfo, query, fragment and secret-bearing path segments removed or redacted. Null for file/inline sources or when safe display is impossible. Never a fetchable credential source.
+        description: The configured source URL as written, with only listener-secret values (native_api.secret, clash_api.secret) masked. Null for file/inline sources. The wire name is kept for compatibility.
       node_count:
         $ref: ./openapi.yaml#/components/schemas/SafeUInt
       updated_at:

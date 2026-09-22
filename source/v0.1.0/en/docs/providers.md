@@ -32,10 +32,9 @@ returns `400 invalid_request`; discard it and restart the page walk.
 `kind` is `subscription`, `file`, or `inline`. `node_count` is a safe integer.
 Neither GET starts a subscription fetch.
 
-`url_redacted` is display-only: remove userinfo, query, fragment, and
-secret-bearing path segments. Return null for file/inline sources or when
-safe display is impossible. Names and errors must also be safe; never expose
-credentials, raw configuration, or unredacted local paths.
+`url_redacted` carries the configured URL as written, with only listener-secret
+values masked; the wire name is kept for compatibility. Return null for
+file/inline sources. `name` is the configured tag.
 
 `updated_at` is the last successful load or refresh; `expires_at` is the
 provider-reported expiry. Both are nullable. `traffic` is null without usage
