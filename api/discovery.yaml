@@ -37,6 +37,13 @@ paths:
                       rules: /api/v1/rules
                       geodata: /api/v1/geodata
                       operations: /api/v1/operations/{id}
+                      auth_setup: null
+                      auth_login: null
+                      auth_logout: null
+                    auth:
+                      mode: token
+                      setup_required: false
+                      anonymous_loopback: false
                   x-headers:
                     Content-Type: application/json
                     Cache-Control: no-store
@@ -299,6 +306,21 @@ schemas:
           operations:
             type: string
             const: /api/v1/operations/{id}
+          auth_setup:
+            type: [ string, "null" ]
+            enum: [ /api/v1/auth/setup, null ]
+            description: Present in password mode, null otherwise.
+          auth_login:
+            type: [ string, "null" ]
+            enum: [ /api/v1/auth/login, null ]
+            description: Present in password mode, null otherwise.
+          auth_logout:
+            type: [ string, "null" ]
+            enum: [ /api/v1/auth/logout, null ]
+            description: Present in password mode, null otherwise.
+      auth:
+        $ref: ./openapi.yaml#/components/schemas/AuthDiscovery
+        description: Absent from servers that predate password login; clients then assume a configured bearer.
   Version:
     type: object
     required: [ api, engine ]

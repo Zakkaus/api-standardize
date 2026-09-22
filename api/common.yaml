@@ -437,6 +437,9 @@ schemas:
       - precondition_required
       - rate_limited
       - temporarily_unavailable
+      - setup_required
+      - setup_already_completed
+      - invalid_credentials
   SafeError:
     type: object
     required: [ code, message ]

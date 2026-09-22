@@ -1,0 +1,177 @@
+paths:
+  /api/v1/auth/setup:
+    post:
+      operationId: setupAdministrator
+      summary: Create the administrator account and open a session
+      description: >-
+        Available only while discovery reports `auth.mode: password` with
+        `setup_required: true`. The peer must be loopback, RFC 1918, RFC 4193 or
+        link-local; any other peer is refused with `permission_denied` before the
+        account state is read. Authorization must be absent.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./openapi.yaml#/components/schemas/AuthCredentials
+            examples:
+              administrator:
+                value:
+                  username: admin
+                  password: correct horse battery
+      responses:
+        "201":
+          description: Administrator created; the session token authenticates later requests
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/AuthSession
+              examples:
+                created:
+                  value:
+                    token: hnk1_3q2-7wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+                    expires_at: "2026-09-23T12:00:00Z"
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "409":
+          $ref: ./openapi.yaml#/components/responses/Conflict
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
+        "415":
+          $ref: ./openapi.yaml#/components/responses/UnsupportedMediaType
+        "429":
+          $ref: ./openapi.yaml#/components/responses/RateLimited
+        "503":
+          $ref: ./openapi.yaml#/components/responses/Unavailable
+  /api/v1/auth/login:
+    post:
+      operationId: login
+      summary: Exchange the administrator credentials for a session
+      description: >-
+        Available only in password mode after setup. A wrong username or password
+        is `invalid_credentials`; before setup the answer is `setup_required`.
+        Authorization must be absent.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./openapi.yaml#/components/schemas/AuthCredentials
+            examples:
+              administrator:
+                value:
+                  username: admin
+                  password: correct horse battery
+      responses:
+        "200":
+          description: Session opened
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/AuthSession
+              examples:
+                opened:
+                  value:
+                    token: hnk1_3q2-7wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+                    expires_at: "2026-09-23T12:00:00Z"
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "409":
+          $ref: ./openapi.yaml#/components/responses/Conflict
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
+        "415":
+          $ref: ./openapi.yaml#/components/responses/UnsupportedMediaType
+        "429":
+          $ref: ./openapi.yaml#/components/responses/RateLimited
+        "503":
+          $ref: ./openapi.yaml#/components/responses/Unavailable
+  /api/v1/auth/logout:
+    post:
+      operationId: logout
+      summary: End the session that authenticates this request
+      description: Requires a password-session bearer; a configured bearer cannot log out.
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Session ended
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "429":
+          $ref: ./openapi.yaml#/components/responses/RateLimited
+        "503":
+          $ref: ./openapi.yaml#/components/responses/Unavailable
+schemas:
+  AuthDiscovery:
+    type: object
+    description: >-
+      How a client authenticates. `password` mode offers setup until an
+      administrator exists and login afterwards; `token` mode takes a configured
+      bearer, or none when `anonymous_loopback` admits loopback peers.
+    required: [ mode, setup_required, anonymous_loopback ]
+    properties:
+      mode:
+        type: string
+        enum: [ token, password ]
+      setup_required:
+        type: boolean
+      anonymous_loopback:
+        type: boolean
+  AuthCredentials:
+    type: object
+    additionalProperties: false
+    required: [ username, password ]
+    properties:
+      username:
+        type: string
+        pattern: "^[A-Za-z0-9_.-]{1,64}$"
+      password:
+        type: string
+        minLength: 12
+        maxLength: 128
+        description: 12 to 128 Unicode scalar values, at most 512 UTF-8 bytes; not normalised or trimmed.
+  AuthSession:
+    type: object
+    required: [ token, expires_at ]
+    properties:
+      token:
+        type: string
+        minLength: 1
+      expires_at:
+        $ref: ./openapi.yaml#/components/schemas/Timestamp
