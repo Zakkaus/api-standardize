@@ -26,6 +26,7 @@ in resources (`operation.error`, `datapath.errors`, `lifecycle.last_error`,
 |--------|--------------|---------|
 | 400 | `invalid_request` | Malformed parameter or request shape. |
 | 401 | `authentication_required` | Credentials are missing or invalid. |
+| 401 | `invalid_credentials` | Username or password is incorrect during password login. |
 | 403 | `permission_denied` | The authenticated caller cannot perform the action. |
 | 404 | `resource_not_found` | The requested resource does not exist. |
 | 404 | `capability_not_supported` | The running adapter does not expose the resource or action. |
@@ -33,6 +34,8 @@ in resources (`operation.error`, `datapath.errors`, `lifecycle.last_error`,
 | 409 | `idempotency_conflict` | An idempotency key was reused with a different request body. |
 | 409 | `event_cursor_expired` | Event or log SSE cursor cannot be replayed; open a fresh stream and establish a new baseline. |
 | 409 | `snapshot_unavailable` | Routing simulation or the running rule list could not pin a consistent generation. |
+| 409 | `setup_required` | Password login was requested before an administrator was created. |
+| 409 | `setup_already_completed` | Administrator setup was requested after an administrator was created. |
 | 410 | `snapshot_expired` | Paginated flow snapshot expired; restart the page walk. |
 | 410 | `flow_expired` | Flow evidence was evicted/expired and a tombstone still exists. |
 | 412 | `stale_revision` | `If-Match` does not match the current resource revision or on-disk source content hash. |
