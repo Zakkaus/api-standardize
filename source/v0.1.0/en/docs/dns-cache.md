@@ -58,11 +58,29 @@ it and restart without a cursor, never silently continue a different snapshot.
 | entries | array | DNS cache entries |
 | total | int | Number of entries matching the filters at snapshot time |
 | next_cursor | string | Opaque cursor for the next page, or `null` when complete |
+| usage | object, optional | Occupancy of the whole runtime cache; absent on servers that predate it |
 
 `coverage.positive` and `coverage.negative` must match the advertised
 `entry_kinds`. `coverage.persistent` declares whether entries outside the
 runtime in-memory cache are included. Implementations must not silently omit a
 cache class they claim to expose.
+
+`usage` describes the whole runtime cache at snapshot time and ignores the
+filters. Every page of one snapshot repeats it. All four fields are UInt64
+decimal strings:
+
+| Field | Description |
+|-------|-------------|
+| entries | Entries currently retained, including expired entries not yet evicted |
+| entry_capacity | Effective entry limit after the engine applies its bounds |
+| wire_bytes | Query and response wire bytes currently retained |
+| wire_byte_capacity | Effective wire-byte budget after the engine applies its bounds |
+
+The engine evicts when either bound is reached, so a client showing how full
+the cache is should use the larger of the two ratios. `entries` may exceed
+`total`, which counts only entries that match the filters and the listing's
+expiry rule. When `usage` is absent, the client has no capacity information and
+must not infer one from `total`.
 
 ### Entry Object
 
