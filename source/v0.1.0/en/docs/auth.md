@@ -8,7 +8,7 @@ Password-mode discovery selects setup or login. See [Discovery](discovery.html)
 for the client selection rules.
 
 Credentials require a `username` matching `[A-Za-z0-9_.-]{1,64}` and a
-`password` of 12 to 128 Unicode scalar values and at most 512 UTF-8 bytes.
+`password` of 8 to 128 Unicode scalar values and at most 512 UTF-8 bytes.
 The server does not trim either value. Setup and login requests must not include
 an `Authorization` header.
 
