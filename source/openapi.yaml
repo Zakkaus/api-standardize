@@ -4667,6 +4667,9 @@ paths:
                         stale_until: '2026-08-15T12:06:00Z'
                     total: 1024
                     next_cursor: eyJvZmZzZXQiOjEwMH0
+                    usage:
+                      entries: '1024'
+                      entry_capacity: '100000'
                   x-headers:
                     Content-Type: application/json
                     Cache-Control: no-store
@@ -10520,6 +10523,21 @@ components:
           type:
             - string
             - 'null'
+        usage:
+          $ref: '#/components/schemas/DnsCacheUsage'
+          description: Absent from servers that predate cache usage reporting.
+    DnsCacheUsage:
+      type: object
+      description: Whole runtime cache at snapshot time, independent of the listing filters. Every page of one snapshot repeats the same values. The entry count is the cache's only limit; the size of an entry is not bounded.
+      required:
+        - entries
+        - entry_capacity
+      properties:
+        entries:
+          $ref: '#/components/schemas/UInt64'
+        entry_capacity:
+          $ref: '#/components/schemas/UInt64'
+          description: Effective entry limit after the engine applies its bounds, at most 100,000.
     DnsLogRecord:
       type: object
       required:

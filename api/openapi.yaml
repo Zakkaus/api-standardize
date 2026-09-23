@@ -488,6 +488,8 @@ components:
       $ref: ./dns.yaml#/schemas/DnsCacheEntry
     DnsCacheList:
       $ref: ./dns.yaml#/schemas/DnsCacheList
+    DnsCacheUsage:
+      $ref: ./dns.yaml#/schemas/DnsCacheUsage
     DnsLogRecord:
       $ref: ./dns.yaml#/schemas/DnsLogRecord
     DnsLogList:
