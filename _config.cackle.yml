@@ -4,6 +4,8 @@ menu:
     file: index
   - title: Discovery
     file: docs/discovery
+  - title: Authentication
+    file: docs/auth
   - title: Version
     file: docs/version
   - title: Capabilities
