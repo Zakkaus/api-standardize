@@ -18,6 +18,12 @@ paths:
     $ref: ./discovery.yaml#/paths/~1api~1v1~1version
   /api/v1/capabilities:
     $ref: ./discovery.yaml#/paths/~1api~1v1~1capabilities
+  /api/v1/auth/setup:
+    $ref: ./auth.yaml#/paths/~1api~1v1~1auth~1setup
+  /api/v1/auth/login:
+    $ref: ./auth.yaml#/paths/~1api~1v1~1auth~1login
+  /api/v1/auth/logout:
+    $ref: ./auth.yaml#/paths/~1api~1v1~1auth~1logout
   /api/v1/config:
     $ref: ./config.yaml#/paths/~1api~1v1~1config
   /api/v1/config/validate:
@@ -190,6 +196,12 @@ components:
       $ref: ./common.yaml#/schemas/ErrorResponse
     Discovery:
       $ref: ./discovery.yaml#/schemas/Discovery
+    AuthDiscovery:
+      $ref: ./auth.yaml#/schemas/AuthDiscovery
+    AuthCredentials:
+      $ref: ./auth.yaml#/schemas/AuthCredentials
+    AuthSession:
+      $ref: ./auth.yaml#/schemas/AuthSession
     Version:
       $ref: ./discovery.yaml#/schemas/Version
     AvailableResource:
