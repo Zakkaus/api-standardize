@@ -191,6 +191,9 @@ paths:
                         stale_until: 2026-08-15T12:06:00Z
                     total: 1024
                     next_cursor: eyJvZmZzZXQiOjEwMH0
+                    usage:
+                      entries: "1024"
+                      entry_capacity: "100000"
                   x-headers:
                     Content-Type: application/json
                     Cache-Control: no-store
@@ -601,6 +604,22 @@ schemas:
         $ref: ./openapi.yaml#/components/schemas/SafeUInt
       next_cursor:
         type: [ string, "null" ]
+      usage:
+        $ref: ./openapi.yaml#/components/schemas/DnsCacheUsage
+        description: Absent from servers that predate cache usage reporting.
+  DnsCacheUsage:
+    type: object
+    description: >-
+      Whole runtime cache at snapshot time, independent of the listing filters.
+      Every page of one snapshot repeats the same values. The entry count is the
+      cache's only limit; the size of an entry is not bounded.
+    required: [ entries, entry_capacity ]
+    properties:
+      entries:
+        $ref: ./openapi.yaml#/components/schemas/UInt64
+      entry_capacity:
+        $ref: ./openapi.yaml#/components/schemas/UInt64
+        description: Effective entry limit after the engine applies its bounds, at most 100,000.
   DnsLogRecord:
     type: object
     required: [ id, observed_at, src, question, status, cached, upstream, route, elapsed_ms, answers ]
