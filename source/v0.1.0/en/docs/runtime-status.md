@@ -200,6 +200,7 @@ the log level and replay ring, the DNS log ring, and flow retention.
 | flows.max_flows | `flows.max_flows` | Retained flows, at least 64. |
 | flows.retention_seconds | `flows.retention_seconds` | Maximum age after termination; capacity pressure may evict a flow sooner. |
 | source | | `config` while every value comes from the activated configuration, `runtime` once a PATCH overrode one. |
+| geodata | | Geodata download URLs and automatic updates, with their own read-only `source` for the URLs; URLs are redacted except for an authenticated caller with `control`. Present when `resources.geodata.configurable_sources` is true. See [Geodata](geodata.html#Configure-the-sources). |
 | recording | | Read-only recorder state: `flows`, `logs` and `dns_log` each report `allowed`, `mode` (`auto`, `on`, `off`) and `active`; `events.active` reports event capture; `grace_remaining_seconds` counts down after the last attached client left. |
 
 A client is attached while an admitted GET SSE stream on `/events` or `/logs`
@@ -228,3 +229,8 @@ applies immediately, is not written to the configuration file, and lasts
 until the process restarts or the next configuration activation resets it.
 
 {% api_example patchRuntimeSettings 400 above_ceiling %}
+
+`geodata` differs: the backend stores it, so it survives restarts and
+activations and leaves the top-level `source` unchanged. It needs an
+authenticated caller. Setting its URLs returns `409 state_conflict` while the
+configuration file owns them; `auto_update` stays settable. See [Geodata](geodata.html#Configure-the-sources).
