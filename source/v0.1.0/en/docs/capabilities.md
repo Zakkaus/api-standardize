@@ -61,7 +61,11 @@ SSE feed carries sanitized log records, separately from invalidation events.
 `can_manage` means the backend owns a writable main source and implements
 provider create and delete. `nodes` advertises `can_manage` on the same terms
 for inline nodes. `geodata` advertises `can_update` and the `assets` it reports
-(`geosite`, `geoip`); update requires `control` and the operation resource. `rules` advertises `max_rules`,
+(`geosite`, `geoip`); update requires `control` and the operation resource.
+`geodata.configurable_sources: true` means the download URLs and automatic
+updates are managed through `geodata` in runtime settings and `GET /geodata`
+reports the update status; it requires `runtime_settings.available` with
+`geodata` in its `fields`, and absent means false. `rules` advertises `max_rules`,
 including the fallback entry, for a complete running-generation dictionary.
 Reads of logs, providers, nodes, geodata, and rules require `observe`. Available
 resources must include their required capability fields; buffer and rule limits

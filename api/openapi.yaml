@@ -306,6 +306,20 @@ components:
       $ref: ./geodata.yaml#/schemas/GeoDataUpdateAccepted
     GeoDataUpdateSucceededOperation:
       $ref: ./geodata.yaml#/schemas/GeoDataUpdateSucceededOperation
+    GeoDataSettingsSource:
+      $ref: ./geodata.yaml#/schemas/GeoDataSettingsSource
+    GeoDataUrl:
+      $ref: ./geodata.yaml#/schemas/GeoDataUrl
+    GeoDataSources:
+      $ref: ./geodata.yaml#/schemas/GeoDataSources
+    GeoDataAutoUpdate:
+      $ref: ./geodata.yaml#/schemas/GeoDataAutoUpdate
+    GeoDataSettings:
+      $ref: ./geodata.yaml#/schemas/GeoDataSettings
+    GeoDataSourcesPatch:
+      $ref: ./geodata.yaml#/schemas/GeoDataSourcesPatch
+    GeoDataSettingsPatch:
+      $ref: ./geodata.yaml#/schemas/GeoDataSettingsPatch
     GroupPolicy:
       $ref: ./nodes-groups.yaml#/schemas/GroupPolicy
     GroupPolicyRequest:
