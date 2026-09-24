@@ -244,6 +244,73 @@ test("runtime settings stay inside their capability ceilings and advertised fiel
   assertValid(validateExample(contract, rejected));
 });
 
+test("geodata sources are patched through runtime settings and reported with their status", () => {
+  const resources = example("getCapabilities:200:available").body.resources;
+  assert.equal(resources.geodata.configurable_sources, true);
+  assert.ok(resources.runtime_settings.fields.includes("geodata"));
+  for (const key of ["current", "config_sources"]) {
+    const settings = example(`getRuntimeSettings:200:${key}`);
+    assertValid(validateExample(contract, settings));
+    settings.body.geodata.auto_update.interval_hours = 5;
+    assertInvalid(validateExample(contract, settings), "the interval is at least 6 hours");
+  }
+  const stored = example("patchRuntimeSettings:200:geodata_stored").body.geodata;
+  assert.equal(stored.source, "db");
+  const patch = example("patchRuntimeSettings:request:geodata_sources");
+  assertValid(validateExample(contract, patch));
+  assert.deepEqual(stored.geosite.urls, patch.body.geodata.geosite.urls);
+  assertValid(validateExample(contract, example("patchRuntimeSettings:request:geodata_reset")));
+  const autoUpdate = example("patchRuntimeSettings:request:geodata_auto_update");
+  assertValid(validateExample(contract, autoUpdate));
+  assert.deepEqual(Object.keys(autoUpdate.body.geodata), ["auto_update"], "auto_update alone stays patchable under config");
+  assert.deepEqual(example("getRuntimeSettings:200:config_sources").body.geodata.auto_update,
+    autoUpdate.body.geodata.auto_update);
+  patch.body = {geodata: {geosite: {urls: ["http://mirror.example.net/geosite.dat"]}}};
+  assertValid(validateExample(contract, patch), "plain http is accepted");
+  for (const [geodata, label] of [
+    [{source: "db"}, "source is read-only"],
+    [{geosite: {urls: []}}, "a URL list is never empty"],
+    [{geosite: {urls: ["ftp://mirror.example.net/geosite.dat"]}}, "URLs are HTTP(S)"],
+    [{geosite: {urls: ["https://user@mirror.example.net/geosite.dat"]}}, "URLs carry no userinfo"],
+    [{geosite: {urls: ["https://mirror.example.net/geosite.dat#x"]}}, "URLs carry no fragment"],
+    [{geosite: {urls: Array.from({length: 5}, (_, i) => `https://m${i}.example.net/geosite.dat`)}}, "at most 4 URLs"],
+    [{auto_update: {interval_hours: 169}}, "the interval is at most 168 hours"],
+    [{auto_update: {}}, "an empty auto_update is rejected"],
+  ]) {
+    patch.body = {geodata};
+    assertInvalid(validateExample(contract, patch), label);
+  }
+  const conflict = example("patchRuntimeSettings:409:geodata_from_config");
+  assert.equal(conflict.body.error.code, "state_conflict");
+  assertValid(validateExample(contract, conflict));
+  for (const key of ["loaded", "packaged"]) {
+    const status = example(`getGeoData:200:${key}`);
+    assertValid(validateExample(contract, status));
+    for (const field of ["next_check_at", "required_codes"]) {
+      const saved = status.body[field];
+      delete status.body[field];
+      assertInvalid(validateExample(contract, status), `${field} is reported with the other status fields`);
+      status.body[field] = saved;
+    }
+    const asset = status.body.assets[0];
+    delete asset.verified;
+    assertInvalid(validateExample(contract, status), "verified is reported with fetched_url_redacted");
+    asset.verified = asset.fetched_url_redacted !== null;
+    assertValid(validateExample(contract, status));
+    status.body.required_codes = {geodns: []};
+    assertInvalid(validateExample(contract, status), "required_codes is keyed by asset kind");
+  }
+  const legacy = example("getGeoData:200:loaded");
+  for (const field of ["last_checked_at", "last_updated_at", "next_check_at", "last_error", "required_codes"]) {
+    delete legacy.body[field];
+  }
+  for (const asset of legacy.body.assets) {
+    delete asset.fetched_url_redacted;
+    delete asset.verified;
+  }
+  assertValid(validateExample(contract, legacy), "backends without configurable sources stay valid");
+});
+
 test("DNS log records keep client evidence and page inside the advertised size", () => {
   const capabilities = example("getCapabilities:200:available");
   const log = capabilities.body.resources.dns_log;

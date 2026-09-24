@@ -7,7 +7,11 @@ paths:
         Requires resources.runtime_settings.available. Returns the current
         runtime-adjustable settings. Numeric values cannot exceed their corresponding
         capability ceilings. source is config when values come from the activated
-        configuration and runtime after a runtime override.
+        configuration and runtime after a runtime override. geodata appears when
+        resources.geodata.configurable_sources is true and carries its own source.
+        GET needs only observe, so geodata URLs are returned as written only to an
+        authenticated caller with control, which may edit them, and redacted like
+        GeoAsset.source_redacted for everyone else.
       x-permission: observe
       security:
         - bearerAuth: []
@@ -32,6 +36,36 @@ paths:
                     log: { level: info, buffered_records: 4096 }
                     dns_log: { max_records: 2048 }
                     flows: { max_flows: 10000, retention_seconds: 300 }
+                    geodata:
+                      source: default
+                      geosite:
+                        urls:
+                          - https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geosite.dat
+                          - https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat
+                      geoip:
+                        urls:
+                          - https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geoip.dat
+                          - https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat
+                      auto_update: { enabled: false, interval_hours: 24 }
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+                config_sources:
+                  summary: Geodata URLs set in the configuration file
+                  value:
+                    observed_at: 2026-08-15T10:00:00Z
+                    source: config
+                    log: { level: info, buffered_records: 4096 }
+                    dns_log: { max_records: 2048 }
+                    flows: { max_flows: 10000, retention_seconds: 300 }
+                    geodata:
+                      source: config
+                      geosite:
+                        urls: [ https://mirror.example.net/geodata/geosite.dat ]
+                      geoip:
+                        urls: [ https://mirror.example.net/geodata/geoip.dat ]
+                      auto_update: { enabled: true, interval_hours: 48 }
                   x-headers:
                     Content-Type: application/json
                     Cache-Control: no-store
@@ -55,6 +89,17 @@ paths:
         cursors older than the new floor. The change applies immediately and lasts
         until the process restarts or the next configuration activation resets it; it
         is not written to the configuration file.
+
+        geodata is the exception. It requires resources.geodata.configurable_sources
+        and an authenticated caller; the anonymous loopback principal gets 403
+        permission_denied. The backend stores it, so it survives restarts and
+        activations and does not change the top-level source. A geodata patch merges
+        into the effective settings. Patching geosite or geoip stores both URL lists
+        (geodata.source becomes db); auto_update is stored on its own; null deletes
+        everything stored. It never downloads; POST /geodata/update does. While
+        geodata.source is config the configuration file owns the URLs: a patch that
+        sets geodata.geosite or geodata.geoip returns 409 state_conflict and changes
+        nothing, while auto_update can still be patched.
       x-permission: control
       security:
         - bearerAuth: []
@@ -72,6 +117,28 @@ paths:
                 value:
                   log: { level: debug }
                   dns_log: { max_records: 1024 }
+              geodata_sources:
+                summary: Use a mirror first and update daily
+                value:
+                  geodata:
+                    geosite:
+                      urls:
+                        - https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat
+                        - https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geosite.dat
+                    geoip:
+                      urls:
+                        - https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat
+                        - https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geoip.dat
+                    auto_update: { enabled: true }
+              geodata_auto_update:
+                summary: Update every two days, also while the configuration file owns the URLs
+                value:
+                  geodata:
+                    auto_update: { enabled: true, interval_hours: 48 }
+              geodata_reset:
+                summary: Return to the built-in sources
+                value:
+                  geodata: null
       responses:
         "200":
           description: Settings after the change
@@ -92,6 +159,28 @@ paths:
                     log: { level: debug, buffered_records: 4096 }
                     dns_log: { max_records: 1024 }
                     flows: { max_flows: 10000, retention_seconds: 300 }
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+                geodata_stored:
+                  value:
+                    observed_at: 2026-08-15T10:00:05Z
+                    source: config
+                    log: { level: info, buffered_records: 4096 }
+                    dns_log: { max_records: 2048 }
+                    flows: { max_flows: 10000, retention_seconds: 300 }
+                    geodata:
+                      source: db
+                      geosite:
+                        urls:
+                          - https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat
+                          - https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geosite.dat
+                      geoip:
+                        urls:
+                          - https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat
+                          - https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geoip.dat
+                      auto_update: { enabled: true, interval_hours: 24 }
                   x-headers:
                     Content-Type: application/json
                     Cache-Control: no-store
@@ -124,10 +213,33 @@ paths:
           $ref: ./openapi.yaml#/components/responses/Forbidden
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
+        "409":
+          description: The patch sets geodata URLs while the configuration file owns them
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                geodata_from_config:
+                  value:
+                    error:
+                      code: state_conflict
+                      message: Geodata URLs are set in the configuration file.
+                      details: null
+                    request_id: request-4
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
 schemas:
   RuntimeSettingField:
     type: string
-    enum: [ log.level, log.buffered_records, dns_log.max_records, flows.max_flows, flows.retention_seconds, record_flows, record_logs, record_dns_log ]
+    enum: [ log.level, log.buffered_records, dns_log.max_records, flows.max_flows, flows.retention_seconds, record_flows, record_logs, record_dns_log, geodata ]
   RecorderMode:
     description: true pins a permitted recorder on, false forces it off, auto (the startup default) follows client attachment.
     oneOf:
@@ -156,7 +268,7 @@ schemas:
       source:
         type: string
         enum: [ config, runtime ]
-        description: config while every value comes from the activated configuration; runtime once any PATCH overrode one.
+        description: config while every value comes from the activated configuration; runtime once any PATCH overrode one. geodata has its own source and does not affect this one.
       log:
         type: object
         required: [ level, buffered_records ]
@@ -214,6 +326,9 @@ schemas:
           grace_remaining_seconds:
             $ref: ./openapi.yaml#/components/schemas/SafeUInt
             description: Seconds left before automatic recorders stop, 0 while a stream is open or nothing is attached.
+      geodata:
+        $ref: ./openapi.yaml#/components/schemas/GeoDataSettings
+        description: Geodata download sources and automatic updates. Present when resources.geodata.configurable_sources is true. URLs are returned as written only to an authenticated caller with control and redacted for everyone else.
   RuntimeSettingsPatch:
     type: object
     additionalProperties: false
@@ -254,3 +369,5 @@ schemas:
           retention_seconds:
             $ref: ./openapi.yaml#/components/schemas/SafeUInt
             minimum: 1
+      geodata:
+        $ref: ./openapi.yaml#/components/schemas/GeoDataSettingsPatch

@@ -245,11 +245,12 @@ paths:
                         max_page_size: 500
                       runtime_settings:
                         available: true
-                        fields: [ log.level, log.buffered_records, dns_log.max_records, flows.max_flows, flows.retention_seconds ]
+                        fields: [ log.level, log.buffered_records, dns_log.max_records, flows.max_flows, flows.retention_seconds, geodata ]
                       geodata:
                         available: true
                         can_update: true
                         assets: [ geosite, geoip ]
+                        configurable_sources: true
                       operations:
                         available: true
                         retention_seconds: 300
@@ -915,6 +916,9 @@ schemas:
                 description: The asset kinds GET /geodata reports on this backend.
                 items:
                   $ref: ./openapi.yaml#/components/schemas/GeoAssetKind
+              configurable_sources:
+                type: boolean
+                description: Download URLs and automatic updates are managed through geodata in GET and PATCH /runtime/settings, and GET /geodata reports update status and required_codes. Requires runtime_settings.available with geodata in its fields. Absent means false.
           operations:
             type: object
             required: [ available ]
