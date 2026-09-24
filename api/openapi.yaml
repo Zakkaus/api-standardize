@@ -545,6 +545,10 @@ components:
       $ref: ./settings.yaml#/schemas/RuntimeSettings
     RuntimeSettingsPatch:
       $ref: ./settings.yaml#/schemas/RuntimeSettingsPatch
+    RecorderMode:
+      $ref: ./settings.yaml#/schemas/RecorderMode
+    RecorderState:
+      $ref: ./settings.yaml#/schemas/RecorderState
     StreamReadyEvent:
       $ref: ./events.yaml#/schemas/StreamReadyEvent
     RuntimeUpdatedEvent:

@@ -200,11 +200,21 @@ the log level and replay ring, the DNS log ring, and flow retention.
 | flows.max_flows | `flows.max_flows` | Retained flows, at least 64. |
 | flows.retention_seconds | `flows.retention_seconds` | Maximum age after termination; capacity pressure may evict a flow sooner. |
 | source | | `config` while every value comes from the activated configuration, `runtime` once a PATCH overrode one. |
+| recording | | Read-only recorder state: `flows`, `logs` and `dns_log` each report `allowed`, `mode` (`auto`, `on`, `off`) and `active`; `events.active` reports event capture; `grace_remaining_seconds` counts down after the last attached client left. |
+
+A client is attached while an admitted GET SSE stream on `/events` or `/logs`
+is open, or for 60 seconds after the last stream closed or a successful GET on
+`/flows`, `/flows/{id}` or `/dns/log`. Settings reads, HEAD and rejected
+requests do not renew attachment. In `auto` mode a recorder captures only while
+a client is attached, so the first history a panel reads may be empty.
 
 ## PATCH /api/v1/runtime/settings
 
 Requires `control`. Only the fields listed in `resources.runtime_settings.fields`
-may appear; the body merges, an absent field keeps its value.
+may appear; the body merges, an absent field keeps its value. `record_flows`,
+`record_logs` and `record_dns_log` take `true` (keep the recorder on without
+clients), `false` (force it off) or `"auto"` (follow attachment, the startup
+default); pinning a recorder the configuration forbids rejects the whole patch.
 
 {% api_request patchRuntimeSettings debug %}
 

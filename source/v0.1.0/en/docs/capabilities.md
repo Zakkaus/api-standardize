@@ -79,10 +79,18 @@ true, `max_records` and `max_page_size` are required positive safe integers.
 `resources.config.available` gates accepted-source readback. When available, it
 requires `content`, `writable`, `max_bytes`, and `max_sources`.
 
-`content` defaults to false and permits source text only after secret redaction.
-It is independent of `writable`. Writing requires `control`, the server-wide
-switch, and a writable source. Advertising writes also requires full validation,
-reload, and operation support.
+`content` is reported for compatibility: an admitted caller receives source
+text with only listener-secret values (`native_api.secret`, `clash_api.secret`)
+masked. It does not grant access to those secrets. `max_sources` bounds the
+complete source set; it does not permit truncation.
+
+Writing requires `control`, the server-wide switch, and a writable source.
+Advertising writes also requires full validation, reload, and operation support.
+
+Paths are returned as the configuration references them, with `absolute_path`
+beside the relative `path`; only listener-secret values are masked, in paths,
+source text and diagnostics alike. `detail=summary` is not a privacy tier. The
+adapter sets `secrets_redacted` when it masked such a value in the response.
 
 `resources.config_validate.available` independently gates dry-run validation.
 When available, it requires `modes`, `max_bytes`, and `max_sources`; `modes` is a
