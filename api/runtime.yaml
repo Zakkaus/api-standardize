@@ -304,11 +304,11 @@ paths:
       operationId: getMemoryHistory
       summary: Read bounded memory history
       description: |
-        Reads a bounded in-memory ring of memory samples without starting
-        sampling on GET. Same shape and rules as traffic history: the producer
-        samples independently of readers, SSE does not replay it, and a query
-        above either advertised limit returns 400 invalid_request rather than a
-        clamped result. Requires resources.memory_history.available.
+        Requires resources.memory_history.available. Reads a bounded in-memory ring
+        sampled independently of HTTP requests. The response envelope, retention,
+        thinning, and gap rules follow traffic history; samples contain memory metrics.
+        SSE does not replay the ring. A query above either advertised limit returns
+        400 invalid_request without clamping.
       x-permission: observe
       security:
         - bearerAuth: []
@@ -350,7 +350,7 @@ paths:
                       - sampled_at: 2026-08-15T09:59:50Z
                         rss_bytes: "48234496"
                         cgroup_current_bytes: "67108864"
-                        kernel_ebpf_bytes: "18874368"
+                        kernel_ebpf_bytes: null
                       - sampled_at: 2026-08-15T09:59:55Z
                         rss_bytes: null
                         cgroup_current_bytes: null
@@ -358,7 +358,7 @@ paths:
                       - sampled_at: 2026-08-15T10:00:00Z
                         rss_bytes: "48762880"
                         cgroup_current_bytes: "67371008"
-                        kernel_ebpf_bytes: "18874368"
+                        kernel_ebpf_bytes: null
                   x-headers:
                     Content-Type: application/json
                     Cache-Control: no-store
@@ -665,9 +665,11 @@ schemas:
     required: [ observed_at, window_seconds, sampled_every_seconds, samples ]
     description: |
       Samples lie in (observed_at - window_seconds, observed_at], oldest first,
-      with the same retention, thinning and gap rules as TrafficHistory.
-      Each sample carries the metrics advertised under resources.runtime_memory.metrics;
-      an unadvertised or unobservable metric is null.
+      with the same retention, thinning, and gap rules as TrafficHistory.
+      History covers process.rss_bytes, cgroup.current_bytes, and optionally
+      kernel.ebpf_bytes, using resources.runtime_memory.metrics to determine support.
+      Required metrics are null when unadvertised or unobservable.
+      kernel_ebpf_bytes may be omitted when unadvertised.
     properties:
       observed_at:
         $ref: ./openapi.yaml#/components/schemas/Timestamp

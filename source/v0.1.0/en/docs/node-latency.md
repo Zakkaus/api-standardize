@@ -99,8 +99,9 @@ curl "http://localhost:9527/api/v1/nodes?group_id=group-proxy"
 
 ## Add an inline node
 
-`POST /api/v1/nodes` requires `resources.nodes.can_manage`; otherwise it
-returns `404 capability_not_supported`.
+Adding or deleting an inline node requires `control` and `resources.nodes.can_manage`.
+Listing nodes requires only `observe`. If node management is unavailable, create
+and delete return `404 capability_not_supported`.
 
 {% api_request createNode link %}
 
@@ -110,8 +111,9 @@ The backend parses the share link with the engine's own support, writes it
 into the `node` section of its managed main source under the given name,
 advances the configuration revision and emits `generation.changed`. The link
 is stored and never returned. A link the engine cannot parse returns
-`422 unsupported_value` with the engine's reason in `message`; a name already
-in use returns `409 state_conflict`. The node belongs to the inline provider
+`422 unsupported_value` with a sanitized explanation in `error.message`; never
+echo the share link or raw parser output. A name already in use returns
+`409 state_conflict`. The node belongs to the inline provider
 and to every group whose filter matches it after reload; `health` is empty
 until a probe or the engine's own checks observe it.
 

@@ -4,12 +4,9 @@ title: DNS Query
 
 # GET /api/v1/dns/query
 
-> Draft endpoint. Use `GET /api/v1/dns/query`.
-> Each requested record type has its own DNS status, upstream, route source,
-> cache state, and elapsed time.
-
-Performs a live DNS query through the configured DNS module for debugging.
-Successful responses include `Cache-Control: no-store`.
+Requires `control` and `resources.dns_query.available`. This GET performs a live
+diagnostic query through the configured DNS module. It returns a separate DNS
+result for each requested record type and uses `Cache-Control: no-store`.
 
 ## Request
 
@@ -56,22 +53,10 @@ resolver-server routing, actual carriers and exact flow correlations belong
 to recorded DNS/route steps. Cache hits may not retain the origin upstream;
 null is not permission to reconstruct it from the current configuration.
 
-### Question Object
-
-| Field | Type | Description |
-|-------|------|-------------|
-| name | string | Fully-qualified domain name |
-| type | string | Record type |
-
-### Answer Object
-
-| Field | Type | Description |
-|-------|------|-------------|
-| name | string | Record name |
-| type | string | Record type |
-| class | string | DNS class (usually `IN`) |
-| ttl | int | Time to live (seconds) |
-| data | string | Record data |
+`question` contains the queried name and type. With `detail=full`, `answers`
+contains DNS records with `name`, `type`, `class`, `ttl`, and `data`; TTL is in
+seconds. Summary responses omit answer RDATA. See the OpenAPI `DnsQuestion` and
+`DnsAnswer` schemas for exact types.
 
 ### Errors and limits
 
@@ -80,10 +65,10 @@ status is `NXDOMAIN` or `SERVFAIL`. Invalid names and types use the
 [shared error envelope](errors.html). Canonical names are limited to 255 DNS
 wire octets and 63 octets per label. Requested types must be unique; duplicates
 return `400 invalid_request`. More types than
-`resources.dns_query.limits.max_types_per_request` returns `413`. The adapter
-enforces the advertised timeout, response-size, principal-rate, and global-rate
-limits before dispatch; rate excess returns `429` with `Retry-After`, while an
-unavailable DNS subsystem returns `503`.
+`resources.dns_query.limits.max_types_per_request` returns `413`.
+Check request-rate limits before dispatch; excess returns `429` with
+`Retry-After`. Bound execution by the advertised timeout and response-size limit.
+An unavailable DNS subsystem returns `503`.
 
 ## Example
 

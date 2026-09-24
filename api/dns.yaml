@@ -352,13 +352,11 @@ paths:
       operationId: listDnsLog
       summary: Read the bounded ring of recent resolutions
       description: |
-        Requires resources.dns_log.available. The engine records every resolution it
-        performs for clients (not the diagnostic /dns/query calls) into a ring of at
-        most resources.dns_log.max_records; newest first, not durable, cleared on
-        restart. A record is one question and its outcome: which client asked, which
-        upstream answered or whether the cache did, the answers, the routing decision
-        and how long it took. Filters narrow by name (case-insensitive substring),
-        record type and client source IP. limit above max_page_size returns 400.
+        Requires resources.dns_log.available. Records client DNS resolutions,
+        excluding diagnostic /dns/query calls, in a bounded in-memory ring.
+        Results are newest first. The ring holds at most
+        resources.dns_log.max_records and is cleared on restart.
+        A limit above resources.dns_log.max_page_size returns 400 invalid_request.
       x-permission: observe
       security:
         - bearerAuth: []

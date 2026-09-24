@@ -403,22 +403,6 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
-                reload_complete_reload:
-                  value:
-                    operation_id: op-01HZX4K8W7
-                    kind: reload
-                    status: succeeded
-                    created_at: 2026-08-15T09:29:59Z
-                    started_at: 2026-08-15T09:30:00Z
-                    finished_at: 2026-08-15T09:30:00Z
-                    result:
-                      active_generation_id: generation-42
-                      datapath_generation_id: generation-42
-                    error: null
-                  x-headers:
-                    Content-Type: application/json
-                    Cache-Control: no-store
-                    X-Content-Type-Options: nosniff
                 suspend_complete:
                   value:
                     operation_id: op-01HZX4K8W8
@@ -654,9 +638,6 @@ schemas:
         type: [ string, "null" ]
       udp:
         type: [ string, "null" ]
-  OperationKind:
-    type: string
-    enum: [ probe, reload, suspend, resume, group_update ]
   OperationAccepted:
     type: object
     required: [ operation_id, kind, status, href ]
@@ -672,16 +653,6 @@ schemas:
       href:
         type: string
         pattern: ^/api/v1/operations/[^/]+$
-  Operation:
-    oneOf:
-      - $ref: ./openapi.yaml#/components/schemas/QueuedOperation
-      - $ref: ./openapi.yaml#/components/schemas/RunningOperation
-      - $ref: ./openapi.yaml#/components/schemas/FailedOperation
-      - $ref: ./openapi.yaml#/components/schemas/ProbeSucceededOperation
-      - $ref: ./openapi.yaml#/components/schemas/ReloadSucceededOperation
-      - $ref: ./openapi.yaml#/components/schemas/SuspendSucceededOperation
-      - $ref: ./openapi.yaml#/components/schemas/ResumeSucceededOperation
-      - $ref: ./openapi.yaml#/components/schemas/GroupUpdateSucceededOperation
   QueuedOperation:
     allOf:
       - $ref: ./openapi.yaml#/components/schemas/OperationCommon

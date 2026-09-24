@@ -4,11 +4,11 @@ title: Recorded Flows
 
 # Recorded flows
 
-> Proposed native API, not an existing honk endpoint. The target is full
-> per-flow transparency: **rule input → dial mode → IP/DNS → reroute? →
-> outbound → connection status**. This is a causal chain, not a mandated
-> execution order: DNS may run before a rule, during domain verification,
-> or inside an outbound dial. Record the order the engine actually executed.
+Recorded flows expose retained routing and lifecycle evidence. Honk implements
+the endpoint, but clients must inspect its advertised recording scopes and each
+trace's completeness. The causal chain is rule input, dial mode, IP/DNS decisions,
+rerouting, outbound selection, and connection status; record the order the engine
+actually executed.
 
 A flow is one engine-observed TCP connection incarnation or UDP session
 incarnation, including attempts that are blocked or fail before a connection
@@ -125,20 +125,24 @@ Every step has `seq` (positive integer, strictly increasing within the flow),
 first observation or null), `generation_id` (string or null), `evidence`
 (`observed` or `reconstructed`), and the stage-specific `data` below. Sequence
 is collector order, not proof of causality between concurrent attempts;
-`attempt_id` and evaluation references carry that relationship. Sequence,
-flow revisions and monotonic offsets are bounded JSON integers in
-0–9007199254740991; cumulative `uint64` counters use decimal strings instead.
+`attempt_id` and evaluation references carry that relationship. Sequence numbers
+and flow revisions are JSON integers from 1 through 9007199254740991. Non-null
+`elapsed_us` values range from 0 through 9007199254740991. Cumulative `uint64`
+counters use decimal strings.
 
-| stage | data contract |
-|-------|---------------|
-| `input` | Client-flow observation changes: `values` uses the display `input` fields plus nullable `pname`; `source` is `kernel`, `socket`, `sniffer`, or `dns_mapping`. This event does not implicitly supply a later route's inputs. |
-| `route` | `evaluation_id`, `chain` (`traffic`, `dns_request`, `dns_response`, `dns_upstream`), `plane` (`kernel`, `userspace`), immutable chain-specific `input` (or null for missing capture), nullable `dns_action`, nullable `rule_id`, `rules` (below), nullable `outbound`, nullable `must`, nullable `mark`. One record per actual evaluation/pass. |
-| `datapath` | `plane` (`kernel`, `userspace`), `action` (`pass`, `redirect`, `hold`, `arm_direct`, `activate_direct`, `activate_proxy`, `drop`), safe `reason`, nullable `error`. Record enforcement separately from the policy verdict. |
-| `dial_mode` | `configured` (engine-native mode), `effective_target` (`ip`, `domain`, `none`, `unknown`), nullable `domain` and `domain_source`, `verification` (`matched`, `other_family_trusted`, `failed`, `not_required`, `unavailable`), safe `reason`. Rejected SNI remains evidence here, not an accepted routing input. Other-family trust is not an exact IP match. |
-| `dns` | `lookup_id`, nullable `parent_lookup_id`, nullable `attempt_id`, `purpose` (`domain_verification`, `dial_target`, `proxy_server`, `intercepted_query`, `family_preference`, `refresh`), `name`, `qtype`, `source` (`hosts`, `cache`, `upstream`, `coalesced`, `unknown`), nullable `upstream_transport` (`udp`, `tcp`, `dot`, `doh`, `doq`, `doh3`), nullable `carrier_transport` (`tcp`, `udp`), `cache` (`hit`, `miss`, `stale`, `bypass`, `unknown`), nullable `cache_entry_id`, nullable `upstream`, `route_evaluation_ids`, `status`, `addresses`, nullable `selected_ip`, nullable `error`. One step per question/result; include failed and rejected response attempts. |
-| `reroute` | `performed` (bool or null), safe `reason`, nullable `from_evaluation_id` and `to_evaluation_id`. `false` means deliberately not rerouted; `null` means not observed. Examples: final must/block, preserved IP route, verified domain, missing domain. |
-| `outbound` | `attempt_id`, nullable `parent_attempt_id`, `kind` (`leaf`, `transport`), nullable `evaluation_id`, `routing_source` (`evaluation`, `forced`, `builtin`, `unknown`), nullable `routed_outbound` and `effective_outbound`, `mode_override` (`none`, `direct`, `global`, `unknown`), ordered `selection_path`, nullable `leaf_node_id` and `leaf_node_name`, nullable `target`, `target_kind` (`ip`, `domain`, `none`, `unknown`), nullable `dial_ip`, nullable `server_addr`, `resolution_location` (`original_ip`, `local_dns`, `outbound_remote`, `not_applicable`, `unknown`), `status` (`started`, `succeeded`, `failed`, `cancelled`), nullable safe `error`. Emit attempt transitions, including failed/cancelled losers, without changing old steps. |
-| `connection` | `state`, safe `reason`, `milestone` (`transport_ready`, `target_request_sent`, `target_confirmed`, `first_reply`, `terminal`, `unknown`), nullable `attempt_id`, nullable `reply_received`, nullable safe `error`. Includes failures before registration and terminal cleanup. |
+| Stage | Recorded evidence |
+|-------|-------------------|
+| `input` | Changes to observed client-flow inputs and their source. |
+| `route` | One actual evaluation, with its immutable inputs, rule results, and verdict. |
+| `datapath` | Enforcement actions, distinct from routing policy verdicts. |
+| `dial_mode` | Configured mode, effective target, and domain-verification outcome. |
+| `dns` | One DNS question/result and its lookup, routing, and attempt references. |
+| `reroute` | Whether rerouting occurred and which evaluations it connects. |
+| `outbound` | Leaf or transport attempt transitions and decision-time selection evidence. |
+| `connection` | Lifecycle state, protocol milestone, reply evidence, and terminal outcome. |
+
+The OpenAPI step schemas define the required fields, nullable values, and enum
+literals. The sections below define how those records relate.
 
 Each selection-path item also has nullable `member_name` and `selection`.
 `selection` is a decision-time object with nullable `previous_member_id`,
@@ -326,7 +330,7 @@ and `max_page_size`. Retention is a **maximum age after termination**, not a
 durable guarantee under the bounded memory limit. Eviction, recording toggles,
 and losses produce `flow.gap` events; per-flow loss also marks the retained
 record partial. Known expired IDs return `410 flow_expired` while a bounded
-tombstone exists; otherwise unknown/unauthorized IDs return `404 flow_not_found`.
+tombstone exists; otherwise unknown or unauthorized IDs return `404 resource_not_found`.
 
 
 All snapshots, rule dictionaries and variable-length step data share bounded

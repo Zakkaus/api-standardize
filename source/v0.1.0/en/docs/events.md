@@ -70,9 +70,11 @@ GET. Operation IDs must not leak through events to other observe principals.
   snapshots. Never silently resume at the present or pretend lost history
   was recovered. Changing filters requires a new baseline; filtered-out
   events are not replayed under a different filter set.
-- `stream.ready` after a valid resume is sent after retained replay, with
-  its own cursor. Filtered-out IDs may leave gaps; clients must not infer
-  dropped events by subtracting IDs.
+- Send `stream.ready` before replay on a resumed connection. Its cursor must not
+  skip unread retained events; preserve the supplied `Last-Event-ID` until replay
+  advances it. Deliver matching retained events strictly after that cursor, then
+  switch to live delivery. Filtered-out IDs may leave gaps; clients must not infer
+  loss by subtracting IDs.
 - If a slow client exceeds its bounded queue, close the stream. Reconnection
   replays from its last acknowledged event; if that is no longer retained,
   return the cursor-expired error. No unbounded queues and no blocking

@@ -20,8 +20,9 @@ returns `404 capability_not_supported`.
 One entry per kind in `resources.geodata.assets` describes the file the
 running datapath was built from: `sha256` of the file, `size_bytes` as a
 UInt64 decimal string, `modified_at` (nullable) and `source_redacted`, the
-download source with userinfo, query and fragment removed, or null when the
-backend has no source for that asset. Reading never touches the network.
+display-only download source with userinfo, query, fragment, and secret-bearing
+path segments removed or redacted. It is null when no source is configured or
+safe display is impossible. Reading never touches the network.
 
 ## Update the assets
 

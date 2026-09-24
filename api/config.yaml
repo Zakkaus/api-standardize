@@ -282,7 +282,9 @@ paths:
         POST /config/validate, substituting the replacement for this source.
         Resolve dependencies only from submitted text, authorized local files,
         and cached data; never use the network or refresh caches during validation.
-        Missing or inaccessible dependencies produce error diagnostics.
+        Missing or inaccessible required local dependencies produce error diagnostics.
+        An unfetched subscription produces a subscription-not-fetched warning and
+        does not by itself invalidate the candidate; validation does not fetch it.
         If any diagnostic has level error, return 422 unsupported_value with
         error.details.diagnostics using ConfigDiagnostic; never write any file
         or start a reload. Warnings and info alone do not prevent a write.
@@ -292,9 +294,10 @@ paths:
         on-disk hash before replacement and return 412 if it changed.
         After the write, start a reload operation and return 202 OperationAccepted
         with kind reload, Location, and Retry-After. This is not reload completion.
-        A successful reload publishes generation.changed when events are available;
-        GET /config then shows the new accepted content_sha256. If reload fails,
-        the previous generation remains active; the file write is not rolled back.
+        If reload publishes a new generation and events are available, emit
+        generation.changed. After successful reload, GET /config reports the accepted
+        content_sha256. If reload fails, the previous generation remains active and
+        the file write is not rolled back.
         Idempotency-Key follows the operation retention rules: scope it to caller,
         method, and path in this instance. A retained same-body replay returns the
         original operation without another write or hash check; a different body
@@ -523,14 +526,17 @@ paths:
         may contain secrets. Syntax mode parses only submitted text. Full mode also
         checks semantics and resolves includes/subscriptions from submitted sources
         or adapter-authorized local files and cached data, never from the network.
-        A missing or inaccessible dependency produces an error diagnostic, not a
-        successful partial validation. Neither mode writes files, refreshes caches,
-        applies configuration, publishes a generation, or starts an operation.
+        Missing or inaccessible required local dependencies produce error diagnostics.
+        An unfetched subscription produces a subscription-not-fetched warning and
+        does not by itself invalidate the candidate; validation does not fetch it.
+        Neither mode writes files, refreshes caches, applies configuration,
+        publishes a generation, or starts an operation.
         Return 200 for completed validation, including invalid candidates. Malformed
         JSON/request shape or duplicate effective source IDs returns 400; an
         unadvertised mode returns 422 unsupported_value. Enforce max_bytes over the
-        sum of UTF-8 source bytes and max_sources over the source count, including
-        locally resolved dependencies in full mode; exceeding either returns 413.
+        sum of UTF-8 configuration source bytes and max_sources over the source count,
+        including locally resolved source text in full mode; exceeding either returns
+        413. Geodata assets do not count toward the byte limit.
         The shared max_json_body_bytes limit applies independently to the HTTP body.
         Never echo candidate text, secrets, or private paths in diagnostics or errors.
       x-permission: control
@@ -880,7 +886,7 @@ schemas:
     properties:
       valid:
         type: boolean
-        description: True exactly when validation completed without error diagnostics; warnings and info do not invalidate the candidate. No promise that a later apply will succeed.
+        description: True when validation completes without error diagnostics. Successful validation does not guarantee a later apply will succeed.
       diagnostics:
         type: array
         description: Source IDs identify submitted sources. Attribute a dependency failure to the referring submitted source and its include/subscription location, not an undisclosed local path.

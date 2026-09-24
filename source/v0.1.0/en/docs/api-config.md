@@ -4,35 +4,22 @@ title: API Configuration
 
 # API Configuration
 
-> This page is retained as a configuration draft for the proposed native
-> contract. Current honk uses
-> `experimental.clash_api.external_controller` and `secret`; the referenced
-> dae/kdae branch has no general REST listener. A top-level `api { }` block is
-> therefore a proposed adapter configuration, not an existing dae feature.
+Honk configures its native API under `experimental.native_api`, separately from
+`experimental.clash_api`. This page describes native listener security and
+permissions; configuration syntax remains engine-specific.
 
 The shared adapter should use a single listen address, an opaque bearer secret,
 and explicit CORS origins. Interface-name wildcards and regexes are not part of
 the native contract because they make binding and authorization ambiguous.
 
-## Proposed native listener fields
+## Honk listener configuration
 
-```dae
-api {
-    listen: '127.0.0.1:9527'
-    secret: 'replace-with-a-random-secret'
-    allow_origins: ['http://127.0.0.1:3000']
-}
-```
+Configure the native listener under `experimental.native_api`. Its settings
+include `enabled`, `listen`, `secret`, `allow_origins`, and `ui`. Use an explicit
+loopback address for local access. A non-loopback listener requires a secret.
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| listen | address | yes | One explicit host and port. Loopback is the default deployment. |
-| secret | string | no | Opaque bearer secret; required for non-loopback exposure. |
-| allow_origins | string array | no | Explicit browser origins. Empty means browser CORS is disabled. |
-
-The exact configuration section is engine-owned: honk currently uses
-`experimental.clash_api.external_controller` and `secret`, while dae/kdae
-needs an adapter implementation before this block becomes active.
+`experimental.clash_api.external_controller` configures the separate
+Clash-compatible listener.
 
 ## Listener and authentication rules
 
@@ -42,8 +29,9 @@ needs an adapter implementation before this block becomes active.
   must not require one specific textual encoding.
 - Authentication uses `Authorization: Bearer <secret>`. Secrets must not appear
   in URLs, responses, or logs.
-- Browser access is disabled unless the exact request origin is listed in
-  `allow_origins`; wildcard origins are not valid with bearer credentials.
+- Cross-origin browser access requires an exact origin in `allow_origins`.
+  An empty list disables cross-origin access, not the same-origin `/ui/`
+  interface. Bearer authentication still follows the listener configuration.
 - Browsers send CORS preflights without credentials. The server validates the
   origin, requested method, and requested headers, then answers the preflight
   without bearer authentication; the actual request is authenticated as usual.
@@ -57,9 +45,8 @@ needs an adapter implementation before this block becomes active.
   `Sec-Fetch-Site: cross-site`, even without Origin. Cross-site GET navigation
   must not trigger a control action such as a live DNS query.
 
-The native and Clash-compatible surfaces may share one socket, but their route,
-authentication, and CORS middleware remain independent. They may also use
-separate listeners without changing native `/api/v1/*` paths.
+Honk serves the native and Clash-compatible APIs on separate listeners and ports,
+with independent routing, authentication, and CORS. Native resources use `/api/v1/*`.
 
 ## Permissions
 
@@ -70,12 +57,20 @@ The native API defines two permissions:
 | `observe` | Runtime, memory, datapath, nodes, groups, connections, recorded flows, permitted events, DNS cache, and operation results owned by the caller. |
 | `control` | Probes, routing simulations, live DNS queries, group mutations, DNS cache mutations, reload, suspend, and resume. Includes `observe`. |
 
-The proposed single `secret` grants `control`. Implementations may support
-additional observe-only credentials, but must preserve these permission names.
-Missing or invalid credentials return `401`; an authenticated credential
-without the required permission returns `403` without revealing whether the
-target exists. Discovery, version, and capabilities require no permission once
-the caller has reached the listener.
+The single `secret` grants `control`. Implementations may support additional
+observe-only credentials, but must preserve these permission names.
+Missing or invalid required credentials return `401`. An authenticated caller
+without the required permission normally receives `403 permission_denied`.
+Operation reads instead return `404 resource_not_found` for an operation the
+caller cannot see.
+
+Discovery, version, and capabilities have no `observe` or `control` permission
+requirement. They require bearer authentication when the listener has a deployment
+secret. Anonymous access is permitted only on an explicitly secretless loopback listener.
+
+The curl examples without `Authorization` assume a secretless loopback listener.
+On an authenticated listener, send `Authorization: Bearer <secret>`; never put
+the secret in the URL.
 
 Under the current loopback-compatible default, omitting `secret` grants local
 callers both permissions. Capability flags describe engine support, not caller

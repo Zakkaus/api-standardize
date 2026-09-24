@@ -4,10 +4,8 @@ title: Routing Simulation
 
 # POST /api/v1/routing/trace
 
-> Proposed diagnostic endpoint. This is a **simulation**, never the history
-> of a live flow. Actual decisions belong to [Recorded Flows](flows.html).
-> It incorporates [PR #2](https://github.com/daeuniverse/api-standardize/pull/2)
-> without treating a dry-run match as full per-flow transparency.
+This endpoint simulates routing for hypothetical input. It does not report a live
+flow's history; use [Recorded Flows](flows.html) for observed decisions.
 
 Use a JSON body rather than GET query parameters: process/domain/source inputs
 should not be copied into access-log URLs, and live DNS must be explicit.

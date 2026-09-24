@@ -103,41 +103,37 @@ paths:
       operationId: closeConnections
       summary: Close matching userspace-owned connections
       description: |
-        Requires resources.connections.available and can_close; otherwise returns
-        404 capability_not_supported. Requires control permission.
+        Requires control permission and resources.connections.available with
+        resources.connections.can_close; unavailable closing returns 404
+        capability_not_supported.
 
-        Uses the list's type and exact source-IP src filters, combined with AND.
-        A missing type or type=all does not restrict the set. Without type=tcp,
-        type=udp, or src, require all=true; otherwise return 400 invalid_request
-        before closing anything. This prevents an omitted filter from accidentally
-        disconnecting every userspace connection. all=true permits an unfiltered
-        request but does not override supplied filters. limit and detail are list
-        presentation parameters, not bulk-close parameters.
+        Combine type and exact source-IP src filters with AND. Missing type and
+        type=all do not restrict the set. Without type=tcp, type=udp, or src,
+        require all=true or return 400 invalid_request before closing anything.
+        all=true does not override supplied filters. Reject limit and detail,
+        which apply only to listing.
 
-        Select the matching live entries once before closing. If their count,
-        including non-closable entries, exceeds resources.connections.max_bulk_close,
-        return 413 request_too_large before closing anything; do not truncate.
-        Close every closable match and count the non-closable matches as skipped.
-        An empty match succeeds with closed=0 and skipped=0. Connections arriving
-        after selection are not included; selected entries that disappear before
-        cancellation are not counted as closed or skipped.
+        Select matching live entries once. If their count, including non-closable
+        entries, exceeds resources.connections.max_bulk_close, return 413
+        request_too_large without closing anything. Close all closable matches and
+        count non-closable matches as skipped. An empty set returns closed=0 and
+        skipped=0. Exclude later arrivals and selected entries that disappear before
+        cancellation; disappeared entries contribute to neither count.
 
-        Closable means the userspace datapath owns the TCP transport or UDP session
-        and can actually cancel or retire it, not merely delete its tracker entry.
-        observed_by labels observation, not ownership: userspace or mixed evidence
-        is not sufficient by itself. Kernel-direct and kernel-bypassed flows
-        (kernel_direct/kernel_bypass scopes, including ebpf-only observations)
-        are not closable. An outbound named direct alone does not determine ownership.
+        A connection is closable only when the userspace datapath owns and can
+        cancel its TCP transport or retire its UDP session. Deleting a tracker
+        entry is insufficient. observed_by and the outbound name do not establish
+        ownership. Kernel-direct and kernel-bypassed flows, including ebpf-only
+        observations, are not closable.
 
-        Idempotency-Key is accepted. These synchronous DELETEs evaluate current live
-        state on each call, even with a repeated key; they do not replay an earlier
-        result or return a retained operation.
+        Idempotency-Key is accepted, but every call evaluates current live state;
+        repeated keys do not replay results or return an operation.
 
-        Closing a recorded flow advances its terminal state and emits the existing
-        flow.updated invalidation when advertised. Clients fetch its href and
-        refresh /connections; runtime.updated invalidates changed runtime counters.
-        Coalescing and retention rules still apply. No flow ID or event is fabricated
-        for an unrecorded connection, and there is no new close event kind.
+        For recorded flows, closing advances terminal state and emits flow.updated
+        when advertised. Fetch the event's href and refresh /connections. Changed
+        runtime counters use runtime.updated. Existing coalescing and retention
+        rules apply. Do not fabricate a flow ID or flow event for an unrecorded
+        connection.
       x-permission: control
       security:
         - bearerAuth: []
@@ -154,7 +150,7 @@ paths:
         - $ref: ./openapi.yaml#/components/parameters/IdempotencyKey
       responses:
         "200":
-          description: All selected closable matches closed; non-closable matches skipped.
+          description: Bulk-close counts; entries that disappeared before cancellation are excluded.
           headers:
             Cache-Control:
               $ref: ./openapi.yaml#/components/headers/NoStore
@@ -231,30 +227,26 @@ paths:
       operationId: closeConnection
       summary: Close one userspace-owned connection
       description: |
-        Requires resources.connections.available and can_close; otherwise returns
-        404 capability_not_supported. Requires control permission.
+        Requires control permission and resources.connections.available with
+        resources.connections.can_close; unavailable closing returns 404
+        capability_not_supported.
 
-        A connection is closable only when the userspace datapath owns its TCP
-        transport or UDP session and can actually cancel or retire it. Deleting a
-        tracker entry is not transport cancellation. observed_by is an observation
-        label, not an ownership guarantee: userspace or mixed evidence alone is not
-        sufficient. Kernel-direct and kernel-bypassed flows (kernel_direct and
-        kernel_bypass scopes, including ebpf-only observations) are not closable;
-        an observed but non-closable connection returns 409 state_conflict.
-        An outbound named direct alone does not determine ownership.
+        The userspace datapath must own and be able to cancel the TCP transport or
+        retire the UDP session. Tracker deletion, observed_by, and the outbound name
+        do not establish ownership. Kernel-direct and kernel-bypassed flows, including
+        ebpf-only observations, are not closable. An observed non-closable connection
+        returns 409 state_conflict.
 
-        Success returns 204 only after cancellation or retirement, with no body.
-        An unknown or already-gone ID returns 404 resource_not_found. Closing the
-        same ID twice returns 404 on the second call, including when Idempotency-Key
-        is repeated. The header is accepted as on other control calls, but this
-        synchronous DELETE evaluates current live state rather than replaying a
-        previous 204 or returning a retained operation.
+        Return 204 with no body only after cancellation or retirement. Unknown or
+        already-gone IDs return 404 resource_not_found. Idempotency-Key is accepted,
+        but each call evaluates current live state; a repeated close returns 404
+        rather than replaying 204 or returning an operation.
 
-        Closing a recorded flow advances its terminal state and emits the existing
-        flow.updated invalidation when advertised. Clients fetch its href and
-        refresh /connections; runtime.updated invalidates changed runtime counters.
-        Coalescing and retention rules still apply. No flow ID or event is fabricated
-        for an unrecorded connection, and there is no new close event kind.
+        For recorded flows, closing advances terminal state and emits flow.updated
+        when advertised. Fetch the event's href and refresh /connections. Changed
+        runtime counters use runtime.updated. Existing coalescing and retention
+        rules apply. Do not fabricate a flow ID or flow event for an unrecorded
+        connection.
       x-permission: control
       security:
         - bearerAuth: []

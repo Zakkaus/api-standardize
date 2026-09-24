@@ -3,7 +3,10 @@ paths:
     get:
       operationId: getDiscovery
       summary: Discover the native API
-      security: []
+      description: Requires bearer authentication when the listener has a deployment secret. Anonymous access is permitted only on an explicitly secretless loopback listener. No resource permission is required.
+      security:
+        - bearerAuth: []
+        - {}
       responses:
         "200":
           description: Native API discovery
@@ -43,11 +46,18 @@ paths:
                     X-Content-Type-Options: nosniff
         "400":
           $ref: ./openapi.yaml#/components/responses/BadRequest
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
   /api/v1/version:
     get:
       operationId: getVersion
       summary: Read native and engine version identity
-      security: []
+      description: Requires bearer authentication when the listener has a deployment secret. Anonymous access is permitted only on an explicitly secretless loopback listener. No resource permission is required.
+      security:
+        - bearerAuth: []
+        - {}
       responses:
         "200":
           description: Version identity
@@ -78,11 +88,18 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
   /api/v1/capabilities:
     get:
       operationId: getCapabilities
       summary: Negotiate resources, visibility, and limits
-      security: []
+      description: Requires bearer authentication when the listener has a deployment secret. Anonymous access is permitted only on an explicitly secretless loopback listener. No resource permission is required.
+      security:
+        - bearerAuth: []
+        - {}
       responses:
         "200":
           description: Adapter capabilities
@@ -239,6 +256,10 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
 schemas:
   Discovery:
     type: object
@@ -426,7 +447,7 @@ schemas:
               max_bytes:
                 $ref: ./openapi.yaml#/components/schemas/SafeUInt
                 minimum: 1
-                description: Maximum total UTF-8 source bytes, including local dependencies in full mode; the shared JSON body ceiling also applies.
+                description: Maximum total UTF-8 configuration source bytes, including locally resolved source text in full mode. Geodata assets do not count toward this limit. The shared JSON body limit applies separately.
               max_sources:
                 $ref: ./openapi.yaml#/components/schemas/SafeUInt
                 minimum: 1
@@ -548,7 +569,7 @@ schemas:
                 description: Refresh is implemented; individual provider kinds may still be unsupported. Requires operations.available.
               can_manage:
                 type: boolean
-                description: POST /providers and DELETE /providers/{id} are implemented for subscription providers; the backend owns a writable main source.
+                description: Supports creating subscription providers and deleting subscription or file providers from a writable managed main source.
               max_page_size:
                 $ref: ./openapi.yaml#/components/schemas/SafeUInt
                 minimum: 1
@@ -768,7 +789,7 @@ schemas:
               max_buffered_records:
                 $ref: ./openapi.yaml#/components/schemas/SafeUInt
                 minimum: 1
-                description: Bounded replay buffer capacity, not a durable retention guarantee.
+                description: Maximum permitted log replay-ring capacity. The current capacity is runtime settings log.buffered_records. Neither value guarantees retention duration.
           dns_query:
             type: object
             required: [ available ]
@@ -829,7 +850,7 @@ schemas:
               max_records:
                 $ref: ./openapi.yaml#/components/schemas/SafeUInt
                 minimum: 1
-                description: Ring capacity in records; not a retention guarantee.
+                description: Maximum permitted DNS log-ring capacity. The current capacity is dns_log.max_records in GET /runtime/settings. Neither value guarantees retention duration.
               max_page_size:
                 $ref: ./openapi.yaml#/components/schemas/SafeUInt
                 minimum: 1

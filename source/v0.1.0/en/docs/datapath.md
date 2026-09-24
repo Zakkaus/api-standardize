@@ -14,9 +14,8 @@ usable. `programs: loaded` alone does not mean that traffic is being handled.
 
 {% api_request getDatapath %}
 
-`detail=summary` is the default and omits interface names, attachments, and map
-occupancy. `detail=full` includes the documented `attachments` and `maps`
-objects when available.
+`detail=summary` omits interface names, attachments, and map occupancy.
+`detail=full` includes the `attachments` array and `maps` object when available.
 
 ## Response
 

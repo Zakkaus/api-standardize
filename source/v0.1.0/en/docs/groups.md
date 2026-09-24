@@ -8,7 +8,7 @@ title: Groups
 > runtime selection, and typed health observations. Nested groups are kept as
 > group members and must not be flattened into the primary member list.
 
-The group API has four separate responsibilities:
+The group API separates these responsibilities:
 
 - `GET` reads the current group state.
 - `PATCH` changes group configuration only.
@@ -143,9 +143,9 @@ with the group's default member or policy.
 group. For a nested group, `member_id` identifies the group member; the response
 may also include its resolved leaf node.
 
-Manual selection is not emulated for policies that do not support it. An
-unsupported member or policy returns `422 selection_not_supported`; a
-temporarily invalid runtime transition returns `409 state_conflict`.
+An unsupported member or policy returns `422 unsupported_value`. A temporarily
+invalid runtime transition returns `409 state_conflict`. Manual selection is not
+emulated for an unsupported policy.
 
 ### Success (200 OK)
 
@@ -160,37 +160,24 @@ it. The pin is runtime state, not written to the configuration. While it
 stands, `runtime.selection.<transport>.source` is `override` and the response
 reports `source: override`. Health checks keep running so the ranking is
 current when the pin is cleared. A group with neither capability returns
-`422 selection_not_supported`.
+`422 unsupported_value`.
 
 ## DELETE /api/v1/groups/{groupId}/selection
 
-Clears a pinned member so the automatic policy chooses again. `network`
-selects the transport and defaults to `both`. The response is the selection
-after the change with `source: policy`; when no pin stood, the current
-selection is returned unchanged. A selector group has nothing to clear and
-returns `409 state_conflict`.
+Clears the override for `network`, which defaults to `both`. The response contains
+`selection.tcp` and `selection.udp`; either is null when that transport has no
+selected member. The requested transports return to automatic selection, while
+an unrequested transport may retain its override. If no override existed, the
+current selection is returned unchanged. A selector group returns `409 state_conflict`.
 
 {% api_example clearGroupOverride 200 automatic_again %}
 
-## Group latency tests
+## Group probes
 
-Use the shared `POST /api/v1/probes` endpoint with a group target. See
-[Probes](check-nodes.html) for the request and result contract.
-
-For a group target, the probe implementation must preserve both identifiers:
-
-- `member_id` is the direct group member requested by the caller.
-- `resolved_leaf_node_id` is the actual node that was tested, when applicable.
-
-The default member scope is `direct`. A nested group is tested through its
-policy-authorized selected/resolved leaf. If none is eligible, report
-unavailable; do not silently select a sibling or the first configured leaf.
-`leaves` explicitly requests expanded leaf diagnostics, not a simulation of
-the group's normal selection. Duplicate leaves are measured once per probe
-dimension; every direct-member-to-leaf association remains represented.
-
-Probe results use typed state and nullable latency. A failed result is not
-represented as `latency_ms: 0`.
+Use [`POST /api/v1/probes`](check-nodes.html) with a group target. Results preserve
+the requested direct `member_id` separately from the actual `resolved_leaf_node_id`.
+The probe contract defines nested resolution, `direct` and `leaves` scopes,
+deduplication, health effects, and failed measurements.
 
 ## Examples
 

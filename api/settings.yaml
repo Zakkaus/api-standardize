@@ -4,13 +4,10 @@ paths:
       operationId: getRuntimeSettings
       summary: Read the runtime-adjustable settings
       description: |
-        Requires resources.runtime_settings.available. Reports the values the running
-        engine uses for the things a panel may tune without a reload: the log level and
-        replay ring, the DNS log ring, and flow retention. Ceilings come from the
-        matching capability (logs.max_buffered_records, dns_log.max_records,
-        flows.max_flows, flows.retention_seconds); a value never exceeds its ceiling.
-        source says whether the values still come from the activated configuration
-        or were overridden at runtime.
+        Requires resources.runtime_settings.available. Returns the current
+        runtime-adjustable settings. Numeric values cannot exceed their corresponding
+        capability ceilings. source is config when values come from the activated
+        configuration and runtime after a runtime override.
       x-permission: observe
       security:
         - bearerAuth: []
@@ -57,7 +54,7 @@ paths:
         and changes nothing. Shrinking a ring drops its oldest records and expires
         cursors older than the new floor. The change applies immediately and lasts
         until the process restarts or the next configuration activation resets it; it
-        is not written to the configuration file. Follows the shared idempotency rules.
+        is not written to the configuration file.
       x-permission: control
       security:
         - bearerAuth: []
@@ -74,7 +71,7 @@ paths:
               debug:
                 value:
                   log: { level: debug }
-                  dns_log: { max_records: 4096 }
+                  dns_log: { max_records: 1024 }
       responses:
         "200":
           description: Settings after the change
@@ -93,7 +90,7 @@ paths:
                     observed_at: 2026-08-15T10:00:05Z
                     source: runtime
                     log: { level: debug, buffered_records: 4096 }
-                    dns_log: { max_records: 4096 }
+                    dns_log: { max_records: 1024 }
                     flows: { max_flows: 10000, retention_seconds: 300 }
                   x-headers:
                     Content-Type: application/json
@@ -147,7 +144,7 @@ schemas:
         properties:
           level:
             $ref: ./openapi.yaml#/components/schemas/LogLevel
-            description: The minimum severity the engine emits; the stream's level filter cannot go below it.
+            description: Minimum severity the engine emits. A lower stream level cannot recover records the engine did not emit.
           buffered_records:
             $ref: ./openapi.yaml#/components/schemas/SafeUInt
             minimum: 64
@@ -171,7 +168,7 @@ schemas:
           retention_seconds:
             $ref: ./openapi.yaml#/components/schemas/SafeUInt
             minimum: 1
-            description: How long a terminal flow stays, at most flows.retention_seconds.
+            description: Maximum age of a retained terminal flow, in seconds, bounded by resources.flows.retention_seconds. Capacity pressure may evict it earlier.
   RuntimeSettingsPatch:
     type: object
     additionalProperties: false

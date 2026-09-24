@@ -1,8 +1,8 @@
 ---
-title: DNS Cache
+title: DNS cache and resolution log
 ---
 
-# DNS Cache
+# DNS cache and resolution log
 
 > Draft endpoints: `GET /api/v1/dns/cache`, `DELETE /api/v1/dns/cache/{entry_id}`,
 > filtered `DELETE /api/v1/dns/cache`, and `POST /api/v1/dns/cache/flush`.
@@ -57,7 +57,7 @@ it and restart without a cursor, never silently continue a different snapshot.
 | coverage | object | Cache classes represented by this endpoint. |
 | entries | array | DNS cache entries |
 | total | int | Number of entries matching the filters at snapshot time |
-| next_cursor | string | Opaque cursor for the next page, or `null` when complete |
+| next_cursor | string or null | Opaque cursor for the next page; null when complete. |
 
 `coverage.positive` and `coverage.negative` must match the advertised
 `entry_kinds`. `coverage.persistent` declares whether entries outside the
@@ -137,10 +137,9 @@ again.
 
 | Status | Code | Meaning |
 |--------|------|---------|
-| 400 | `invalid_name` | The name is missing, malformed, or not canonicalizable |
-| 400 | `filter_required` | A collection delete did not include the required exact `name` |
-| 404 | `capability_not_supported` | The running engine does not expose this cache operation |
-| 503 | `cache_unavailable` | The DNS cache cannot be inspected or mutated at this time |
+| 400 | `invalid_request` | The required name is missing, malformed, or not canonicalizable, or another request parameter is invalid. |
+| 404 | `capability_not_supported` | The running engine does not expose this cache operation. |
+| 503 | `temporarily_unavailable` | The DNS cache cannot be inspected or mutated at this time. |
 
 ## Example
 
@@ -152,7 +151,7 @@ curl -X POST \
   "http://localhost:9527/api/v1/dns/cache/flush"
 ```
 
-# GET /api/v1/dns/log
+## GET /api/v1/dns/log
 
 Requires `observe` and `resources.dns_log.available`. The engine records
 every resolution it performs for clients into a ring of at most

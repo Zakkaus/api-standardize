@@ -63,13 +63,10 @@ Poll [Operations](operations.html) or follow `operation.updated` events.
 
 {% api_example getOperation 200 probe_complete %}
 
-Each result identifies the requested member, actual leaf (nullable), probe
-kind and dimensions, observed state (`healthy`, `unavailable`, `unknown`),
-nullable measured latency and safe error. `succeeded` means the job completed,
-not that every target was healthy. The example illustrates two result rows;
-a completed job MUST include all requested dimension/member combinations.
-Unstarted/cancelled work is `unknown` with a safe cancellation/deadline code
-and `health_updated: false`, not an unhealthy node.
+`succeeded` means the job completed, not that every target was healthy. Results
+must cover every requested member and dimension combination. Unstarted or
+cancelled work has `state: unknown`, a safe cancellation or deadline code, and
+`health_updated: false`; it is not evidence of an unhealthy node.
 
 ## Limits
 

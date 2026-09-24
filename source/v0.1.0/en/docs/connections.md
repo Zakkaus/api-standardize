@@ -55,13 +55,6 @@ network speeds where the observation plane provides them.
 | dst | string, optional | Destination address (ip:port), present with `detail=full` |
 | domain | string or null, optional | Sniffed domain with `detail=full`, or `null` when unknown |
 | outbound | string or null | Effective routed outbound, not a leaf name masquerading as a group. |
-| chain | array of strings | Application outbound `selection_path` group IDs followed by the leaf node ID, in order; empty for direct/block or an unknown path. |
-| chain_source | string | `evaluation`: captured at selection; `reconstructed`: recovered from retained evidence; `unknown`: unavailable. |
-| rule_id | string or null | Generation-scoped traffic rule ID, or null when unavailable. |
-| rule_expression | string or null | Sanitized display expression for that rule, or null when unavailable. |
-| rule_source | string | `kernel`: deciding kernel rule; `recomputed`: userspace recomputation, not the deciding kernel rule; `unknown`: unavailable provenance. |
-| ingress | string or null | `lan` or `wan` when captured; null when unavailable. |
-| domain_source | string or null | `tls_sni`, `http_host`, `quic_sni`, `dns_mapping`, `explicit`, or `unknown`; null without domain evidence. |
 | started_at | string or null | Actual start time if recorded; null if only post-dial registration time is known. |
 | observed_by | string | `userspace`, `ebpf`, or `mixed` |
 | upload_bytes | decimal uint64 string or null | Visible uploaded bytes |
@@ -78,25 +71,16 @@ returns the most recently observed entries first with a stable tie-breaker
 and sets `truncated: true`. Totals are the complete matching counts visible
 at `observed_at`, not only the returned array sizes.
 
-Summary reduces payload; it does not confer less-sensitive access. `pname`,
-addresses, domains and list-view evidence all require `observe`. `chain`,
-`chain_source`, `rule_id`, `rule_expression`, `rule_source`, `ingress`, and
-`domain_source` are required in both detail tiers and share the
-[flow-summary contract](flows.html#List-view-fields). The list carries the
-application selection, not a DNS helper's path. The full decision timeline
-and DNS provenance remain at [`GET /api/v1/flows/{flow_id}`](flows.html).
+Both detail tiers include the [shared list-view evidence](flows.html#List-view-fields):
+`chain`, `chain_source`, `rule_id`, `rule_expression`, `rule_source`, `ingress`,
+and `domain_source`. These describe the application decision, not a DNS helper's
+path or today's group selection. Fetch the retained flow for the decision
+timeline. All connection details require `observe`; summary is a payload-size
+tier, not a privacy boundary.
 
-As [honk's `matched_rule` evidence](honk-mapping.html#matched-rule) shows,
-a recomputed rule can differ from the deciding kernel rule. Do not relabel
-it as `kernel` or use today's group selection to fill an unknown chain.
-Inbound identity beyond `ingress` is out of scope for this draft.
-
-Totals count visible live entries after the `type` and exact source-IP `src`
-filters (the excluded transport has count zero); absence from this snapshot
-is not evidence of a clean close. `/flows` records failed/blocked attempts
-and recently terminated flows. [Closing](#Closing) requires actual transport
-cancellation or session retirement; [tracker deletion](honk-mapping.html#tracker-deletion)
-alone only removes an observation.
+The excluded transport has a total of zero. Absence from this live snapshot does
+not prove a clean close; [Recorded Flows](flows.html) retains failed, blocked, and
+recently terminated attempts. See [Closing](#Closing) for cancellation requirements.
 
 The supported client/device view groups the source IP from `src` over
 `detail=full` entries, ignoring the source port. This derivation is bounded
@@ -113,11 +97,10 @@ curl "http://localhost:9527/api/v1/connections?type=tcp&limit=10&detail=full"
 
 ## Closing
 
-Both DELETE endpoints require `control` permission and
-`resources.connections.available: true` with `can_close: true`. Otherwise,
-they return `404 capability_not_supported`. The list still requires only
-`observe`; availability of the list does not imply permission or support
-for closing.
+Both DELETE endpoints require `control`. An authenticated caller without that
+permission receives `403 permission_denied`. If `resources.connections.available`
+or `can_close` is false, the endpoints return `404 capability_not_supported`.
+Listing requires only `observe`; list availability does not imply closing support.
 
 ### What is closable
 

@@ -4,17 +4,17 @@ title: honk Implementation Evidence
 
 # Design decisions and honk implementation evidence
 
-This revision responds to [PR #1's discussion](https://github.com/daeuniverse/api-standardize/pull/1)
-and the [routing-trace proposal](https://github.com/daeuniverse/api-standardize/pull/2).
-The objective is **full per-flow transparency**, not merely a richer connection
-list. The native endpoints remain proposed; this repository does not implement
-them in honk or dae.
+This page records the design rationale and source inspection for honk revision
+`780c3f158bbe6e69c02327d5e7ce46d1b594cf4e`. The links remain pinned to that revision.
 
-Source inspection used the local honk checkout at HEAD
-`780c3f158bbe6e69c02327d5e7ce46d1b594cf4e`. Links below pin that revision rather
-than drifting with `main`. This is source evidence, not a real-kernel runtime
-verification. No dae source checkout was audited, so honk-specific behavior
-must not be advertised as a shared dae guarantee.
+Honk has since implemented native API resources, including recorded flows,
+configuration editing, and connection closing. The implementation gaps below
+describe the inspected revision, not current endpoint availability. Consult the
+running adapter's capabilities and trace coverage; endpoint availability does
+not prove `full_transparency` conformance.
+
+No dae source checkout was audited, so honk-specific behavior is not a shared
+dae guarantee.
 
 ## Disposition of PR #1 comments
 
@@ -33,26 +33,25 @@ must not be advertised as a shared dae guarantee.
 | Probe overlap | One `/probes` resource, explicit `tcp_connect`/`http`/`dns` semantics and health dimensions; `/nodes` writes only inline nodes, by share link. |
 | Required capabilities | Define `base` and `full_transparency` profiles. Userspace-only snapshots cannot claim the latter. |
 | `202 Retry-After` | Mandatory alongside Location; clients obey a positive-seconds polling floor, including after an SSE invalidation. |
-| Group icon | `icon` on Group and GroupSummary comes from the group's configuration (an `icon` key on the group definition); the engine passes the string through unvalidated beyond length and null. | Configuration schema gains an optional `icon` per group; not a runtime field. |
-| Group override | Automatic policies (urltest, fallback, loadbalance, random, score) accept a pinned member per transport; the pin lives beside the policy's own pick, is reported as `source: override`, and is dropped on activation. Selector groups keep `can_select` only. | `can_override` is per group; the engine decides which policies can be pinned. |
-| Connection/flow list columns | Denormalise the application chain, rule ID/expression, ingress and domain provenance onto both summaries. Current handoff/tracking omits deciding-rule context; producers must retain selection IDs and label evaluation, reconstruction and recomputation honestly. |
-| Per-outbound usage | Add `/runtime/outbounds`, mirroring the current Clash `/stats` counters. Producers must retain outbound kind and a shared reset timestamp, and serialize full-width counters without the current snapshot's uint32 narrowing. |
-| Traffic history | Add `/runtime/traffic/history` with advertised window/point ceilings. Current Clash traffic streaming supplies live rate deltas, not timestamped queryable history; producers must sample into a bounded ring independently of subscribers and preserve gaps/reset boundaries. |
-| Memory history | Add `/runtime/memory/history` on the same ring design: sample the advertised `runtime_memory` metrics on a fixed cadence, keep age/capacity eviction and restart clearing, and enforce the advertised limits before reading. |
+| Group icon | Group and GroupSummary expose the configured `icon` string, or null when absent. It belongs to the group configuration, not runtime selection state. |
+| Group override | An automatic group accepts a per-transport pin only when `can_override` is true. The pin is reported as `source: override` and resets on configuration activation. Selector groups use `can_select`; policy names alone do not establish override support. |
+| Connection/flow list columns | Denormalise the application chain, rule ID/expression, ingress and domain provenance onto both summaries. Handoff/tracking at the inspected revision omits deciding-rule context; producers must retain selection IDs and label evaluation, reconstruction and recomputation honestly. |
+| Per-outbound usage | Add `/runtime/outbounds`, mirroring the Clash `/stats` counters at the inspected revision. Producers must retain outbound kind and a shared reset timestamp, and serialize full-width counters without the inspected snapshot's uint32 narrowing. |
+| Traffic history | Add `/runtime/traffic/history` with advertised window/point ceilings. Clash traffic streaming at the inspected revision supplies live rate deltas, not timestamped queryable history; producers must sample into a bounded ring independently of subscribers and preserve gaps/reset boundaries. |
+| Memory history | Add `/runtime/memory/history` for process RSS, cgroup current usage, and optional eBPF memory. Use bounded periodic sampling with the traffic-history retention and thinning rules; snapshot-only metrics are not added to this response. |
 | Connection closing | Add single and filtered bulk DELETE actions under `control`, gated by `connections.can_close`. Close userspace-owned transports/sessions, not tracker entries; skip non-closable bulk matches. Require `all=true` for an unfiltered bulk close and enforce `max_bulk_close` before cancellation. |
-
 | Engine logs | Add read-only `/logs` SSE with typed, sanitized records, minimum-level/module-prefix filters and bounded cursor replay. Logs are not recorded-flow evidence; redact before buffering rather than forwarding raw engine output. |
 | DNS log | `GET /dns/log`: record each client resolution (question, source, upstream or cache, answers, routing decision, elapsed) into a bounded ring in the DNS layer; filters and cursor paging over the ring. |
 | Runtime settings | `GET`/`PATCH /runtime/settings`: one place for the tracing filter level, the log and DNS log ring capacities and flow retention; a PATCH reloads the filter handle and resizes the rings at runtime without writing the configuration file. Ceilings are the capability values. |
-| Providers | Add paginated provider metadata, optional `Node.provider_id`, and a control-only refresh operation. Preserve native subscription/file/inline provenance, redact source URLs, and keep provider usage separate from runtime counters. These rows define the proposed contract, not verified current endpoints. |
-| Running rules | Add a read-only generation-scoped dictionary with the same rule IDs as routing simulation and flow summaries. Retain fallback identity, redact source paths, and refetch on generation publication; no rule-editing or raw-config endpoint. |
+| Providers | Add paginated provider metadata, optional `Node.provider_id`, and a control-only refresh operation. Preserve native subscription/file/inline provenance, redact source URLs, and keep provider usage separate from runtime counters. |
+| Running rules | Expose a read-only, generation-scoped dictionary using the same rule IDs as routing simulation and flow summaries. Edit rules through their configuration sources; there is no rule-level write endpoint. Expressions and file labels are display data, not editable source text. |
 
-## What the current code actually retains
+## Evidence from the pinned honk revision
 
 | Area | Existing source evidence | Consequence for this API |
 |------|--------------------------|--------------------------|
 | Kernel route | [RoutingInput/Decision](https://github.com/daeuniverse/honk/blob/780c3f158bbe6e69c02327d5e7ce46d1b594cf4e/crates/honk-ebpf-common/src/routing_policy.rs#L12-L68) contains normalized tuple, MAC, pname, DSCP, ingress context, rule ordinal and verdict. [Descriptor](https://github.com/daeuniverse/honk/blob/780c3f158bbe6e69c02327d5e7ce46d1b594cf4e/crates/honk-ebpf-common/src/routing_policy.rs#L101-L109) has a real publication generation. | Capture these at evaluation. Rule ordinal alone is not stable identity. |
-| Handoff | [HandoffResult](https://github.com/daeuniverse/honk/blob/780c3f158bbe6e69c02327d5e7ce46d1b594cf4e/crates/honk-core/src/control/connection/handoff.rs#L42-L66) omits rule and generation; kernel callers project the decision into forwarding metadata. | Today's handoff cannot reconstruct the old rule path. Keep a generation-scoped rule/outbound dictionary at the producer. API GETs must not consume a routing handoff map. |
+| Handoff | [HandoffResult](https://github.com/daeuniverse/honk/blob/780c3f158bbe6e69c02327d5e7ce46d1b594cf4e/crates/honk-core/src/control/connection/handoff.rs#L42-L66) omits rule and generation; kernel callers project the decision into forwarding metadata. | Handoff at the inspected revision cannot reconstruct the old rule path. Keep a generation-scoped rule/outbound dictionary at the producer. API GETs must not consume a routing handoff map. |
 | <a id="matched-rule"></a>`matched_rule` | [prepare_routing](https://github.com/daeuniverse/honk/blob/780c3f158bbe6e69c02327d5e7ce46d1b594cf4e/crates/honk-core/src/control/connection/routing.rs#L190-L269) may run the current userspace router for tracking while preserving the kernel's actual outbound/mark/must. | A rule string on a connection can be recomputed evidence, not the deciding kernel rule. Label reconstruction and never upgrade it to a complete trace. |
 | TCP tracking | [TCP registration](https://github.com/daeuniverse/honk/blob/780c3f158bbe6e69c02327d5e7ce46d1b594cf4e/crates/honk-core/src/control/connection/tcp.rs#L304-L446) occurs after successful candidate dialing. | Create the observation ID earlier; retain blocked/empty-plan/dial-failed outcomes that never become connections. |
 | UDP tracking | [UDP initialization](https://github.com/daeuniverse/honk/blob/780c3f158bbe6e69c02327d5e7ce46d1b594cf4e/crates/honk-core/src/control/connection/udp.rs#L499-L603) registers after transport preparation but before ready publication and first-send acknowledgement. | Transport prepared, first send accepted and first reply are different milestones. Track endpoint incarnations, not individual packets. |
@@ -62,7 +61,7 @@ must not be advertised as a shared dae guarantee.
 | DNS provenance | [DnsOutcome](https://github.com/daeuniverse/honk/blob/780c3f158bbe6e69c02327d5e7ce46d1b594cf4e/crates/honk-core/src/dns/outcome.rs#L63-L93) has transient outcome/upstream metadata; [ResolvedAddr](https://github.com/daeuniverse/honk/blob/780c3f158bbe6e69c02327d5e7ce46d1b594cf4e/crates/honk-core/src/dns/resolver.rs#L13-L18) retains addresses/TTL, not flow correlation. | Add lookup references at consumers, not by matching DNS transaction IDs or nearby names/IPs. |
 | Native health | [URLTest ranking](https://github.com/daeuniverse/honk/blob/780c3f158bbe6e69c02327d5e7ce46d1b594cf4e/crates/honk-outbound/src/group/policy.rs#L300-L387) uses a real-only EMA plus a separate failure-demotion tier; [parser aliases](https://github.com/daeuniverse/honk/blob/780c3f158bbe6e69c02327d5e7ce46d1b594cf4e/crates/honk-config/src/parser/groups.rs#L161-L190) map `min_avg10` and `min_last_delay` to URLTest too. | Do not choose a displayed ranking metric from the raw policy spelling, or turn a demotion tier into invented milliseconds. |
 | <a id="effective-configuration"></a>`GET /api/v1/config` | [Clash GET/PUT `/configs`](https://github.com/daeuniverse/honk/blob/780c3f158bbe6e69c02327d5e7ce46d1b594cf4e/crates/honk-core/src/clash_api.rs#L332-L355) returns compatibility settings and accepted diagnostics under the config lock; PUT is a no-op. [ActiveDiagnostics and snapshot rows](https://github.com/daeuniverse/honk/blob/780c3f158bbe6e69c02327d5e7ce46d1b594cf4e/crates/honk-core/src/config_diagnostics.rs#L80-L125) retain generation, source IDs, severity, nullable byte spans, line/byte-column positions, code, and safe message. | Gate with `resources.config`. Map retained diagnostics to `ConfigDiagnostic`; convert byte spans to line/byte-column spans at load time, or return null when unknown. Capture the complete accepted source set, hashes, byte/line counts, load times, and native revision with publication. The existing metadata-only snapshot does not retain source text. |
-| <a id="configuration-validation"></a>`POST /api/v1/config/validate` | [DetailedDiagnostic and Severity](https://github.com/daeuniverse/honk/blob/780c3f158bbe6e69c02327d5e7ce46d1b594cf4e/crates/honk-config/src/diagnostic.rs#L167-L189) already distinguish info, warning, and error with source ownership and nullable locations. The Clash PUT above does not validate a candidate. | Gate independently with `resources.config_validate`. Add bounded syntax/full validation through the engine parser without writes, network access, cache refresh, or generation publication. Reuse safe diagnostics; preserve source attribution and report inaccessible dependencies as errors. This is a new HTTP contract, not a rename of PUT `/configs`. |
+| <a id="configuration-validation"></a>`POST /api/v1/config/validate` | [DetailedDiagnostic and Severity](https://github.com/daeuniverse/honk/blob/780c3f158bbe6e69c02327d5e7ce46d1b594cf4e/crates/honk-config/src/diagnostic.rs#L167-L189) already distinguish info, warning, and error with source ownership and nullable locations. The Clash PUT above does not validate a candidate. | Gate independently with `resources.config_validate`. Add bounded syntax/full validation through the engine parser without writes, network access, cache refresh, or generation publication. Reuse safe diagnostics and preserve source attribution. Apply the [configuration dependency rules](configuration.html#POST-api-v1-config-validate), including the unfetched-subscription warning. This is a new HTTP contract, not a rename of PUT `/configs`. |
 | `GET /api/v1/config/sources/{source_id}` | The accepted-source snapshot required by native `GET /config` supplies this representation; the Clash GET above is not a raw-source reader. | Return one accepted source with the same content visibility and metadata. Unknown IDs return `404 resource_not_found`; never turn an opaque ID into arbitrary file access. |
 | `PUT /api/v1/config/sources/{source_id}` | The Clash PUT above is a no-op; the [reload transaction](https://github.com/daeuniverse/honk/blob/780c3f158bbe6e69c02327d5e7ce46d1b594cf4e/crates/honk-core/src/control/reload/transaction.rs#L484-L625) handles generation publication, not this native source-edit contract. | Add full validation before any write, compare the on-disk hash with `If-Match`, then use a mode-preserving temporary-file rename and start a `reload` operation. Reject read-only sources and return safe diagnostics on `422`; do not claim the existing Clash PUT implements editing. |
 | List-view evidence | Kernel route inputs retain ingress; selection has group/leaf context, but the handoff and `matched_rule` evidence above do not preserve a complete deciding path. | Capture application selection IDs, generation-scoped rule ID/expression and domain source at their producer boundaries. Reuse them in `Connection` and `FlowSummary`; do not recompute on GET or join the current registry. |
@@ -71,9 +70,14 @@ must not be advertised as a shared dae guarantee.
 
 ## Dial mode is not Clash mode
 
+Configured dial modes and Clash's outbound-mode override are different mechanisms.
+The native API has no outbound-mode endpoint. The retained `mode_override` flow
+field records engine decisions; it does not expose a mode-setting action.
+Configuration-based routing changes use the source-editing workflow.
+
 The four configured dial modes have different rule-input and target effects.
-The following describes **honk's current intercepted-flow path**, not a rule
-that other engines must emulate:
+The following describes honk's intercepted-flow path at the inspected revision,
+not a rule that other engines must emulate:
 
 | Dial mode | Sniff/verification | Domain in routing | Proxy target |
 |-----------|--------------------|-------------------|--------------|
@@ -86,7 +90,7 @@ that other engines must emulate:
 exclude `must` and reserved handoffs from sniff replacement. Control-plane
 routing already delegates the evaluation; it is not a second reroute merely
 because userspace runs. `domain`'s other-family trust must be distinguished
-from an exact IP match; the current bool loses that distinction.
+from an exact IP match; the bool at the inspected revision loses that distinction.
 
 [Clash mode override](https://github.com/daeuniverse/honk/blob/780c3f158bbe6e69c02327d5e7ce46d1b594cf4e/crates/honk-core/src/control/connection/handoff.rs#L450-L475)
 is a later, separate choice. `must` and `block` resist it; a non-must direct
@@ -144,8 +148,8 @@ or failed candidates must be recorded at selection/dial boundaries. A later
 ### Reload and identity
 
 [Kernel publication](https://github.com/daeuniverse/honk/blob/780c3f158bbe6e69c02327d5e7ce46d1b594cf4e/crates/honk-core/src/ebpf/real/routing.rs#L314-L376)
-has its own generation; `active_routing_generation()` currently returns a
-slot in [the backend](https://github.com/daeuniverse/honk/blob/780c3f158bbe6e69c02327d5e7ce46d1b594cf4e/crates/honk-core/src/ebpf/real/mod.rs#L523-L524).
+has its own generation; `active_routing_generation()` returns a slot at the
+inspected revision in [the backend](https://github.com/daeuniverse/honk/blob/780c3f158bbe6e69c02327d5e7ce46d1b594cf4e/crates/honk-core/src/ebpf/real/mod.rs#L523-L524).
 [Reload](https://github.com/daeuniverse/honk/blob/780c3f158bbe6e69c02327d5e7ce46d1b594cf4e/crates/honk-core/src/control/reload/transaction.rs#L484-L625)
 can reuse the unchanged kernel policy while publishing userspace state.
 DNS/registry/diagnostic generations and UDP allocator token bits are different

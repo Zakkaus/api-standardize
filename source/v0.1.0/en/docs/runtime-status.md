@@ -10,9 +10,10 @@ title: Runtime
 > and the independently pollable memory snapshot is available from
 > [`GET /api/v1/runtime/memory`](runtime-memory.html).
 
-Runtime values are observations, not a promise that the engine can see every
-packet on the host. Unsupported or unobservable values are `null`; bounded
-counts use numeric `0`, while uint64 quantities use decimal string `"0"`.
+Runtime values describe traffic visible to the engine, not every packet on the
+host. Unavailable nullable measurements are `null`; state fields use their
+documented values, including `unknown`. A measured zero is numeric `0` for
+bounded counts and decimal string `"0"` for `uint64` quantities.
 
 ## Request
 
@@ -59,21 +60,9 @@ ending at `traffic.sampled_at`. A cached sample retains its original
 timestamp; `counter_since` instead marks the cumulative counter reset
 boundary. A null sample timestamp does not establish freshness.
 
-The `datapath.ebpf` summary uses these states:
-
-| Field | Values | Meaning |
-|-------|--------|---------|
-| backend | `real`, `mock`, `unknown` | Backend used by the engine. |
-| programs | `loaded`, `not_loaded`, `error`, `unknown` | Whether eBPF programs are loaded. |
-| hooks | `attached`, `partially_attached`, `detached`, `unknown` | Whether required hooks are mounted. |
-| routing.state | `published`, `not_published`, `error`, `unknown` | Whether routing is visible to eBPF. |
-| routing.generation_id | string or null | Generation currently published to eBPF. |
-| health | `healthy`, `degraded`, `failed`, `unknown` | Combined operational result. |
-
-For `datapath.kind: ebpf`, `datapath.state` may be `active` only when the
-required programs, hooks, and active routing publication are all valid.
-A loaded program alone is not an active datapath. Userspace and mock state
-rules are defined in [Datapath](datapath.html).
+`datapath.ebpf` is the eBPF summary, or null when inapplicable.
+[Datapath](datapath.html) defines its states and the readiness rules for eBPF,
+userspace, and mock backends. Loaded programs alone do not establish an active datapath.
 
 > **Note:** Per-connection details and byte counters are available from
 > [`GET /api/v1/connections`](connections.html). They carry the same visibility limits.
@@ -81,10 +70,6 @@ rules are defined in [Datapath](datapath.html).
 Per-outbound cumulative counters and bounded traffic history are separate
 resources below. Summing live connection bytes by `outbound` omits closed,
 truncated, and unobserved connections; it is not a usage total.
-
-Memory metrics are intentionally excluded from this snapshot so a dashboard
-can poll [`GET /api/v1/runtime/memory`](runtime-memory.html) without repeatedly fetching
-generation, datapath, traffic, and reload state.
 
 During reload, the old active generation remains reported until the new
 generation has passed configuration validation and datapath publication. A
@@ -193,7 +178,7 @@ not a negative rate or a fabricated spike.
 The ring is bounded by age and capacity and is cleared on process restart.
 It may return fewer samples than requested, or an empty array before
 sampling; a requested window is not a retention guarantee.
-Together with [memory history](runtime-memory.html#get-apiv1runtimememoryhistory)
+Together with [memory history](runtime-memory.html#GET-api-v1-runtime-memory-history)
 this is the only sampled-metric history the native API serves; retained
 flow traces and operation results remain separate records. SSE does not
 replay traffic history, even with `Last-Event-ID`; fetch this resource on
@@ -213,7 +198,7 @@ the log level and replay ring, the DNS log ring, and flow retention.
 | log.buffered_records | `logs.max_buffered_records` | Log replay ring capacity, at least 64. |
 | dns_log.max_records | `dns_log.max_records` | DNS log ring capacity, at least 64. |
 | flows.max_flows | `flows.max_flows` | Retained flows, at least 64. |
-| flows.retention_seconds | `flows.retention_seconds` | How long a terminal flow stays. |
+| flows.retention_seconds | `flows.retention_seconds` | Maximum age after termination; capacity pressure may evict a flow sooner. |
 | source | | `config` while every value comes from the activated configuration, `runtime` once a PATCH overrode one. |
 
 ## PATCH /api/v1/runtime/settings

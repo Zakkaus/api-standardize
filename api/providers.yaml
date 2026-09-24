@@ -66,13 +66,12 @@ paths:
         capability_not_supported. Only kind subscription can be created here: file and
         inline providers are authored in the configuration sources. The backend writes
         the provider into the subscription section of its managed main source,
-        advances the configuration revision and emits generation.changed, so a
-        configuration editor holding the previous revision receives 412 on its next
-        write. The provider is created unfetched: node_count 0, updated_at null and
+        advances the configuration revision, and emits generation.changed. A later
+        replacement of that main source using its previous content_sha256 returns
+        412 stale_revision. The provider is created unfetched: node_count 0, updated_at null and
         status stale; call POST /providers/{id}/refresh to load it. The URL is stored,
         never returned; the response carries url_redacted. A name already in use
-        returns 409 state_conflict; a URL that is not http(s) returns 422
-        unprocessable.
+        returns 409 state_conflict. A URL that is not HTTP(S) returns 422 unsupported_value.
       x-permission: control
       security:
         - bearerAuth: []
@@ -487,7 +486,7 @@ schemas:
       status:
         type: string
         enum: [ ok, stale, error ]
-        description: ok has usable current data; stale retains older usable data; error has no usable data after a failure.
+        description: ok means current usable data is loaded. stale means the provider has not been fetched or retains older usable data. error means a failed load left no usable data.
       last_error:
         oneOf:
           - type: "null"
