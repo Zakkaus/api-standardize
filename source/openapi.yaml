@@ -11039,7 +11039,7 @@ components:
           minLength: 1
         domain:
           type: string
-          minLength: 2
+          minLength: 1
           pattern: \.$
         type:
           $ref: '#/components/schemas/DnsRecordType'

@@ -1397,3 +1397,11 @@ test("rule schemas require generation, typed source locations and one fallback",
   response.body.rules = response.body.rules.filter((rule) => rule.kind !== "fallback");
   assertInvalid(validateExample(contract, response), "missing fallback passed");
 });
+
+test("DNS cache entries can name the root zone", () => {
+  const page = example("listDnsCache:200:entries");
+  page.body.entries[0].domain = ".";
+  assertValid(validateExample(contract, page));
+  page.body.entries[0].domain = "example.com";
+  assertInvalid(validateExample(contract, page), "domain without a trailing dot passed");
+});
