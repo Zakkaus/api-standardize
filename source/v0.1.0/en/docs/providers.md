@@ -88,6 +88,21 @@ to load it. The URL is stored and never returned. A name already in use
 returns `409 state_conflict`; a URL that is not http(s) returns
 `422 unsupported_value`.
 
+{% api_request createProvider options %}
+
+`update_interval`, `user_agent` and `cache` are optional. Each is accepted only
+when `resources.providers.create_options` names it, and that object gives the
+value an omitted field takes. Sending one it does not name returns
+`422 unsupported_value`.
+
+- `update_interval`: seconds between automatic refreshes, up to one year;
+  `0` refreshes only on request.
+- `user_agent`: the User-Agent header for fetching the URL, 1 to 256 printable
+  ASCII characters.
+- `cache`: whether the last fetched body is kept so the provider loads without
+  the network at startup. `false` keeps none and removes one already kept. A
+  backend with caching turned off globally does not list it.
+
 ## Delete a provider
 
 `DELETE /api/v1/providers/{id}` requires `resources.providers.can_manage`. An

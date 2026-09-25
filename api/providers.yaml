@@ -74,6 +74,9 @@ paths:
         status stale; call POST /providers/{id}/refresh to load it. The URL is stored,
         never returned; the response carries url_redacted. A name already in use
         returns 409 state_conflict. A URL that is not HTTP(S) returns 422 unsupported_value.
+        update_interval, user_agent and cache are accepted only when named in
+        resources.providers.create_options; an omitted one takes the default listed there,
+        and one the backend does not list returns 422 unsupported_value.
       x-permission: control
       security:
         - bearerAuth: []
@@ -90,6 +93,14 @@ paths:
                   name: provider-b
                   kind: subscription
                   url: https://subscriptions.example.com/sub?token=secret
+              options:
+                value:
+                  name: provider-c
+                  kind: subscription
+                  url: https://subscriptions.example.com/sub?token=secret
+                  update_interval: 3600
+                  user_agent: clash.meta
+                  cache: false
       responses:
         "201":
           description: Provider written to the managed configuration
@@ -526,6 +537,20 @@ schemas:
         maxLength: 4096
         pattern: ^https?://
         description: Fetched by the engine on refresh; stored in the managed main source and never returned.
+      update_interval:
+        type: integer
+        minimum: 0
+        maximum: 31536000
+        description: Seconds between automatic refreshes; 0 refreshes only on request.
+      user_agent:
+        type: string
+        minLength: 1
+        maxLength: 256
+        pattern: ^[\x20-\x7E]+$
+        description: User-Agent header sent when fetching the URL.
+      cache:
+        type: boolean
+        description: Keep the last fetched body so the provider loads without the network at startup. false keeps none and removes a kept one.
   ProviderList:
     type: object
     required: [ providers, next_cursor ]

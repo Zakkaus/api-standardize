@@ -188,6 +188,10 @@ paths:
                         available: true
                         can_refresh: true
                         can_manage: true
+                        create_options:
+                          update_interval: 86400
+                          user_agent: honk/0.0.1-alpha
+                          cache: true
                         max_page_size: 1000
                       groups:
                         available: true
@@ -660,6 +664,20 @@ schemas:
               can_manage:
                 type: boolean
                 description: Supports creating subscription providers and deleting subscription or file providers from a writable managed main source.
+              create_options:
+                type: object
+                additionalProperties: false
+                description: Optional ProviderCreate fields the backend accepts, each with the value it applies when the field is omitted. A field not listed is unsupported. Absent means none are supported.
+                properties:
+                  update_interval:
+                    type: integer
+                    minimum: 0
+                    maximum: 31536000
+                  user_agent:
+                    type: string
+                    minLength: 1
+                  cache:
+                    type: boolean
               max_page_size:
                 $ref: ./openapi.yaml#/components/schemas/SafeUInt
                 minimum: 1
