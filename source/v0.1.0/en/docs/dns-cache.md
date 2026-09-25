@@ -29,6 +29,12 @@ retained snapshot. Restart, changed filters, or snapshot expiry/eviction invalid
 it. An unknown or invalidated cursor returns `400 invalid_request`; discard
 it and restart without a cursor, never silently continue a different snapshot.
 
+A page holds at most `limit` entries and may hold fewer while `next_cursor`
+is non-null, for example when the server's response size limit ends it
+early. Only a null `next_cursor` ends the walk. An entry whose answers alone
+exceed that limit is served whole on a page of its own, so a walk never stops
+at it and never receives a clipped answer set.
+
 {% api_request listDnsCache %}
 
 ## Query Parameters
@@ -184,6 +190,12 @@ recorded. The ring is not durable and clears on restart.
 | src | Client source IP literal, IPv4 or IPv6. |
 | limit | Page size, at most `dns_log.max_page_size`; above it returns `400 invalid_request`. |
 | cursor | Opaque cursor from `next_cursor`; older records follow it. |
+
+Pages follow the same rule as `/dns/cache`: a page may hold fewer than
+`limit` records while `next_cursor` is non-null, and a record whose answers
+alone exceed the server's response size limit is served whole on a page of
+its own. `503` with `Retry-After` means the server could not build the page
+at all.
 
 {% api_example listDnsLog 200 recent %}
 

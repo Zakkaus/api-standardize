@@ -115,6 +115,12 @@ paths:
     get:
       operationId: listDnsCache
       summary: Read a paginated DNS cache snapshot
+      description: |
+        A page holds at most limit entries and may hold fewer while
+        next_cursor is non-null, for example when the server's response size
+        limit ends it early. Only a null next_cursor ends the walk. An entry
+        whose answers alone exceed that limit is served whole on a page of
+        its own, never clipped or refused.
       x-permission: observe
       security:
         - bearerAuth: []
@@ -360,6 +366,11 @@ paths:
         Results are newest first. The ring holds at most
         resources.dns_log.max_records and is cleared on restart.
         A limit above resources.dns_log.max_page_size returns 400 invalid_request.
+        A page may hold fewer than limit records while next_cursor is
+        non-null, for example when the server's response size limit ends it
+        early. Only a null next_cursor ends the walk. A record whose answers
+        alone exceed that limit is served whole on a page of its own, never
+        clipped or refused.
       x-permission: observe
       security:
         - bearerAuth: []
@@ -448,6 +459,8 @@ paths:
           $ref: ./openapi.yaml#/components/responses/Forbidden
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
+        "503":
+          $ref: ./openapi.yaml#/components/responses/Unavailable
 schemas:
   DnsQueryLimits:
     type: object
