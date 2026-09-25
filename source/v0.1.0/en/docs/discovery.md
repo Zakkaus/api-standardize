@@ -14,9 +14,23 @@ title: Discovery
 
 ## Response
 
-### Success (200 OK)
+Discovery is public in every auth mode. A caller the listener admits gets the
+full view: a valid bearer or session, or no credential on an explicitly
+secretless loopback listener. Any other request without a credential gets the
+public view. A request that carries a credential is authenticated first, and an
+invalid one gets `401 authentication_required`, never the public view.
+
+### Full view (200 OK)
 
 {% api_example getDiscovery 200 draft %}
+
+### Public view (200 OK)
+
+{% api_example getDiscovery 200 public %}
+
+The public view has only `name`, `api_major`, `links.auth_setup`,
+`links.auth_login`, `auth.mode`, and `auth.setup_required`, with the meanings
+below. Other fields are withheld, not null.
 
 ### Fields
 
@@ -50,9 +64,10 @@ The discovery response must not copy the engine version or the
 Clash-compatible `/version` payload.
 
 In password mode, use setup when `auth.setup_required` is true and login when
-it is false. In token mode, use the configured bearer when
-`auth.anonymous_loopback` is false and no credential when it is true. When
-`auth` is absent on an older server, use the configured bearer.
+it is false. In token mode, use the configured bearer when the response is the
+public view or `auth.anonymous_loopback` is false, and no credential when it is
+true. When `auth` is absent on an older server, or discovery answers `401`, use
+the configured bearer.
 
 ## Example
 

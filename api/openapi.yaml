@@ -198,6 +198,10 @@ components:
       $ref: ./common.yaml#/schemas/ErrorResponse
     Discovery:
       $ref: ./discovery.yaml#/schemas/Discovery
+    AdmittedDiscovery:
+      $ref: ./discovery.yaml#/schemas/AdmittedDiscovery
+    PublicDiscovery:
+      $ref: ./discovery.yaml#/schemas/PublicDiscovery
     AuthDiscovery:
       $ref: ./auth.yaml#/schemas/AuthDiscovery
     AuthCredentials:

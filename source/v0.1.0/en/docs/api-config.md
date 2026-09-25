@@ -65,8 +65,14 @@ Operation reads instead return `404 resource_not_found` for an operation the
 caller cannot see.
 
 Discovery, version, and capabilities have no `observe` or `control` permission
-requirement. They require bearer authentication when the listener has a deployment
-secret. Anonymous access is permitted only on an explicitly secretless loopback listener.
+requirement. Version and capabilities require bearer authentication when the
+listener has a deployment secret. Anonymous access to them is permitted only on
+an explicitly secretless loopback listener.
+
+Discovery is public in every mode, so a client can learn how to sign in. A
+request without a credential that the listener would not otherwise admit gets
+the public view: `name`, `api_major`, `links.auth_setup`, `links.auth_login`,
+`auth.mode`, and `auth.setup_required`. See [Discovery](discovery.html).
 
 The curl examples without `Authorization` assume a secretless loopback listener.
 On an authenticated listener, send `Authorization: Bearer <secret>`; never put
