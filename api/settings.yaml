@@ -47,7 +47,7 @@ paths:
                           - https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geoip.dat
                           - https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat
                       auto_update: { enabled: true, interval_hours: 24 }
-                      download: { route: direct, group_id: null }
+                      download: { route: routing, group_id: null }
                   x-headers:
                     Content-Type: application/json
                     Cache-Control: no-store
@@ -191,7 +191,7 @@ paths:
                           - https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat
                           - https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geoip.dat
                       auto_update: { enabled: true, interval_hours: 24 }
-                      download: { route: direct, group_id: null }
+                      download: { route: routing, group_id: null }
                   x-headers:
                     Content-Type: application/json
                     Cache-Control: no-store

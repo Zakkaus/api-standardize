@@ -373,7 +373,8 @@ schemas:
         $ref: ./openapi.yaml#/components/schemas/GeoDataAutoUpdate
       download:
         $ref: ./openapi.yaml#/components/schemas/GeoDataDownload
-        description: The route every geodata request takes. direct when nothing is stored. At startup, a route the configuration file names replaces a stored one, and a route an earlier file wrote is deleted when the file names none, as for the URLs; it does not affect source. A group that has no usable member when an update runs, for example just after startup before its health checks finish, fails that URL like a connection error; the backend tries the next URL and reports last_error, and never falls back to direct.
+        default: { route: routing, group_id: null }
+        description: The route every geodata request takes. routing when nothing is stored, as for every download the backend makes itself. At startup, a route the configuration file names replaces a stored one, and a route an earlier file wrote is deleted when the file names none, as for the URLs; it does not affect source. A group that has no usable member when an update runs, for example just after startup before its health checks finish, fails that URL like a connection error; the backend tries the next URL and reports last_error, and never falls back to direct.
   GeoDataSourcesPatch:
     type: object
     additionalProperties: false

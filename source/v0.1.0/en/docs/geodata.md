@@ -114,7 +114,7 @@ automatic updates are the `geodata` section of
 | auto_update.enabled | Update on a schedule. On by default. |
 | auto_update.interval_hours | Hours between automatic updates, 6 to 168, default 24. |
 | source | Read-only: where the stored URL lists came from, `config`, `db` or `default`. |
-| download.route | How downloads leave the device: `direct` (default), `routing` or `group`. |
+| download.route | How downloads leave the device: `routing` (default), `group` or `direct`. |
 | download.group_id | The group for `route: group`, as in `GET /groups`; null otherwise. |
 
 `GET /runtime/settings` needs only `observe`. The URLs are returned as written,
@@ -168,11 +168,12 @@ to fetch from the new URLs.
 
 `download` decides how every geodata request leaves the device:
 
-- `direct`, the default: straight to the host, outside the routing rules, the
-  same way providers are fetched.
-- `routing`: the routing rules decide, as for user traffic, so a rule can send
-  the download to a node, a group, direct or `block`.
+- `routing`, the default: the routing rules decide, as for user traffic, so a
+  rule can send the download to a node, a group, direct or `block`. Every
+  download the backend makes itself follows the routing rules unless configured
+  otherwise.
 - `group`: always through the group in `group_id`, whatever the rules say.
+- `direct`: straight to the host, outside the routing rules.
 
 {% api_request patchRuntimeSettings geodata_download %}
 
@@ -183,11 +184,12 @@ like `auto_update`. If the stored group later disappears from the
 configuration, `group_id` reads null and downloads fail until the route is
 changed.
 
-A group needs a usable member when the update runs. Just after startup its
-health checks may not have finished; a request the group cannot carry fails
-that URL like a connection error, the backend tries the next URL, and when all
-fail it reports `last_error`. It never switches to direct on its own, so a
-download meant for a proxy is not sent in the clear.
+The route must be able to carry the request when the update runs. Just after
+startup the routing rules may not be loaded yet, or a group's health checks may
+not have finished; a request the route cannot carry fails that URL like a
+connection error, the backend tries the next URL, and when all fail it reports
+`last_error`. It never switches to direct on its own, so a download meant for a
+proxy is not sent in the clear.
 
 Automatic updates are on by default, every 24 hours, so the loaded files follow
 the upstream lists without a manual update. Set `auto_update.enabled` to false
