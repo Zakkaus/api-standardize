@@ -10,7 +10,8 @@ for the client selection rules.
 Credentials require a `username` matching `[A-Za-z0-9_.-]{1,64}` and a
 `password` of 8 to 128 Unicode scalar values and at most 512 UTF-8 bytes.
 The server does not trim either value. Setup and login requests must not include
-an `Authorization` header.
+an `Authorization` header. A request that includes one is authenticated first
+and gets `401 authentication_required` unless the header carries a live session.
 
 ## POST /api/v1/auth/setup
 
@@ -34,6 +35,7 @@ The returned `token` is a bearer credential for later requests. It expires at
 
 | Status and code | Meaning |
 |-----------------|---------|
+| `401 authentication_required` | The request carries an `Authorization` header. Resend it without one. |
 | `409 setup_already_completed` | An administrator already exists. Use login. |
 | `429 rate_limited` | Setup is rate limited. Respect `Retry-After`. |
 

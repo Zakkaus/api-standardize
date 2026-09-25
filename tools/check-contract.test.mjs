@@ -1397,3 +1397,43 @@ test("rule schemas require generation, typed source locations and one fallback",
   response.body.rules = response.body.rules.filter((rule) => rule.kind !== "fallback");
   assertInvalid(validateExample(contract, response), "missing fallback passed");
 });
+
+test("DNS cache entries can name the root zone", () => {
+  const page = example("listDnsCache:200:entries");
+  page.body.entries[0].domain = ".";
+  assertValid(validateExample(contract, page));
+  page.body.entries[0].domain = "example.com";
+  assertInvalid(validateExample(contract, page), "domain without a trailing dot passed");
+});
+
+test("setup lists the 401 a request with Authorization gets", () => {
+  assert.equal(example("setupAdministrator:401:authentication_required").body.error.code, "authentication_required");
+});
+
+test("validation source IDs use the characters the server accepts", () => {
+  const request = example("validateConfig:request:full");
+  for (const id of ["main.dae_1-a", "a".repeat(128)]) {
+    request.body.sources[0].id = id;
+    assertValid(validateExample(contract, request), id);
+  }
+  for (const id of ["main config", "主設定", "a".repeat(129)]) {
+    request.body.sources[0].id = id;
+    assertInvalid(validateExample(contract, request), `${id} passed`);
+  }
+});
+
+test("runtime settings patches list the body size and media type errors", () => {
+  const { responses } = spec.paths["/api/v1/runtime/settings"].patch;
+  assert.equal(responses["413"]?.$ref, "#/components/responses/TooLarge");
+  assert.equal(responses["415"]?.$ref, "#/components/responses/UnsupportedMediaType");
+});
+
+test("group tolerance is whole milliseconds", () => {
+  const group = example("getGroup:200:current");
+  group.body.config.tolerance = 0.5;
+  assertInvalid(validateExample(contract, group), "fractional tolerance passed");
+  const patch = example("patchGroup:request:tolerance");
+  const operation = patch.body.find((candidate) => candidate.path === "/config/tolerance");
+  operation.value = 0.5;
+  assertInvalid(validateExample(contract, patch), "fractional tolerance patch passed");
+});

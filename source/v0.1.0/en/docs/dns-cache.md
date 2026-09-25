@@ -92,7 +92,7 @@ must not infer one from `total`.
 | Field | Type | Description |
 |-------|------|-------------|
 | entry_id | string | Opaque runtime entry ID; not stable across restart or full flush |
-| domain | string | Canonical DNS name, lower-case A-label with a trailing dot |
+| domain | string | Canonical DNS name, lower-case A-label with a trailing dot; the root name is `.` |
 | type | string | Question record type, such as `A`, `AAAA`, or `HTTPS` |
 | class | string | DNS question class, normally `IN` |
 | status | string | `NOERROR`, `NXDOMAIN`, `NODATA`, `SERVFAIL`, or another DNS result |

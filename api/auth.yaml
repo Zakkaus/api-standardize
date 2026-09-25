@@ -7,7 +7,9 @@ paths:
         Available only while discovery reports `auth.mode: password` with
         `setup_required: true`. The peer must be loopback, RFC 1918, RFC 4193 or
         link-local; any other peer is refused with `permission_denied` before the
-        account state is read. Authorization must be absent.
+        account state is read. Authorization must be absent: a request that
+        carries it is authenticated first, and before setup no session exists, so
+        it gets 401 `authentication_required`.
       security: []
       requestBody:
         required: true
@@ -43,6 +45,8 @@ paths:
                     X-Content-Type-Options: nosniff
         "400":
           $ref: ./openapi.yaml#/components/responses/BadRequest
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
         "403":
           $ref: ./openapi.yaml#/components/responses/Forbidden
         "404":
