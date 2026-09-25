@@ -1355,6 +1355,40 @@ test("native EventSource receives log readiness, record IDs and heartbeat framin
   }
 });
 
+test("provider create options are advertised with their defaults and bounded", () => {
+  const capabilities = example("getCapabilities:200:available");
+  assert.deepEqual(capabilities.body.resources.providers.create_options, {
+    update_interval: 86400,
+    user_agent: "honk/0.0.1-alpha",
+    cache: true,
+  });
+  capabilities.body.resources.providers.create_options.headers = [];
+  assertInvalid(validateExample(contract, capabilities), "create_options accepted an unknown option");
+  delete capabilities.body.resources.providers.create_options;
+  assertValid(validateExample(contract, capabilities));
+
+  const request = example("createProvider:request:options");
+  assert.deepEqual(
+    Object.keys(request.body).filter((key) => !["name", "kind", "url"].includes(key)),
+    ["update_interval", "user_agent", "cache"],
+  );
+  for (const [field, invalid] of [
+    ["update_interval", -1],
+    ["update_interval", 31536001],
+    ["user_agent", ""],
+    ["user_agent", "agent\r\nX-Injected: 1"],
+    ["user_agent", "a".repeat(257)],
+    ["cache", "no"],
+  ]) {
+    const saved = request.body[field];
+    request.body[field] = invalid;
+    assertInvalid(validateExample(contract, request), `${field} accepted ${JSON.stringify(invalid)}`);
+    request.body[field] = saved;
+  }
+  request.body.update_interval = 0;
+  assertValid(validateExample(contract, request));
+});
+
 test("provider examples join nodes by identity and preserve nullable exact usage", () => {
   const page = example("listProviders:200:providers");
   const provider = example("getProvider:200:subscription");
