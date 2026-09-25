@@ -214,6 +214,10 @@ paths:
           $ref: ./openapi.yaml#/components/responses/Forbidden
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
+        "415":
+          $ref: ./openapi.yaml#/components/responses/UnsupportedMediaType
 schemas:
   RuntimeSettingField:
     type: string

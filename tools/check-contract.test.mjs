@@ -1421,3 +1421,9 @@ test("validation source IDs use the characters the server accepts", () => {
     assertInvalid(validateExample(contract, request), `${id} passed`);
   }
 });
+
+test("runtime settings patches list the body size and media type errors", () => {
+  const { responses } = spec.paths["/api/v1/runtime/settings"].patch;
+  assert.equal(responses["413"]?.$ref, "#/components/responses/TooLarge");
+  assert.equal(responses["415"]?.$ref, "#/components/responses/UnsupportedMediaType");
+});
