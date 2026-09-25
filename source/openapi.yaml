@@ -4660,7 +4660,7 @@ paths:
                           - https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geoip.dat
                           - https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat
                       auto_update:
-                        enabled: false
+                        enabled: true
                         interval_hours: 24
                       download:
                         route: direct
@@ -4754,7 +4754,7 @@ paths:
                   dns_log:
                     max_records: 1024
               geodata_sources:
-                summary: Use a mirror first and update daily
+                summary: Use a mirror first
                 value:
                   geodata:
                     geosite:
@@ -4765,8 +4765,6 @@ paths:
                       urls:
                         - https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat
                         - https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geoip.dat
-                    auto_update:
-                      enabled: true
               geodata_auto_update:
                 summary: Update every two days
                 value:
@@ -8588,8 +8586,8 @@ components:
       properties:
         enabled:
           type: boolean
-          default: false
-          description: Update on a schedule. Off by default.
+          default: true
+          description: Update on a schedule. On by default.
         interval_hours:
           type: integer
           minimum: 6

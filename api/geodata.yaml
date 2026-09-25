@@ -316,8 +316,8 @@ schemas:
     properties:
       enabled:
         type: boolean
-        default: false
-        description: Update on a schedule. Off by default.
+        default: true
+        description: Update on a schedule. On by default.
       interval_hours:
         type: integer
         minimum: 6

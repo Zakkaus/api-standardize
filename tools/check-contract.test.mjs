@@ -265,6 +265,11 @@ test("geodata sources are patched through runtime settings and reported with the
   assert.deepEqual(Object.keys(autoUpdate.body.geodata), ["auto_update"], "auto_update is patchable on its own");
   assert.deepEqual(example("getRuntimeSettings:200:config_sources").body.geodata.auto_update,
     autoUpdate.body.geodata.auto_update);
+  const autoDefaults = spec.components.schemas.GeoDataAutoUpdate.properties;
+  assert.deepEqual(example("getRuntimeSettings:200:current").body.geodata.auto_update,
+    {enabled: autoDefaults.enabled.default, interval_hours: autoDefaults.interval_hours.default},
+    "the built-in settings show the defaults");
+  assert.equal(autoDefaults.enabled.default, true, "automatic updates are on by default");
   patch.body = {geodata: {geosite: {urls: ["http://mirror.example.net/geosite.dat"]}}};
   assertValid(validateExample(contract, patch), "plain http is accepted");
   for (const [geodata, label] of [
