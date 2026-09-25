@@ -1380,7 +1380,21 @@ test("provider examples join nodes by identity and preserve nullable exact usage
     provider.body.traffic[field] = null;
     assertValid(validateExample(contract, provider));
   }
+  for (const download of [{route: "direct", group_id: null}, {route: "group", group_id: "group-proxy"}, {route: "group", group_id: null}]) {
+    provider.body.download = download;
+    assertValid(validateExample(contract, provider));
+  }
+  provider.body.download = {route: "proxy", group_id: null};
+  assertInvalid(validateExample(contract, provider), "the route is routing, group or direct");
+  provider.body.download = {route: "routing"};
+  assertInvalid(validateExample(contract, provider), "group_id is always reported");
+  delete provider.body.download;
+  assertValid(validateExample(contract, provider), "backends that only fetch directly omit download");
+  provider.body.last_error = {code: "route_unavailable", message: "The download route has no usable node yet."};
+  provider.body.status = "stale";
+  assertValid(validateExample(contract, provider));
   Object.assign(provider.body, {
+    download: null,
     kind: "file", url_redacted: null, updated_at: null, expires_at: null, traffic: null,
     status: "error", last_error: { code: "source_unreadable", message: "Provider source is unavailable." },
   });

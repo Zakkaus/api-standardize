@@ -48,6 +48,14 @@ not upload plus download; unknown or unlimited allowance is null.
 newly created provider that has not been fetched, and `error` when a failure
 leaves no usable data. `last_error` is a [SafeError](errors.html) or null.
 
+`download` is the route the provider's fetches take, with the values of the
+[geodata download route](geodata.html): `routing` follows the routing rules
+like user traffic, `group` always goes through the group in `group_id`, and
+`direct` connects straight to the host. `group_id` is null for `routing`,
+`direct`, and a group that no longer exists. File and inline providers report
+null; backends that fetch subscriptions only directly omit the field. The route
+is configured in the source, not through this API.
+
 ## Refresh a provider
 
 `POST /api/v1/providers/{id}/refresh` takes no body and requires
@@ -62,6 +70,13 @@ Poll `Location` using the [operation contract](operations.html), obeying
 `Retry-After`. The kind is `provider_refresh`; success returns the refreshed
 Provider in `result`. Failure uses SafeError and retains the last successfully
 loaded nodes. Refetch providers and nodes after completion.
+
+The fetch takes the provider's `download` route. A subscription can route
+through nodes it supplies itself, for example when the rules send its URL to a
+group of its own nodes; before its first fetch that group has no usable node.
+The fetch then fails with `route_unavailable` and never falls back to direct;
+the provider's `last_error` reports the same code. Set the subscription's route
+to direct in the configuration source to fetch it outside routing.
 
 A distinct refresh for a provider already queued or running returns
 `409 state_conflict`. Replaying the same accepted `Idempotency-Key` returns
