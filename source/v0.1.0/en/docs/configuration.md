@@ -170,7 +170,7 @@ applies configuration, publishes a generation, or starts an operation.
 | Field | Type | Description |
 |-------|------|-------------|
 | sources | array | Nonempty ordered candidate source set; the first source is the main source. |
-| sources[].id | string, optional | Request-local diagnostic ID; omitted IDs become `source-N`, with a one-based array index. All effective IDs must be unique and must not contain secrets. |
+| sources[].id | string, optional | Request-local diagnostic ID matching `[A-Za-z0-9._-]{1,128}`; omitted IDs become `source-N`, with a one-based array index. All effective IDs must be unique and must not contain secrets. |
 | sources[].path | string, optional | Engine-native source name and include-resolution base within authorized local roots; not permission to read arbitrary files. |
 | sources[].content | string | Candidate engine-native text; empty text is a candidate, not a malformed request. |
 | mode | string | Required `syntax` or `full`, selected from `resources.config_validate.modes`. |

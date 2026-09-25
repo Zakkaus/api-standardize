@@ -1409,3 +1409,15 @@ test("DNS cache entries can name the root zone", () => {
 test("setup lists the 401 a request with Authorization gets", () => {
   assert.equal(example("setupAdministrator:401:authentication_required").body.error.code, "authentication_required");
 });
+
+test("validation source IDs use the characters the server accepts", () => {
+  const request = example("validateConfig:request:full");
+  for (const id of ["main.dae_1-a", "a".repeat(128)]) {
+    request.body.sources[0].id = id;
+    assertValid(validateExample(contract, request), id);
+  }
+  for (const id of ["main config", "主設定", "a".repeat(129)]) {
+    request.body.sources[0].id = id;
+    assertInvalid(validateExample(contract, request), `${id} passed`);
+  }
+});

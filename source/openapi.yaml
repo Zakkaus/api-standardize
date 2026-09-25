@@ -7079,7 +7079,9 @@ components:
         id:
           type: string
           minLength: 1
-          description: Request-local diagnostic ID. If omitted, use source-N where N is the one-based array index; all effective IDs must be unique. Never put secrets in IDs.
+          maxLength: 128
+          pattern: ^[A-Za-z0-9_.-]+$
+          description: Request-local diagnostic ID of 1 to 128 ASCII letters, digits, `.`, `_` or `-`. If omitted, use source-N where N is the one-based array index; all effective IDs must be unique. Never put secrets in IDs.
         path:
           type: string
           minLength: 1
