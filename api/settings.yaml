@@ -52,7 +52,7 @@ paths:
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
                 config_sources:
-                  summary: Geodata URLs set in the configuration file
+                  summary: Geodata URLs written from the configuration file
                   value:
                     observed_at: 2026-08-15T10:00:00Z
                     source: config
@@ -92,14 +92,15 @@ paths:
 
         geodata is the exception. It requires resources.geodata.configurable_sources
         and an authenticated caller; the anonymous loopback principal gets 403
-        permission_denied. The backend stores it, so it survives restarts and
-        activations and does not change the top-level source. A geodata patch merges
-        into the effective settings. Patching geosite or geoip stores both URL lists
-        (geodata.source becomes db); auto_update is stored on its own; null deletes
-        everything stored. It never downloads; POST /geodata/update does. While
-        geodata.source is config the configuration file owns the URLs: a patch that
-        sets geodata.geosite or geodata.geoip returns 409 state_conflict and changes
-        nothing, while auto_update can still be patched.
+        permission_denied. The backend stores it and does not change the top-level
+        source. A geodata patch merges into the stored settings. Patching geosite or
+        geoip stores both URL lists (geodata.source becomes db); auto_update is
+        stored on its own; null deletes everything stored. It never downloads; POST
+        /geodata/update does. The stored settings are the only ones in force. At
+        startup, the backend writes each geodata download URL the configuration file
+        names into the stored settings, replacing a list a patch stored, and deletes
+        a stored list that an earlier file wrote but the file no longer names.
+        Activations never change them, so patched URLs last until the next startup.
       x-permission: control
       security:
         - bearerAuth: []
@@ -131,7 +132,7 @@ paths:
                         - https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geoip.dat
                     auto_update: { enabled: true }
               geodata_auto_update:
-                summary: Update every two days, also while the configuration file owns the URLs
+                summary: Update every two days
                 value:
                   geodata:
                     auto_update: { enabled: true, interval_hours: 48 }
@@ -213,29 +214,6 @@ paths:
           $ref: ./openapi.yaml#/components/responses/Forbidden
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
-        "409":
-          description: The patch sets geodata URLs while the configuration file owns them
-          headers:
-            Cache-Control:
-              $ref: ./openapi.yaml#/components/headers/NoStore
-            X-Content-Type-Options:
-              $ref: ./openapi.yaml#/components/headers/NoSniff
-          content:
-            application/json:
-              schema:
-                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
-              examples:
-                geodata_from_config:
-                  value:
-                    error:
-                      code: state_conflict
-                      message: Geodata URLs are set in the configuration file.
-                      details: null
-                    request_id: request-4
-                  x-headers:
-                    Content-Type: application/json
-                    Cache-Control: no-store
-                    X-Content-Type-Options: nosniff
 schemas:
   RuntimeSettingField:
     type: string

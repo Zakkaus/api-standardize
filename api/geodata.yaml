@@ -276,7 +276,7 @@ schemas:
   GeoDataSettingsSource:
     type: string
     enum: [ config, db, default ]
-    description: Where the download URLs come from. config when the configuration file names a geodata download URL; it then owns the URLs, while auto_update stays settable. db once a PATCH stored URLs. default for the backend's built-in URLs.
+    description: Where the stored URL lists came from. config when the backend wrote every stored list from the configuration file at startup. db when a PATCH stored any of them. default when no list is stored and the backend's built-in URLs apply. An asset without a stored list uses its built-in URLs under any source. A PATCH may set URLs under any source.
   GeoDataUrl:
     type: string
     format: uri
@@ -289,9 +289,10 @@ schemas:
     properties:
       urls:
         type: array
+        minItems: 1
         maxItems: 4
         uniqueItems: true
-        description: Download URLs in fallback order. As written, with only listener-secret values masked, for an authenticated caller with control; for any other caller, redacted like GeoAsset.source_redacted. Empty only when source is config and the configuration names no URL for this asset.
+        description: Download URLs in fallback order. As written, with only listener-secret values masked, for an authenticated caller with control; for any other caller, redacted like GeoAsset.source_redacted.
         items:
           $ref: ./openapi.yaml#/components/schemas/GeoDataUrl
   GeoDataAutoUpdate:
@@ -335,7 +336,7 @@ schemas:
         items:
           $ref: ./openapi.yaml#/components/schemas/GeoDataUrl
   GeoDataSettingsPatch:
-    description: Merged into the effective settings. A patch with geosite or geoip stores both URL lists, so source becomes db, and returns 409 state_conflict while source is config. auto_update is stored on its own, under any source. null deletes everything stored.
+    description: Merged into the stored settings. A patch with geosite or geoip stores both URL lists, so source becomes db, under any source. auto_update is stored on its own. null deletes everything stored.
     oneOf:
       - type: "null"
       - type: object
