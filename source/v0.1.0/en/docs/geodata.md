@@ -111,7 +111,7 @@ automatic updates are the `geodata` section of
 | Field | Meaning |
 |-------|---------|
 | geosite.urls, geoip.urls | Up to 4 URLs per asset, in fallback order, each at most 4096 bytes with no userinfo or fragment. |
-| auto_update.enabled | Update on a schedule. Off by default. |
+| auto_update.enabled | Update on a schedule. On by default. |
 | auto_update.interval_hours | Hours between automatic updates, 6 to 168, default 24. |
 | source | Read-only: where the stored URL lists came from, `config`, `db` or `default`. |
 | download.route | How downloads leave the device: `direct` (default), `routing` or `group`. |
@@ -189,8 +189,9 @@ that URL like a connection error, the backend tries the next URL, and when all
 fail it reports `last_error`. It never switches to direct on its own, so a
 download meant for a proxy is not sent in the clear.
 
-Automatic updates are off by default so a device never downloads on a schedule
-without its owner's consent. When on, each wait adds a random delay of up to 60
-minutes, so many devices do not download at once. A failed attempt is retried
-with exponential backoff starting at one hour and never longer than the
-interval; a success restores the normal interval.
+Automatic updates are on by default, every 24 hours, so the loaded files follow
+the upstream lists without a manual update. Set `auto_update.enabled` to false
+to stop them. Each wait adds a random delay of up to 60 minutes, so many
+devices do not download at once. A failed attempt is retried with exponential
+backoff starting at one hour and never longer than the interval; a success
+restores the normal interval.
