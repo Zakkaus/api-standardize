@@ -797,12 +797,15 @@ schemas:
       check_interval:
         type: [ integer, "null" ]
         minimum: 1
+        description: Health-check interval in seconds.
       tolerance:
-        type: [ number, "null" ]
+        type: [ integer, "null" ]
         minimum: 0
+        description: Minimum latency improvement in milliseconds before a URLTest group switches members.
       idle_timeout:
         type: [ integer, "null" ]
         minimum: 0
+        description: Inactivity in seconds after which a URLTest group counts as idle.
       interrupt_connections:
         type: boolean
   SafeHttpUrl:
@@ -1057,7 +1060,7 @@ schemas:
         type: string
         const: /config/tolerance
       value:
-        type: [ number, "null" ]
+        type: [ integer, "null" ]
         minimum: 0
   IdleTimeoutPatch:
     type: object

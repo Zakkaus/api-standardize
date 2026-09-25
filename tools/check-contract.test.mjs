@@ -1427,3 +1427,13 @@ test("runtime settings patches list the body size and media type errors", () => 
   assert.equal(responses["413"]?.$ref, "#/components/responses/TooLarge");
   assert.equal(responses["415"]?.$ref, "#/components/responses/UnsupportedMediaType");
 });
+
+test("group tolerance is whole milliseconds", () => {
+  const group = example("getGroup:200:current");
+  group.body.config.tolerance = 0.5;
+  assertInvalid(validateExample(contract, group), "fractional tolerance passed");
+  const patch = example("patchGroup:request:tolerance");
+  const operation = patch.body.find((candidate) => candidate.path === "/config/tolerance");
+  operation.value = 0.5;
+  assertInvalid(validateExample(contract, patch), "fractional tolerance patch passed");
+});

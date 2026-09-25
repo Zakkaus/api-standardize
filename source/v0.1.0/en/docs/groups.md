@@ -62,7 +62,8 @@ ranking. Nullable `ranking` describes `metric` (native metric name),
 Unknown components are null; do not reverse-engineer them from a group winner.
 Health fields use [Nodes](node-latency.html)'s raw metric definitions.
 
-`tolerance` is path-dependent switching hysteresis, not an additive latency.
+`tolerance` is path-dependent switching hysteresis in whole milliseconds, not an
+additive latency. `check_interval` and `idle_timeout` are whole seconds.
 Nested groups, eligibility, retained choices, concurrency, and Score evidence
 also influence selection. Even a complete health snapshot cannot replay a
 past decision; it must not replace decision-time flow evidence. Score is a
