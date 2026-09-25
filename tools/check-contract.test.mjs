@@ -1405,3 +1405,7 @@ test("DNS cache entries can name the root zone", () => {
   page.body.entries[0].domain = "example.com";
   assertInvalid(validateExample(contract, page), "domain without a trailing dot passed");
 });
+
+test("setup lists the 401 a request with Authorization gets", () => {
+  assert.equal(example("setupAdministrator:401:authentication_required").body.error.code, "authentication_required");
+});
