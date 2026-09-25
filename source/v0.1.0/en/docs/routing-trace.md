@@ -59,7 +59,7 @@ indeterminate evaluations; these are diagnostic results, not HTTP failures.
 Pin the router, assets, DNS policy, and any consulted selection state for the
 request. `generation_id` is the pinned routing generation, not the current
 generation at response serialization. If the adapter cannot obtain a
-consistent snapshot, return `409 snapshot_unavailable`, rather than combine
+consistent snapshot, return `503 snapshot_unavailable`, rather than combine
 old rules with new group IDs. Automatic policy state is still time-dependent:
 the result predicts a **rule outbound**, not a future dial, remote IP, leaf
 node, reroute, connection success, or actual kernel short-circuit path.

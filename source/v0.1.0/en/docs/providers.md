@@ -19,6 +19,8 @@ of 1000. A larger-than-advertised limit returns `400 invalid_request`.
 `next_cursor` is null at the end of the list. Cursors bind to the running
 instance and retained snapshot. An unknown, expired, or invalidated cursor
 returns `400 invalid_request`; discard it and restart the page walk.
+If the server cannot retain the snapshot within its budget, it returns
+`503 snapshot_unavailable` with `Retry-After`.
 
 {% api_example listProviders 200 providers %}
 

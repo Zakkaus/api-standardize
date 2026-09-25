@@ -766,6 +766,38 @@ test("probe queue-full responses require a positive Retry-After", () => {
   assertInvalid(validateExample(contract, zero));
 });
 
+test("snapshot_unavailable is a retryable 503 wherever a snapshot can fail", () => {
+  for (const operationId of ["listNodes", "listProviders", "listRules", "traceRouting"]) {
+    const response = example(`${operationId}:503:snapshot_unavailable`);
+    assertValid(validateExample(contract, response));
+    assert.equal(response.body.error.code, "snapshot_unavailable");
+    assert.ok(response.headers["Retry-After"] >= 1, `${operationId} lacks Retry-After`);
+  }
+  for (const operationId of ["listNodes", "listProviders"]) {
+    const missing = example(`${operationId}:503:snapshot_unavailable`);
+    delete missing.headers["Retry-After"];
+    assertInvalid(validateExample(contract, missing), `${operationId} Retry-After was optional`);
+  }
+  assert.equal(spec.paths["/api/v1/rules"].get.responses["409"], undefined);
+  assert.equal(spec.paths["/api/v1/routing/trace"].post.responses["409"], undefined);
+});
+
+test("connection closing documents 503 and bulk close reports what it already closed", () => {
+  assertValid(validateExample(contract, example("closeConnection:503:temporarily_unavailable")));
+  const response = example("closeConnections:503:incomplete");
+  assertValid(validateExample(contract, response));
+  assert.ok(response.headers["Retry-After"] >= 1);
+  for (const mutate of [
+    (value) => { value.body.error.details = null; },
+    (value) => { delete value.body.error.details.closed; },
+    (value) => { value.body.error.details.closed = "2"; },
+  ]) {
+    const invalid = structuredClone(response);
+    mutate(invalid);
+    assertInvalid(validateExample(contract, invalid));
+  }
+});
+
 test("response status and media type cannot be rebound", () => {
   const wrongStatus = example("createProbe:202:queued");
   wrongStatus.status = 200;

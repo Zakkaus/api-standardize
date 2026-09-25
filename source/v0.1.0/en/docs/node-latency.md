@@ -24,6 +24,8 @@ The server binds cursors to the running adapter instance, filters, and
 retained snapshot. Restart, changed filters, or snapshot expiry/eviction invalidates
 them. The server rejects unknown or invalidated cursors with
 `400 invalid_request`; discard the cursor and restart the page walk without it.
+If the server cannot retain the snapshot within its budget, it returns
+`503 snapshot_unavailable` with `Retry-After`.
 
 ## Response
 

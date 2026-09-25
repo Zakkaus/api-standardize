@@ -65,6 +65,8 @@ paths:
           $ref: ./openapi.yaml#/components/responses/Forbidden
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
+        "503":
+          $ref: ./openapi.yaml#/components/responses/SnapshotUnavailable
     post:
       operationId: createNode
       summary: Add an inline node from a share link

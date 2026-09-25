@@ -45,7 +45,7 @@ generation changes.
 
 `resources.rules.max_rules` bounds the complete list, including fallback.
 Never truncate silently. Return `503 temporarily_unavailable` if the list
-cannot fit, or `409 snapshot_unavailable` if the adapter cannot pin one
+cannot fit, or `503 snapshot_unavailable` if the adapter cannot pin one
 coherent generation. A generation change alone is not an expired snapshot.
 
 ## Editing
