@@ -47,6 +47,7 @@ paths:
                           - https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geoip.dat
                           - https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat
                       auto_update: { enabled: false, interval_hours: 24 }
+                      download: { route: direct, group_id: null }
                   x-headers:
                     Content-Type: application/json
                     Cache-Control: no-store
@@ -66,6 +67,7 @@ paths:
                       geoip:
                         urls: [ https://mirror.example.net/geodata/geoip.dat ]
                       auto_update: { enabled: true, interval_hours: 48 }
+                      download: { route: group, group_id: group-proxy }
                   x-headers:
                     Content-Type: application/json
                     Cache-Control: no-store
@@ -101,6 +103,9 @@ paths:
         names into the stored settings, replacing a list a patch stored, and deletes
         a stored list that an earlier file wrote but the file no longer names.
         Activations never change them, so patched URLs last until the next startup.
+        download follows the same startup rule as the URLs, and a download with
+        route group whose group_id is not a current group returns 422
+        unsupported_value and changes nothing.
       x-permission: control
       security:
         - bearerAuth: []
@@ -136,6 +141,11 @@ paths:
                 value:
                   geodata:
                     auto_update: { enabled: true, interval_hours: 48 }
+              geodata_download:
+                summary: Download geodata through a group
+                value:
+                  geodata:
+                    download: { route: group, group_id: group-proxy }
               geodata_reset:
                 summary: Return to the built-in sources
                 value:
@@ -182,6 +192,7 @@ paths:
                           - https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat
                           - https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geoip.dat
                       auto_update: { enabled: true, interval_hours: 24 }
+                      download: { route: direct, group_id: null }
                   x-headers:
                     Content-Type: application/json
                     Cache-Control: no-store
@@ -218,6 +229,29 @@ paths:
           $ref: ./openapi.yaml#/components/responses/TooLarge
         "415":
           $ref: ./openapi.yaml#/components/responses/UnsupportedMediaType
+        "422":
+          description: geodata.download names a group_id that is not a current group
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                unknown_group:
+                  value:
+                    error:
+                      code: unsupported_value
+                      message: geodata.download.group_id is not a current group.
+                      details: null
+                    request_id: request-4
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
 schemas:
   RuntimeSettingField:
     type: string

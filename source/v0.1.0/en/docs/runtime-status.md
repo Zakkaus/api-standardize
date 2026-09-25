@@ -200,7 +200,7 @@ the log level and replay ring, the DNS log ring, and flow retention.
 | flows.max_flows | `flows.max_flows` | Retained flows, at least 64. |
 | flows.retention_seconds | `flows.retention_seconds` | Maximum age after termination; capacity pressure may evict a flow sooner. |
 | source | | `config` while every value comes from the activated configuration, `runtime` once a PATCH overrode one. |
-| geodata | | Geodata download URLs and automatic updates, with their own read-only `source` for the URLs; URLs are redacted except for an authenticated caller with `control`. Present when `resources.geodata.configurable_sources` is true. See [Geodata](geodata.html#Configure-the-sources). |
+| geodata | | Geodata download URLs, download route and automatic updates, with their own read-only `source` for the URLs; URLs are redacted except for an authenticated caller with `control`. Present when `resources.geodata.configurable_sources` is true. See [Geodata](geodata.html#Configure-the-sources). |
 | recording | | Read-only recorder state: `flows`, `logs` and `dns_log` each report `allowed`, `mode` (`auto`, `on`, `off`) and `active`; `events.active` reports event capture; `grace_remaining_seconds` counts down after the last attached client left and does not report the flow-demand grace. |
 
 A client is attached while an admitted GET SSE stream on `/events` or `/logs`

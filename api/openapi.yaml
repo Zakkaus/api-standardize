@@ -320,6 +320,12 @@ components:
       $ref: ./geodata.yaml#/schemas/GeoDataSources
     GeoDataAutoUpdate:
       $ref: ./geodata.yaml#/schemas/GeoDataAutoUpdate
+    GeoDataDownloadRoute:
+      $ref: ./geodata.yaml#/schemas/GeoDataDownloadRoute
+    GeoDataDownload:
+      $ref: ./geodata.yaml#/schemas/GeoDataDownload
+    GeoDataDownloadPatch:
+      $ref: ./geodata.yaml#/schemas/GeoDataDownloadPatch
     GeoDataSettings:
       $ref: ./geodata.yaml#/schemas/GeoDataSettings
     GeoDataSourcesPatch:

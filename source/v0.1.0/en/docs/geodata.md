@@ -32,6 +32,7 @@ carries the update status, and each asset reports where its file came from:
 |-------|---------|
 | assets[].fetched_url_redacted | Display-only URL the loaded file was downloaded from, redacted like `source_redacted`. Null when the backend did not download it, for example a file installed by a package. |
 | assets[].verified | The file matched the sha256 published beside its URL. False when no checksum was published or the backend did not download the file. |
+| assets[].download_route | The route the file was downloaded through: `route` as `download` was set for that download, and `group_id` the group the request went through, including the group the routing rules chose. Null when the backend did not download the file. |
 | last_checked_at | When the last update attempt, manual or automatic, finished, whatever its outcome. |
 | last_updated_at | When an update last replaced a loaded file. |
 | next_check_at | When the next automatic update is due, including its random delay and any backoff. Null while automatic updates are off. |
@@ -75,6 +76,11 @@ the next only when one fails:
   `.sha256sum` appended, the backend fetches and compares it; without one the
   file is accepted unverified and `verified` is false.
 
+Every request, the checksum included, leaves through the route in
+`download` (see below). A URL the route cannot reach, because the group has no
+usable member or the routing rules send it to `block`, counts as a connection
+error, and the backend tries the next URL. It never falls back to direct.
+
 The update also fails, keeping the loaded file, when the new file lacks a
 category the active configuration uses. The backend writes updated files to its
 own data directory and never overwrites files a package manager installed.
@@ -108,6 +114,8 @@ automatic updates are the `geodata` section of
 | auto_update.enabled | Update on a schedule. Off by default. |
 | auto_update.interval_hours | Hours between automatic updates, 6 to 168, default 24. |
 | source | Read-only: where the stored URL lists came from, `config`, `db` or `default`. |
+| download.route | How downloads leave the device: `direct` (default), `routing` or `group`. |
+| download.group_id | The group for `route: group`, as in `GET /groups`; null otherwise. |
 
 `GET /runtime/settings` needs only `observe`. The URLs are returned as written,
 with only listener-secret values masked, to an authenticated caller with
@@ -116,10 +124,12 @@ loopback principal, receives them redacted like `source_redacted`.
 
 The stored settings are the only ones in force. At startup, before anything
 reads them, the backend writes each geodata download URL the configuration file
-names into the stored settings, replacing a patched list. Activations never
+names, and the download route it names, into the stored settings, replacing a
+patched value. Activations never
 change them, so a patch lasts until the next startup. For an asset the file
 names no URL for, a list an earlier file wrote is deleted and the built-in URLs
-apply, while a patched list is kept. The file never sets `auto_update`.
+apply, while a patched list is kept. The route follows the same rule, and
+does not affect `source`. The file never sets `auto_update`.
 
 `source` tells a client where the stored URL lists came from:
 
@@ -153,6 +163,31 @@ to fetch from the new URLs.
 {% api_request patchRuntimeSettings geodata_auto_update %}
 
 {% api_request patchRuntimeSettings geodata_reset %}
+
+## Choose the download route
+
+`download` decides how every geodata request leaves the device:
+
+- `direct`, the default: straight to the host, outside the routing rules, the
+  same way providers are fetched.
+- `routing`: the routing rules decide, as for user traffic, so a rule can send
+  the download to a node, a group, direct or `block`.
+- `group`: always through the group in `group_id`, whatever the rules say.
+
+{% api_request patchRuntimeSettings geodata_download %}
+
+`group_id` is a current group id from `GET /groups`, required for `group` and
+not allowed otherwise. An id that is not a current group returns
+`422 unsupported_value` and changes nothing. `download` is stored on its own,
+like `auto_update`. If the stored group later disappears from the
+configuration, `group_id` reads null and downloads fail until the route is
+changed.
+
+A group needs a usable member when the update runs. Just after startup its
+health checks may not have finished; a request the group cannot carry fails
+that URL like a connection error, the backend tries the next URL, and when all
+fail it reports `last_error`. It never switches to direct on its own, so a
+download meant for a proxy is not sent in the clear.
 
 Automatic updates are off by default so a device never downloads on a schedule
 without its owner's consent. When on, each wait adds a random delay of up to 60
