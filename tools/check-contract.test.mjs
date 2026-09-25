@@ -773,7 +773,7 @@ test("snapshot_unavailable is a retryable 503 wherever a snapshot can fail", () 
     assert.equal(response.body.error.code, "snapshot_unavailable");
     assert.ok(response.headers["Retry-After"] >= 1, `${operationId} lacks Retry-After`);
   }
-  for (const operationId of ["listNodes", "listProviders"]) {
+  for (const operationId of ["listNodes", "listProviders", "listRules", "traceRouting"]) {
     const missing = example(`${operationId}:503:snapshot_unavailable`);
     delete missing.headers["Retry-After"];
     assertInvalid(validateExample(contract, missing), `${operationId} Retry-After was optional`);

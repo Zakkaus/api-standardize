@@ -86,7 +86,8 @@ paths:
           description: The dictionary exceeds max_rules (temporarily_unavailable), or a coherent generation could not be pinned (snapshot_unavailable)
           headers:
             Retry-After:
-              description: Retry delay in seconds; always present with snapshot_unavailable.
+              description: Retry delay in seconds.
+              required: true
               schema:
                 type: integer
                 minimum: 1
