@@ -99,6 +99,15 @@ Group-specific ranking belongs to the group, not a mutated node health copy.
 curl "http://localhost:9527/api/v1/nodes?group_id=group-proxy"
 ```
 
+## Read one node
+
+`GET /api/v1/nodes/{id}` requires `observe` and returns the same projection as
+one entry of the list. An unknown id returns `404 resource_not_found`.
+
+{% api_request getNode %}
+
+{% api_example getNode 200 node %}
+
 ## Add an inline node
 
 Adding or deleting an inline node requires `control` and `resources.nodes.can_manage`.
@@ -108,6 +117,8 @@ and delete return `404 capability_not_supported`.
 {% api_request createNode link %}
 
 {% api_example createNode 201 created http %}
+
+`Location` names the new node; read it back with `GET /api/v1/nodes/{id}`.
 
 The backend parses the share link with the engine's own support, writes it
 into the `node` section of its managed main source under the given name,

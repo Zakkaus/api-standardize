@@ -798,6 +798,15 @@ test("connection closing documents 503 and bulk close reports what it already cl
   }
 });
 
+test("the Location of a created node can be read back", () => {
+  const created = example("createNode:201:created");
+  const read = example("getNode:200:node");
+  assertValid(validateExample(contract, read));
+  assert.equal(created.headers.Location, `/api/v1/nodes/${read.body.id}`);
+  assert.deepEqual(read.body, created.body);
+  example("getNode:404:resource_not_found");
+});
+
 test("response status and media type cannot be rebound", () => {
   const wrongStatus = example("createProbe:202:queued");
   wrongStatus.status = 200;
@@ -1170,7 +1179,7 @@ test("observability resources expose discovery, permissions and examples for eve
     "/api/v1/providers/{id}": ["get", "delete"],
     "/api/v1/providers/{id}/refresh": ["post"],
     "/api/v1/nodes": ["get", "post"],
-    "/api/v1/nodes/{id}": ["delete"],
+    "/api/v1/nodes/{id}": ["get", "delete"],
     "/api/v1/rules": ["get"],
     "/api/v1/geodata": ["get"],
     "/api/v1/geodata/update": ["post"],
@@ -1183,6 +1192,7 @@ test("observability resources expose discovery, permissions and examples for eve
     ["/api/v1/providers/{id}", "delete", "control"],
     ["/api/v1/providers/{id}/refresh", "post", "control"],
     ["/api/v1/nodes", "post", "control"],
+    ["/api/v1/nodes/{id}", "get", "observe"],
     ["/api/v1/nodes/{id}", "delete", "control"],
     ["/api/v1/rules", "get", "observe"],
     ["/api/v1/geodata", "get", "observe"],
