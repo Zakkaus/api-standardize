@@ -241,7 +241,7 @@ schemas:
     type: string
     enum: [ log.level, log.buffered_records, dns_log.max_records, flows.max_flows, flows.retention_seconds, record_flows, record_logs, record_dns_log, geodata ]
   RecorderMode:
-    description: true pins a permitted recorder on, false forces it off, auto (the startup default) follows client attachment.
+    description: true pins a permitted recorder on, false forces it off, auto (the startup default) follows flow demand for record_flows and client attachment for the other recorders.
     oneOf:
       - type: boolean
       - type: string
@@ -307,8 +307,14 @@ schemas:
           Read-only recorder state. A client is attached while an admitted GET SSE stream on
           /events or /logs is open, or for 60 seconds after the last stream closed or a successful
           GET on /flows, /flows/{id} or /dns/log; other requests, including settings reads, do not
-          renew attachment. Recording starts on attachment, so the first history a client reads may
-          be empty.
+          renew attachment. Automatic log and DNS-log recorders follow attachment. The automatic
+          flow recorder follows flow demand instead, so that an open panel does not record full
+          flow traces for every connection: an admitted GET /events stream whose kinds include
+          flow.updated or flow.gap, or that sets a nonblank flow_id with a flow kind in its
+          effective kinds, holds demand while open and for 60 seconds after the last one closed,
+          and a successful GET on /flows or /flows/{id} renews it for 60 seconds. Event streams
+          without kinds, /logs streams and /dns/log reads do not create flow demand. Recording
+          starts on attachment or demand, so the first history a client reads may be empty.
         properties:
           flows:
             $ref: ./openapi.yaml#/components/schemas/RecorderState
@@ -325,7 +331,7 @@ schemas:
                 description: Event capture runs while a client is attached or any permitted recorder is pinned on.
           grace_remaining_seconds:
             $ref: ./openapi.yaml#/components/schemas/SafeUInt
-            description: Seconds left before automatic recorders stop, 0 while a stream is open or nothing is attached.
+            description: Seconds left before the automatic log and DNS-log recorders stop, 0 while a stream is open or nothing is attached. The flow-demand grace is not reported.
       geodata:
         $ref: ./openapi.yaml#/components/schemas/GeoDataSettings
         description: Geodata download sources and automatic updates. Present when resources.geodata.configurable_sources is true. URLs are returned as written only to an authenticated caller with control and redacted for everyone else.

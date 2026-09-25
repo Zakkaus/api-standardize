@@ -201,21 +201,31 @@ the log level and replay ring, the DNS log ring, and flow retention.
 | flows.retention_seconds | `flows.retention_seconds` | Maximum age after termination; capacity pressure may evict a flow sooner. |
 | source | | `config` while every value comes from the activated configuration, `runtime` once a PATCH overrode one. |
 | geodata | | Geodata download URLs and automatic updates, with their own read-only `source` for the URLs; URLs are redacted except for an authenticated caller with `control`. Present when `resources.geodata.configurable_sources` is true. See [Geodata](geodata.html#Configure-the-sources). |
-| recording | | Read-only recorder state: `flows`, `logs` and `dns_log` each report `allowed`, `mode` (`auto`, `on`, `off`) and `active`; `events.active` reports event capture; `grace_remaining_seconds` counts down after the last attached client left. |
+| recording | | Read-only recorder state: `flows`, `logs` and `dns_log` each report `allowed`, `mode` (`auto`, `on`, `off`) and `active`; `events.active` reports event capture; `grace_remaining_seconds` counts down after the last attached client left and does not report the flow-demand grace. |
 
 A client is attached while an admitted GET SSE stream on `/events` or `/logs`
 is open, or for 60 seconds after the last stream closed or a successful GET on
 `/flows`, `/flows/{id}` or `/dns/log`. Settings reads, HEAD and rejected
-requests do not renew attachment. In `auto` mode a recorder captures only while
-a client is attached, so the first history a panel reads may be empty.
+requests do not renew attachment. In `auto` mode the log and DNS-log recorders
+capture only while a client is attached.
+
+In `auto` mode the flow recorder follows flow demand instead, so that an open
+panel does not record full flow traces for every connection. An admitted GET
+`/events` stream creates flow demand when its `kinds` include `flow.updated` or
+`flow.gap`, or when it sets a nonblank `flow_id` and its effective kinds include
+a flow kind. Demand lasts while such a stream is open, and for 60 seconds after
+the last one closed or after a successful GET on `/flows` or `/flows/{id}`.
+Event streams without `kinds`, `/logs` streams and `/dns/log` reads do not
+create demand, and general attachment does not extend the flow grace. Recording
+starts on attachment or demand, so the first history a panel reads may be empty.
 
 ## PATCH /api/v1/runtime/settings
 
 Requires `control`. Only the fields listed in `resources.runtime_settings.fields`
 may appear; the body merges, an absent field keeps its value. `record_flows`,
 `record_logs` and `record_dns_log` take `true` (keep the recorder on without
-clients), `false` (force it off) or `"auto"` (follow attachment, the startup
-default); pinning a recorder the configuration forbids rejects the whole patch.
+clients), `false` (force it off) or `"auto"` (the startup default: flows follow
+flow demand, logs and DNS logs follow attachment); pinning a recorder the configuration forbids rejects the whole patch.
 
 {% api_request patchRuntimeSettings debug %}
 
