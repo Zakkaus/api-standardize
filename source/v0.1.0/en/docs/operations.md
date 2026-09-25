@@ -64,9 +64,13 @@ the datapath has already been reloaded with it.
 by the [native error contract](errors.html). Raw engine errors, stack traces,
 configuration fragments, credentials, and local paths must not be returned.
 
-Completed operations remain queryable for at least the
+Completed operations remain queryable for up to the
 `resources.operations.retention_seconds` value advertised by
-`GET /api/v1/capabilities`. Unknown or expired IDs return `404 resource_not_found`.
+`GET /api/v1/capabilities`. A backend with a bounded operation store may evict
+its oldest completed operation early to admit a new one; it refuses a new
+operation with `503 temporarily_unavailable` only when every slot holds an
+unfinished one. Clients that need a result should read it once the operation
+completes. Unknown, expired, or evicted IDs return `404 resource_not_found`.
 Cancellation is not part of the current draft.
 
 Operation status is visible to the principal that created it and to callers
