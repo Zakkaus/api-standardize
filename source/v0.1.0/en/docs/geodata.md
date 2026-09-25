@@ -107,36 +107,43 @@ automatic updates are the `geodata` section of
 | geosite.urls, geoip.urls | Up to 4 URLs per asset, in fallback order, each at most 4096 bytes with no userinfo or fragment. |
 | auto_update.enabled | Update on a schedule. Off by default. |
 | auto_update.interval_hours | Hours between automatic updates, 6 to 168, default 24. |
-| source | Read-only: where the URLs come from, `config`, `db` or `default`. |
+| source | Read-only: where the stored URL lists came from, `config`, `db` or `default`. |
 
 `GET /runtime/settings` needs only `observe`. The URLs are returned as written,
 with only listener-secret values masked, to an authenticated caller with
 `control`, who may edit them. Every other caller, including the anonymous
 loopback principal, receives them redacted like `source_redacted`.
 
-`source` tells a client who owns the URLs:
+The stored settings are the only ones in force. At startup, before anything
+reads them, the backend writes each geodata download URL the configuration file
+names into the stored settings, replacing a patched list. Activations never
+change them, so a patch lasts until the next startup. For an asset the file
+names no URL for, a list an earlier file wrote is deleted and the built-in URLs
+apply, while a patched list is kept. The file never sets `auto_update`.
 
-- `config`: the configuration file names a download URL. The file owns the
-  URLs, a panel shows them read-only, and a patch that sets `geosite` or
-  `geoip` returns `409 state_conflict`. A URL list is empty when the file names
-  no URL for that asset. `auto_update` stays settable.
-- `db`: a patch stored the URLs.
-- `default`: no URLs are stored and the backend's built-in sources apply.
+`source` tells a client where the stored URL lists came from:
+
+- `config`: every stored list was written from the configuration file. A panel
+  can still edit them, and should say that the file sets them again at the next
+  startup.
+- `db`: a patch stored at least one list.
+- `default`: no list is stored and the backend's built-in sources apply.
+
+An asset without a stored list uses its built-in URLs under any `source`.
 
 {% api_example getRuntimeSettings 200 config_sources %}
 
-{% api_example patchRuntimeSettings 409 geodata_from_config %}
-
-A patch merges into the effective settings. Setting `geosite` or `geoip`
+A patch merges into the stored settings and may set URLs under any `source`. Setting `geosite` or `geoip`
 stores both URL lists, so `source` becomes `db`; a `urls` list replaces the
 whole list. `auto_update` is stored on its own and never changes `source`.
-`"geodata": null` deletes everything stored: the URLs return to the
-configuration file or the built-in sources, and `auto_update` to its defaults.
+`"geodata": null` deletes everything stored: the URLs return to the built-in
+sources, and `auto_update` to its defaults. A configuration file that names URLs
+writes them again at the next startup.
 Plain `http` URLs are accepted, but a file fetched without a published checksum
 is unverified, so prefer `https`. Changing `geodata` requires `control` and an
 authenticated caller; the anonymous loopback principal gets
 `403 permission_denied`. The backend keeps the settings across restarts and
-configuration activations. A patch never downloads anything; queue an update
+activations, apart from the writes from the configuration file described above. A patch never downloads anything; queue an update
 to fetch from the new URLs.
 
 {% api_request patchRuntimeSettings geodata_sources %}

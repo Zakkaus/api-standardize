@@ -240,7 +240,6 @@ until the process restarts or the next configuration activation resets it.
 
 {% api_example patchRuntimeSettings 400 above_ceiling %}
 
-`geodata` differs: the backend stores it, so it survives restarts and
-activations and leaves the top-level `source` unchanged. It needs an
-authenticated caller. Setting its URLs returns `409 state_conflict` while the
-configuration file owns them; `auto_update` stays settable. See [Geodata](geodata.html#Configure-the-sources).
+`geodata` differs: the backend stores it and leaves the top-level `source`
+unchanged. It needs an authenticated caller. URLs named in the configuration
+file are written into it at startup, replacing patched URLs. See [Geodata](geodata.html#Configure-the-sources).

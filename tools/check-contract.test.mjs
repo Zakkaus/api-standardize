@@ -262,7 +262,7 @@ test("geodata sources are patched through runtime settings and reported with the
   assertValid(validateExample(contract, example("patchRuntimeSettings:request:geodata_reset")));
   const autoUpdate = example("patchRuntimeSettings:request:geodata_auto_update");
   assertValid(validateExample(contract, autoUpdate));
-  assert.deepEqual(Object.keys(autoUpdate.body.geodata), ["auto_update"], "auto_update alone stays patchable under config");
+  assert.deepEqual(Object.keys(autoUpdate.body.geodata), ["auto_update"], "auto_update is patchable on its own");
   assert.deepEqual(example("getRuntimeSettings:200:config_sources").body.geodata.auto_update,
     autoUpdate.body.geodata.auto_update);
   patch.body = {geodata: {geosite: {urls: ["http://mirror.example.net/geosite.dat"]}}};
@@ -280,9 +280,11 @@ test("geodata sources are patched through runtime settings and reported with the
     patch.body = {geodata};
     assertInvalid(validateExample(contract, patch), label);
   }
-  const conflict = example("patchRuntimeSettings:409:geodata_from_config");
-  assert.equal(conflict.body.error.code, "state_conflict");
-  assertValid(validateExample(contract, conflict));
+  assert.equal(spec.paths["/api/v1/runtime/settings"].patch.responses["409"], undefined,
+    "URL patches are accepted under any source");
+  const seeded = example("getRuntimeSettings:200:config_sources");
+  seeded.body.geodata.geoip.urls = [];
+  assertInvalid(validateExample(contract, seeded), "a stored URL list is never empty");
   for (const key of ["loaded", "packaged"]) {
     const status = example(`getGeoData:200:${key}`);
     assertValid(validateExample(contract, status));
