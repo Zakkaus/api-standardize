@@ -54,8 +54,9 @@ entire selected set, including non-closable entries. See
 [Closing connections](connections.html#Closing) for permissions, ownership,
 filters, and errors.
 
-`logs` advertises supported `levels` and `max_buffered_records`. Its bounded
-SSE feed carries sanitized log records, separately from invalidation events.
+`logs` advertises supported `levels`, `retention_seconds` and
+`max_buffered_records`. Its bounded SSE feed carries sanitized log records,
+separately from invalidation events.
 `providers` advertises `can_refresh`, `can_manage` and `max_page_size`
 (1–1000); refresh requires `control` and the operation resource, and
 `can_manage` means the backend owns a writable main source and implements

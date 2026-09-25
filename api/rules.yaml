@@ -15,7 +15,7 @@ paths:
         generation_id identifies the dictionary's routing generation. Refetch after
         generation.changed; do not join old flow evidence to a new generation.
         There is no paginated snapshot and no 410 snapshot_expired response. If a coherent
-        generation cannot be pinned, return 409 snapshot_unavailable. If the complete
+        generation cannot be pinned, return 503 snapshot_unavailable. If the complete
         dictionary exceeds resources.rules.max_rules, return 503 temporarily_unavailable
         rather than silently truncate it. Redact local paths and secret-bearing expression
         values without changing rule identities or order; never expose raw configuration.
@@ -82,9 +82,15 @@ paths:
           $ref: ./openapi.yaml#/components/responses/Forbidden
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
-        "409":
-          description: The running routing generation could not be pinned coherently
+        "503":
+          description: The dictionary exceeds max_rules (temporarily_unavailable), or a coherent generation could not be pinned (snapshot_unavailable)
           headers:
+            Retry-After:
+              description: Retry delay in seconds.
+              required: true
+              schema:
+                type: integer
+                minimum: 1
             Cache-Control:
               $ref: ./openapi.yaml#/components/headers/NoStore
             X-Content-Type-Options:
@@ -94,6 +100,18 @@ paths:
               schema:
                 $ref: ./openapi.yaml#/components/schemas/ErrorResponse
               examples:
+                temporarily_unavailable:
+                  value:
+                    error:
+                      code: temporarily_unavailable
+                      message: The rule dictionary exceeds resources.rules.max_rules.
+                      details: null
+                    request_id: request-01HZX4K8W6
+                  x-headers:
+                    Content-Type: application/json
+                    Retry-After: 1
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
                 snapshot_unavailable:
                   value:
                     error:
@@ -103,10 +121,9 @@ paths:
                     request_id: request-01HZX4K8W6
                   x-headers:
                     Content-Type: application/json
+                    Retry-After: 1
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
-        "503":
-          $ref: ./openapi.yaml#/components/responses/Unavailable
 schemas:
   RuleSource:
     oneOf:

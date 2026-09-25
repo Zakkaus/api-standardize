@@ -33,7 +33,6 @@ in resources (`operation.error`, `datapath.errors`, `last_reload.error`,
 | 409 | `state_conflict` | Current runtime state prevents the requested transition. |
 | 409 | `idempotency_conflict` | An idempotency key was reused with a different request body. |
 | 409 | `event_cursor_expired` | Event or log SSE cursor cannot be replayed; open a fresh stream and establish a new baseline. |
-| 409 | `snapshot_unavailable` | Routing simulation or the running rule list could not pin a consistent generation. |
 | 409 | `setup_required` | Password login was requested before an administrator was created. |
 | 409 | `setup_already_completed` | Administrator setup was requested after an administrator was created. |
 | 410 | `snapshot_expired` | Paginated flow snapshot expired; restart the page walk. |
@@ -45,6 +44,7 @@ in resources (`operation.error`, `datapath.errors`, `last_reload.error`,
 | 428 | `precondition_required` | A required `If-Match` header is missing. |
 | 429 | `rate_limited` | A request or operation limit was reached. |
 | 503 | `temporarily_unavailable` | A bounded queue or required runtime component is unavailable. |
+| 503 | `snapshot_unavailable` | A coherent snapshot could not be pinned or held within its budget; retry the read. |
 
 Responses with `429` or retryable `503` include `Retry-After`. Errors must not
 contain bearer secrets, proxy credentials, private keys, raw configuration,
@@ -53,7 +53,8 @@ stack traces, local file paths, or unredacted chained engine errors.
 ## Endpoint-specific recovery
 
 - [Connection closing](connections.html#Closing) defines unfiltered-close consent,
-  ownership conflicts, bulk limits, and repeated synchronous DELETE behavior.
+  ownership conflicts, bulk limits, repeated synchronous DELETE behavior, and the
+  counts a bulk close reports when it fails partway.
 - [Providers](providers.html) defines refresh conflicts, queue limits, and invalid
   page cursors.
 - [Configuration editing](configuration.html#Editing) defines source-hash

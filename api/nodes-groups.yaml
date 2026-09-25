@@ -65,6 +65,8 @@ paths:
           $ref: ./openapi.yaml#/components/responses/Forbidden
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
+        "503":
+          $ref: ./openapi.yaml#/components/responses/SnapshotUnavailable
     post:
       operationId: createNode
       summary: Add an inline node from a share link
@@ -97,7 +99,7 @@ paths:
           description: Node written to the managed configuration
           headers:
             Location:
-              description: The new node in the node list.
+              description: The new node, readable with GET.
               required: true
               schema:
                 type: string
@@ -230,6 +232,48 @@ paths:
   /api/v1/nodes/{id}:
     parameters:
       - $ref: ./openapi.yaml#/components/parameters/NodeId
+    get:
+      operationId: getNode
+      summary: Read one node and its latest typed health samples
+      description: |
+        Returns the same projection as one entry of GET /api/v1/nodes. An unknown id
+        returns 404 resource_not_found.
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        "200":
+          description: One node
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/Node
+              examples:
+                node:
+                  value:
+                    id: node-hk-03
+                    name: hk-03
+                    protocol: vless
+                    subscription_tag: null
+                    provider_id: inline
+                    group_ids: [ group-proxy ]
+                    health: []
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
     delete:
       operationId: deleteNode
       summary: Remove an inline node from the managed configuration

@@ -222,6 +222,50 @@ paths:
         "413":
           $ref: ./openapi.yaml#/components/responses/TooLarge
           description: Matching live entries exceed max_bulk_close (request_too_large); no connections closed.
+        "503":
+          description: |
+            Closing at least one selected connection could not be confirmed
+            (temporarily_unavailable). error.details counts the connections already
+            closed or skipped; they stay closed, so a retry must not assume nothing changed.
+          headers:
+            Retry-After:
+              description: Retry delay in seconds.
+              required: true
+              schema:
+                type: integer
+                minimum: 1
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+                  - type: object
+                    properties:
+                      error:
+                        type: object
+                        required: [ details ]
+                        properties:
+                          details:
+                            $ref: ./openapi.yaml#/components/schemas/BulkCloseResult
+              examples:
+                incomplete:
+                  value:
+                    error:
+                      code: temporarily_unavailable
+                      message: Transport retirement could not be confirmed.
+                      details:
+                        closed: 2
+                        skipped: 1
+                    request_id: request-close-5
+                  x-headers:
+                    Content-Type: application/json
+                    Retry-After: 1
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
   /api/v1/connections/{connection_id}:
     delete:
       operationId: closeConnection
@@ -330,6 +374,9 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        "503":
+          $ref: ./openapi.yaml#/components/responses/Unavailable
+          description: Cancellation or retirement could not be confirmed (temporarily_unavailable); the connection may already be closed.
   /api/v1/flows:
     get:
       operationId: listFlows

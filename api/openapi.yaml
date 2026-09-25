@@ -167,6 +167,8 @@ components:
       $ref: ./common.yaml#/responses/RateLimited
     Unavailable:
       $ref: ./common.yaml#/responses/Unavailable
+    SnapshotUnavailable:
+      $ref: ./common.yaml#/responses/SnapshotUnavailable
     ErrorResponseCommon:
       $ref: ./common.yaml#/responses/ErrorResponseCommon
     EventCursorExpired:

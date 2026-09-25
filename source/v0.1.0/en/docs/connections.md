@@ -137,6 +137,10 @@ they do not replay an earlier result or return a retained operation.
 Closing the same ID twice therefore returns `404 resource_not_found` on
 the second call, including when the key is repeated.
 
+If cancellation or retirement cannot be confirmed, the call returns
+`503 temporarily_unavailable` with `Retry-After`; the connection may already
+be closed, so a retry can return `404`.
+
 ### Bulk close
 
 `DELETE /api/v1/connections` closes every closable match and skips observed
@@ -170,6 +174,14 @@ non-closable entries, exceeds `resources.connections.max_bulk_close`, return
 `413 request_too_large` before closing any connection; do not truncate the set.
 `closed + skipped` cannot exceed that limit. New arrivals are outside the selected
 set; selected entries that disappear before cancellation contribute to neither count.
+
+If closing any selected connection cannot be confirmed, return
+`503 temporarily_unavailable` with `Retry-After` after every selected close has
+finished. `error.details` carries the same `closed` and `skipped` counts as a
+success, covering the connections handled before the failure. Those stay
+closed; a retry selects again from current live state.
+
+{% api_example closeConnections 503 incomplete %}
 
 Unfiltered request without explicit consent:
 

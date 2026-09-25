@@ -766,6 +766,47 @@ test("probe queue-full responses require a positive Retry-After", () => {
   assertInvalid(validateExample(contract, zero));
 });
 
+test("snapshot_unavailable is a retryable 503 wherever a snapshot can fail", () => {
+  for (const operationId of ["listNodes", "listProviders", "listRules", "traceRouting"]) {
+    const response = example(`${operationId}:503:snapshot_unavailable`);
+    assertValid(validateExample(contract, response));
+    assert.equal(response.body.error.code, "snapshot_unavailable");
+    assert.ok(response.headers["Retry-After"] >= 1, `${operationId} lacks Retry-After`);
+  }
+  for (const operationId of ["listNodes", "listProviders", "listRules", "traceRouting"]) {
+    const missing = example(`${operationId}:503:snapshot_unavailable`);
+    delete missing.headers["Retry-After"];
+    assertInvalid(validateExample(contract, missing), `${operationId} Retry-After was optional`);
+  }
+  assert.equal(spec.paths["/api/v1/rules"].get.responses["409"], undefined);
+  assert.equal(spec.paths["/api/v1/routing/trace"].post.responses["409"], undefined);
+});
+
+test("connection closing documents 503 and bulk close reports what it already closed", () => {
+  assertValid(validateExample(contract, example("closeConnection:503:temporarily_unavailable")));
+  const response = example("closeConnections:503:incomplete");
+  assertValid(validateExample(contract, response));
+  assert.ok(response.headers["Retry-After"] >= 1);
+  for (const mutate of [
+    (value) => { value.body.error.details = null; },
+    (value) => { delete value.body.error.details.closed; },
+    (value) => { value.body.error.details.closed = "2"; },
+  ]) {
+    const invalid = structuredClone(response);
+    mutate(invalid);
+    assertInvalid(validateExample(contract, invalid));
+  }
+});
+
+test("the Location of a created node can be read back", () => {
+  const created = example("createNode:201:created");
+  const read = example("getNode:200:node");
+  assertValid(validateExample(contract, read));
+  assert.equal(created.headers.Location, `/api/v1/nodes/${read.body.id}`);
+  assert.deepEqual(read.body, created.body);
+  example("getNode:404:resource_not_found");
+});
+
 test("response status and media type cannot be rebound", () => {
   const wrongStatus = example("createProbe:202:queued");
   wrongStatus.status = 200;
@@ -1138,7 +1179,7 @@ test("observability resources expose discovery, permissions and examples for eve
     "/api/v1/providers/{id}": ["get", "delete"],
     "/api/v1/providers/{id}/refresh": ["post"],
     "/api/v1/nodes": ["get", "post"],
-    "/api/v1/nodes/{id}": ["delete"],
+    "/api/v1/nodes/{id}": ["get", "delete"],
     "/api/v1/rules": ["get"],
     "/api/v1/geodata": ["get"],
     "/api/v1/geodata/update": ["post"],
@@ -1151,6 +1192,7 @@ test("observability resources expose discovery, permissions and examples for eve
     ["/api/v1/providers/{id}", "delete", "control"],
     ["/api/v1/providers/{id}/refresh", "post", "control"],
     ["/api/v1/nodes", "post", "control"],
+    ["/api/v1/nodes/{id}", "get", "observe"],
     ["/api/v1/nodes/{id}", "delete", "control"],
     ["/api/v1/rules", "get", "observe"],
     ["/api/v1/geodata", "get", "observe"],
@@ -1176,7 +1218,7 @@ test("observability resources expose discovery, permissions and examples for eve
 
 test("observability capabilities require usable bounds only when available", () => {
   for (const [resource, fields] of [
-    ["logs", ["levels", "max_buffered_records"]],
+    ["logs", ["levels", "retention_seconds", "max_buffered_records"]],
     ["providers", ["can_refresh", "can_manage", "max_page_size"]],
     ["rules", ["max_rules"]],
     ["geodata", ["can_update", "assets"]],
@@ -1203,6 +1245,11 @@ test("observability capabilities require usable bounds only when available", () 
   for (const levels of [[], ["info", "info"], ["fatal"]]) {
     response.body.resources.logs.levels = levels;
     assertInvalid(validateExample(contract, response));
+  }
+  response.body.resources.logs.levels = ["info"];
+  for (const retention of [0, 1.5]) {
+    response.body.resources.logs.retention_seconds = retention;
+    assertInvalid(validateExample(contract, response), `logs.retention_seconds accepted ${retention}`);
   }
 });
 
