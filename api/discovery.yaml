@@ -3,7 +3,15 @@ paths:
     get:
       operationId: getDiscovery
       summary: Discover the native API
-      description: Requires bearer authentication when the listener has a deployment secret. Anonymous access is permitted only on an explicitly secretless loopback listener. No resource permission is required.
+      description: >-
+        Public in every auth mode, so a client can choose how to sign in. A
+        caller the listener admits (a valid bearer or session, or no credential
+        on an explicitly secretless loopback listener) receives the full view.
+        Any other request without a credential receives the public view, which
+        carries only the API name and major, the sign-in links, and the auth
+        mode. A request that carries a credential is authenticated first: an
+        invalid one gets 401, never the public view. No resource permission is
+        required.
       security:
         - bearerAuth: []
         - {}
@@ -47,6 +55,20 @@ paths:
                       mode: token
                       setup_required: false
                       anonymous_loopback: false
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+                public:
+                  value:
+                    name: dae/honk-native
+                    api_major: 1
+                    links:
+                      auth_setup: /api/v1/auth/setup
+                      auth_login: /api/v1/auth/login
+                    auth:
+                      mode: password
+                      setup_required: false
                   x-headers:
                     Content-Type: application/json
                     Cache-Control: no-store
@@ -270,6 +292,50 @@ paths:
           $ref: ./openapi.yaml#/components/responses/Forbidden
 schemas:
   Discovery:
+    description: >-
+      The full view for a caller the listener admits, or the public view for any
+      other request without a credential.
+    oneOf:
+      - $ref: ./openapi.yaml#/components/schemas/AdmittedDiscovery
+      - $ref: ./openapi.yaml#/components/schemas/PublicDiscovery
+  PublicDiscovery:
+    type: object
+    description: >-
+      What a client needs before it signs in. Status, base path, resource links,
+      `auth_logout` and `auth.anonymous_loopback` are withheld.
+    additionalProperties: false
+    required: [ name, api_major, links, auth ]
+    properties:
+      name:
+        type: string
+        const: dae/honk-native
+      api_major:
+        type: integer
+        const: 1
+      links:
+        type: object
+        additionalProperties: false
+        required: [ auth_setup, auth_login ]
+        properties:
+          auth_setup:
+            type: [ string, "null" ]
+            enum: [ /api/v1/auth/setup, null ]
+            description: Present in password mode, null otherwise.
+          auth_login:
+            type: [ string, "null" ]
+            enum: [ /api/v1/auth/login, null ]
+            description: Present in password mode, null otherwise.
+      auth:
+        type: object
+        additionalProperties: false
+        required: [ mode, setup_required ]
+        properties:
+          mode:
+            type: string
+            enum: [ token, password ]
+          setup_required:
+            type: boolean
+  AdmittedDiscovery:
     type: object
     required: [ name, status, api_major, base_path, links ]
     properties:

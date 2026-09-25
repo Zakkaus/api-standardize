@@ -1410,6 +1410,16 @@ test("setup lists the 401 a request with Authorization gets", () => {
   assert.equal(example("setupAdministrator:401:authentication_required").body.error.code, "authentication_required");
 });
 
+test("public discovery carries only what sign-in needs", () => {
+  const view = example("getDiscovery:200:public");
+  assertValid(validateExample(contract, view));
+  assert.deepEqual(Object.keys(view.body).sort(), ["api_major", "auth", "links", "name"]);
+  assert.deepEqual(Object.keys(view.body.links).sort(), ["auth_login", "auth_setup"]);
+  assert.deepEqual(Object.keys(view.body.auth).sort(), ["mode", "setup_required"]);
+  view.body.auth.anonymous_loopback = false;
+  assert.notDeepEqual(validateExample(contract, view), []);
+});
+
 test("validation source IDs use the characters the server accepts", () => {
   const request = example("validateConfig:request:full");
   for (const id of ["main.dae_1-a", "a".repeat(128)]) {

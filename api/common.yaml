@@ -4,10 +4,11 @@ securitySchemes:
     scheme: bearer
     bearerFormat: opaque
     description: |
-      Bearer authentication is mandatory on every request except CORS preflights
-      whenever a deployment secret is set.
-      The anonymous security alternative is permitted only on an explicitly
+      Bearer authentication is mandatory on every request except CORS preflights,
+      discovery, and password setup and login whenever a deployment secret is set.
+      Elsewhere the anonymous security alternative is permitted only on an explicitly
       secretless loopback listener, never as a fallback for invalid credentials.
+      Discovery answers any request without a credential with its public view.
       Native permissions are expressed by x-permission; see API Configuration.
 headers:
   NoStore:
