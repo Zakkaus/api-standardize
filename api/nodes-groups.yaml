@@ -797,7 +797,7 @@ schemas:
       check_interval:
         type: [ integer, "null" ]
         minimum: 1
-        description: Health-check interval in seconds.
+        description: Configured health-check interval in seconds. A backend that runs checks on one global interval may keep this value without applying it; see its mapping notes.
       tolerance:
         type: [ integer, "null" ]
         minimum: 0
