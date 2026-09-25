@@ -272,6 +272,7 @@ paths:
                           - info
                           - warn
                           - error
+                        retention_seconds: 60
                         max_buffered_records: 4096
                       dns_query:
                         available: true
@@ -4356,7 +4357,8 @@ paths:
         previous-instance or changed-filter cursors return 409 event_cursor_expired
         before opening the stream. Drop the cursor and reconnect to establish a new
         baseline; lost history is not recovered. Filtered-out IDs may leave gaps.
-        Retain at most resources.logs.max_buffered_records; this is not durable storage.
+        Retain at most resources.logs.max_buffered_records records, none older than
+        resources.logs.retention_seconds; this is not durable storage.
         Close slow clients when their bounded queue fills; never block engine writers.
         Send heartbeat comments at most 15 seconds apart while idle. Recheck credentials
         on reconnect and terminate streams when authorization is revoked.
@@ -6737,6 +6739,7 @@ components:
               then:
                 required:
                   - levels
+                  - retention_seconds
                   - max_buffered_records
               properties:
                 available:
@@ -6747,6 +6750,10 @@ components:
                   uniqueItems: true
                   items:
                     $ref: '#/components/schemas/LogLevel'
+                retention_seconds:
+                  type: integer
+                  minimum: 1
+                  description: Maximum age of a replayable record, in seconds. A resume cursor older than this returns 409 event_cursor_expired even when the ring has room.
                 max_buffered_records:
                   $ref: '#/components/schemas/SafeUInt'
                   minimum: 1

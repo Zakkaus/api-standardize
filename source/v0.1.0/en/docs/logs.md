@@ -18,8 +18,8 @@ title: Logs
 | Last-Event-ID | absent | Header containing the last processed opaque cursor. |
 
 An invalid or unadvertised level returns `400 invalid_request`. Capabilities
-advertise `levels` and `max_buffered_records`; clients must not infer them
-from the engine version.
+advertise `levels`, `retention_seconds` and `max_buffered_records`; clients
+must not infer them from the engine version.
 
 ## Response
 
@@ -51,9 +51,11 @@ before any `200` stream opens. Drop the cursor and reconnect for a new
 baseline; do not present lost records as recovered history. Log cursors and
 notification cursors are not interchangeable.
 
-The replay buffer holds at most `max_buffered_records`. Close slow clients
-when their bounded queue fills; never block engine writers. A reconnect may
-fail if the buffer has already evicted its cursor. Follow the shared SSE
+The replay buffer holds at most `max_buffered_records` records, none older
+than `retention_seconds`. Close slow clients when their bounded queue fills;
+never block engine writers. A reconnect fails if the buffer has already
+evicted its cursor, including a quiet filtered stream whose last record aged
+out. Follow the shared SSE
 [authentication and CORS rules](events.html): no bearer secrets in URLs.
 The server reauthorizes each reconnect and closes streams after revocation.
 
@@ -66,8 +68,9 @@ A lower stream `level` cannot recover records the engine did not emit.
 ## Log retention
 
 The replay ring retains at most the configured `log.buffered_records`, bounded
-by `resources.logs.max_buffered_records`. It clears on process restart and does
-not provide durable storage.
+by `resources.logs.max_buffered_records`, and drops records older than
+`resources.logs.retention_seconds`. It clears on process restart and does not
+provide durable storage.
 
 [Recorded flows](flows.html), [traffic history](runtime-status.html#GET-api-v1-runtime-traffic-history),
 [memory history](runtime-memory.html#GET-api-v1-runtime-memory-history), and

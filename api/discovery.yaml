@@ -222,6 +222,7 @@ paths:
                       logs:
                         available: true
                         levels: [ trace, debug, info, warn, error ]
+                        retention_seconds: 60
                         max_buffered_records: 4096
                       dns_query:
                         available: true
@@ -799,7 +800,7 @@ schemas:
                 available:
                   const: true
             then:
-              required: [ levels, max_buffered_records ]
+              required: [ levels, retention_seconds, max_buffered_records ]
             properties:
               available:
                 type: boolean
@@ -809,6 +810,10 @@ schemas:
                 uniqueItems: true
                 items:
                   $ref: ./openapi.yaml#/components/schemas/LogLevel
+              retention_seconds:
+                type: integer
+                minimum: 1
+                description: Maximum age of a replayable record, in seconds. A resume cursor older than this returns 409 event_cursor_expired even when the ring has room.
               max_buffered_records:
                 $ref: ./openapi.yaml#/components/schemas/SafeUInt
                 minimum: 1

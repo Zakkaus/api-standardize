@@ -1176,7 +1176,7 @@ test("observability resources expose discovery, permissions and examples for eve
 
 test("observability capabilities require usable bounds only when available", () => {
   for (const [resource, fields] of [
-    ["logs", ["levels", "max_buffered_records"]],
+    ["logs", ["levels", "retention_seconds", "max_buffered_records"]],
     ["providers", ["can_refresh", "can_manage", "max_page_size"]],
     ["rules", ["max_rules"]],
     ["geodata", ["can_update", "assets"]],
@@ -1203,6 +1203,11 @@ test("observability capabilities require usable bounds only when available", () 
   for (const levels of [[], ["info", "info"], ["fatal"]]) {
     response.body.resources.logs.levels = levels;
     assertInvalid(validateExample(contract, response));
+  }
+  response.body.resources.logs.levels = ["info"];
+  for (const retention of [0, 1.5]) {
+    response.body.resources.logs.retention_seconds = retention;
+    assertInvalid(validateExample(contract, response), `logs.retention_seconds accepted ${retention}`);
   }
 });
 
