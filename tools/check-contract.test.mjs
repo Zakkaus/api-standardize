@@ -276,10 +276,22 @@ test("geodata sources are patched through runtime settings and reported with the
     [{geosite: {urls: Array.from({length: 5}, (_, i) => `https://m${i}.example.net/geosite.dat`)}}, "at most 4 URLs"],
     [{auto_update: {interval_hours: 169}}, "the interval is at most 168 hours"],
     [{auto_update: {}}, "an empty auto_update is rejected"],
+    [{download: {route: "group"}}, "route group names its group"],
+    [{download: {route: "direct", group_id: "group-proxy"}}, "only route group takes a group_id"],
+    [{download: {route: "proxy"}}, "the route is routing, group or direct"],
   ]) {
     patch.body = {geodata};
     assertInvalid(validateExample(contract, patch), label);
   }
+  const download = example("patchRuntimeSettings:request:geodata_download");
+  assertValid(validateExample(contract, download));
+  assert.deepEqual(Object.keys(download.body.geodata), ["download"], "download is patchable on its own");
+  patch.body = {geodata: {download: {route: "routing"}}};
+  assertValid(validateExample(contract, patch), "routing needs no group");
+  assert.ok(spec.paths["/api/v1/runtime/settings"].patch.responses["422"], "an unknown group is rejected");
+  const noRoute = example("getRuntimeSettings:200:current");
+  delete noRoute.body.geodata.download;
+  assertInvalid(validateExample(contract, noRoute), "the settings report the download route");
   assert.equal(spec.paths["/api/v1/runtime/settings"].patch.responses["409"], undefined,
     "URL patches are accepted under any source");
   const seeded = example("getRuntimeSettings:200:config_sources");
@@ -299,6 +311,10 @@ test("geodata sources are patched through runtime settings and reported with the
     assertInvalid(validateExample(contract, status), "verified is reported with fetched_url_redacted");
     asset.verified = asset.fetched_url_redacted !== null;
     assertValid(validateExample(contract, status));
+    const route = asset.download_route;
+    delete asset.download_route;
+    assertInvalid(validateExample(contract, status), "download_route is reported with fetched_url_redacted");
+    asset.download_route = route;
     status.body.required_codes = {geodns: []};
     assertInvalid(validateExample(contract, status), "required_codes is keyed by asset kind");
   }
@@ -309,6 +325,7 @@ test("geodata sources are patched through runtime settings and reported with the
   for (const asset of legacy.body.assets) {
     delete asset.fetched_url_redacted;
     delete asset.verified;
+    delete asset.download_route;
   }
   assertValid(validateExample(contract, legacy), "backends without configurable sources stay valid");
 });
