@@ -270,6 +270,10 @@ test("geodata sources are patched through runtime settings and reported with the
     {enabled: autoDefaults.enabled.default, interval_hours: autoDefaults.interval_hours.default},
     "the built-in settings show the defaults");
   assert.equal(autoDefaults.enabled.default, true, "automatic updates are on by default");
+  const downloadDefault = spec.components.schemas.GeoDataSettings.properties.download.default;
+  assert.deepEqual(downloadDefault, {route: "routing", group_id: null}, "downloads follow routing by default");
+  assert.deepEqual(example("getRuntimeSettings:200:current").body.geodata.download, downloadDefault,
+    "the built-in settings show the default route");
   patch.body = {geodata: {geosite: {urls: ["http://mirror.example.net/geosite.dat"]}}};
   assertValid(validateExample(contract, patch), "plain http is accepted");
   for (const [geodata, label] of [
