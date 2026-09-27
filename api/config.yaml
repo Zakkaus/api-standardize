@@ -367,7 +367,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: ./config.yaml#/paths/~1api~1v1~1config~1sources~1{source_id}/put/responses/422/content/application~1json/schema
+                $ref: ./openapi.yaml#/components/schemas/ConfigDiagnosticsErrorResponse
               examples:
                 not_included:
                   value:
@@ -679,30 +679,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: ./openapi.yaml#/components/schemas/ErrorResponse
-                  - type: object
-                    properties:
-                      error:
-                        type: object
-                        required: [ details ]
-                        properties:
-                          code:
-                            const: unsupported_value
-                          details:
-                            type: object
-                            required: [ diagnostics ]
-                            properties:
-                              diagnostics:
-                                type: array
-                                items:
-                                  $ref: ./openapi.yaml#/components/schemas/ConfigDiagnostic
-                                contains:
-                                  type: object
-                                  required: [ level ]
-                                  properties:
-                                    level:
-                                      const: error
+                $ref: ./openapi.yaml#/components/schemas/ConfigDiagnosticsErrorResponse
               examples:
                 invalid:
                   value:
@@ -1096,6 +1073,32 @@ schemas:
       content:
         type: string
         description: Complete UTF-8 dae source text; empty text is validated, not rejected as malformed.
+  ConfigDiagnosticsErrorResponse:
+    description: unsupported_value error whose details.diagnostics holds at least one error-level diagnostic.
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+      - type: object
+        properties:
+          error:
+            type: object
+            required: [ details ]
+            properties:
+              code:
+                const: unsupported_value
+              details:
+                type: object
+                required: [ diagnostics ]
+                properties:
+                  diagnostics:
+                    type: array
+                    items:
+                      $ref: ./openapi.yaml#/components/schemas/ConfigDiagnostic
+                    contains:
+                      type: object
+                      required: [ level ]
+                      properties:
+                        level:
+                          const: error
   ConfigValidationMode:
     type: string
     enum: [ syntax, full ]

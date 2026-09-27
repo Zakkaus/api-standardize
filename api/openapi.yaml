@@ -228,6 +228,8 @@ components:
       $ref: ./common.yaml#/schemas/ConfigDiagnostic
     ConfigDiagnosticSpan:
       $ref: ./common.yaml#/schemas/ConfigDiagnosticSpan
+    ConfigDiagnosticsErrorResponse:
+      $ref: ./config.yaml#/schemas/ConfigDiagnosticsErrorResponse
     ConfigValidationMode:
       $ref: ./config.yaml#/schemas/ConfigValidationMode
     ConfigValidationSource:
