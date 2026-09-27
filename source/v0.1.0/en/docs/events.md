@@ -43,7 +43,7 @@ Each named event has one JSON `data` object. Unknown kinds/fields are ignored.
 | Kind | Payload |
 |------|---------|
 | `stream.ready` | `instance_id`, `observed_at`. Signals that replay is attached and new events are buffered. No resource ID. Sent on every connection, even if not in `kinds`. |
-| `runtime.updated` | `instance_id`, `observed_at`, `href` (`/api/v1/runtime`). Coalesced invalidation; fetch the current snapshot. |
+| `runtime.updated` | `instance_id`, `observed_at`, `href` (`/api/v1/runtime`). Coalesced invalidation; fetch the current snapshot. Also sent when a `degradations` entry is added, changed or cleared. |
 | `flow.updated` | `instance_id`, `observed_at`, `resource_id` (flow ID), `revision`, `href`. Includes first observation, decisions, attempts, status changes, and terminal state. Fetch the retained record; coalescing must preserve the latest revision. |
 | `flow.gap` | `instance_id`, `observed_at`, nullable `resource_id`, `reason` (`buffer_overflow`, `sampled`, `evicted`, `recording_changed`), nullable `dropped_records` (the same decimal uint64 string counter used by flow coverage). No invented close event. |
 | `operation.updated` | `instance_id`, `observed_at`, `resource_id`, `status`, `href`. Only operations visible to this caller. The normal GET operation envelope is authoritative. |

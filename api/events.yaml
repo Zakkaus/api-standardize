@@ -83,6 +83,7 @@ schemas:
         - required: [ generation_id ]
   RuntimeUpdatedEvent:
     type: object
+    description: Coalesced invalidation of the runtime snapshot. Also sent when an entry is added to, changed in, or cleared from runtime degradations.
     required: [ instance_id, observed_at, href ]
     properties:
       instance_id:
