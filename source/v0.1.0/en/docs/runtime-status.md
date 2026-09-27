@@ -54,11 +54,21 @@ it when the adapter can observe it.
 | process.pid | uint32 or null, optional | Engine process ID with `detail=full`. |
 | process.cpu_percent | number or null | CPU time the engine process used over the adapter's latest sampling interval, as a percentage of one CPU. 100 means one core fully busy; the value may exceed 100 on multi-core hosts. Null until two samples exist or when unmeasurable. |
 | last_reload | object or null | Most recent reload operation and its result. |
+| degradations | array, optional | Features running reduced after a recovered failure; see below. |
 
 `traffic.rates.window_seconds` is the duration of the sampling interval
 ending at `traffic.sampled_at`. A cached sample retains its original
 timestamp; `counter_since` instead marks the cumulative counter reset
 boundary. A null sample timestamp does not establish freshness.
+
+`degradations` lists features the backend keeps running in a reduced mode
+after a failure it recovered from, such as a state database that could not be
+opened. Each entry is a [SafeError](errors.html) with an adapter-defined `code`,
+`message` and optional `details`, plus `component`, an adapter-defined feature
+identifier that stays stable across releases and appears at most once, and
+`since`, the time (RFC3339) the feature started running reduced. The list holds
+at most 64 entries. An absent or empty list means no degradation is known.
+Adding, changing or clearing an entry emits `runtime.updated`.
 
 `datapath.ebpf` is the eBPF summary, or null when inapplicable.
 [Datapath](datapath.html) defines its states and the readiness rules for eBPF,

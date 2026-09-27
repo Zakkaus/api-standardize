@@ -1015,6 +1015,34 @@ test("runtime counters preserve nullable and numeric connection semantics", () =
   assertInvalid(validateExample(contract, wrongType));
 });
 
+test("runtime degradations are optional SafeErrors with a component and a start time", () => {
+  const runtime = example("getRuntime:200:snapshot");
+  assert.equal(runtime.body.degradations, undefined);
+  assertValid(validateExample(contract, runtime), "an absent list means none are known");
+  runtime.body.degradations = [];
+  assertValid(validateExample(contract, runtime), "an empty list means none are known");
+
+  const entry = {
+    code: "state_db_unavailable", message: "The state database could not be opened; state is not persisted.",
+    component: "persistence", since: "2026-08-15T08:00:01Z",
+  };
+  runtime.body.degradations = [entry, {...entry, component: "pname_routing", details: {reason: "comm_fallback"}}];
+  assertValid(validateExample(contract, runtime));
+  for (const field of ["code", "message", "component", "since"]) {
+    const {[field]: _, ...missing} = entry;
+    runtime.body.degradations = [missing];
+    assertInvalid(validateExample(contract, runtime), `${field} is required`);
+  }
+  for (const [field, value] of [["component", ""], ["since", "yesterday"], ["details", "comm_fallback"]]) {
+    runtime.body.degradations = [{...entry, [field]: value}];
+    assertInvalid(validateExample(contract, runtime), `${field} rejects ${JSON.stringify(value)}`);
+  }
+  runtime.body.degradations = Array.from({length: 65}, (_, index) => ({...entry, component: `component_${index}`}));
+  assertInvalid(validateExample(contract, runtime), "at most 64 entries");
+  runtime.body.degradations = null;
+  assertInvalid(validateExample(contract, runtime), "absent, not null, means none are known");
+});
+
 test("runtime memory may omit unadvertised metrics", () => {
   const memory = example("getRuntimeMemory:200:snapshot");
   delete memory.body.process.rss_bytes;
