@@ -273,7 +273,7 @@ test("runtime settings sections are optional and the log level stands alone", ()
   assertValid(validateExample(contract, ring), "flow fields are independent");
 });
 
-test("recorder state is allowed, mode and active, and flow recording may be on demand", () => {
+test("recorder state is allowed, mode and active, and one mode spelling serves PATCH, GET and capabilities", () => {
   const settings = example("getRuntimeSettings:200:current");
   const recorder = {allowed: true, mode: "auto", active: false};
   settings.body.recording = {flows: recorder};
@@ -287,17 +287,20 @@ test("recorder state is allowed, mode and active, and flow recording may be on d
     assertInvalid(validateExample(contract, settings), `recorder ${field} was optional`);
   }
   settings.body.recording = {flows: {...recorder, mode: "on_demand"}};
-  assertInvalid(validateExample(contract, settings), "on_demand is a recording value, not a mode");
+  assertInvalid(validateExample(contract, settings), "on_demand is not a mode");
+  const patch = { $ref: "#/components/schemas/RuntimeSettingsPatch" };
+  for (const mode of ["on", "off", "auto"]) assertValid(contract.validate(patch, {record_flows: mode}));
+  for (const mode of [true, false, "on_demand"]) assertInvalid(contract.validate(patch, {record_flows: mode}), `${mode} is not a mode`);
   const capabilities = example("getCapabilities:200:available");
   const flows = capabilities.body.resources.flows;
-  assert.equal(flows.recording, "on_demand");
-  for (const recording of ["off", "on", "sampled", "on_demand"]) {
+  assert.equal(flows.recording, "auto");
+  for (const recording of ["off", "on", "auto", "sampled"]) {
     flows.recording = recording;
     assertValid(validateExample(contract, capabilities));
   }
-  flows.recording = "auto";
-  assertInvalid(validateExample(contract, capabilities), "recording comes from the enum");
   flows.recording = "on_demand";
+  assertInvalid(validateExample(contract, capabilities), "recording comes from the enum");
+  flows.recording = "auto";
   flows.retention_seconds = 0;
   assertInvalid(validateExample(contract, capabilities), "flow retention is at least 1 second");
 });
@@ -1113,13 +1116,15 @@ test("request targets stay closed while response targets remain additive", () =>
   assertValid(validateExample(contract, response));
 
   const tcp = example("createProbe:request:dns_udp");
-  Object.assign(tcp.body, { kind: "tcp_connect", purpose: "data", transport: ["tcp"] });
+  Object.assign(tcp.body, { kind: "tcp_connect", transport: ["tcp"] });
   assertValid(validateExample(contract, tcp));
 
-  // An unsupported kind, purpose and transport pairing parses; the server answers 422.
-  const wrongPurpose = structuredClone(tcp);
-  wrongPurpose.body.purpose = "dns";
-  assertValid(validateExample(contract, wrongPurpose));
+  // The kind fixes the purpose; a request that names one has an unknown field.
+  const withPurpose = structuredClone(tcp);
+  withPurpose.body.purpose = "data";
+  assertInvalid(validateExample(contract, withPurpose), "purpose is derived from kind");
+
+  // An unsupported kind and transport pairing parses; the server answers 422.
 
   const wrongTransport = structuredClone(tcp);
   wrongTransport.body.transport = ["udp"];

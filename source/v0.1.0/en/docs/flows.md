@@ -327,10 +327,10 @@ Unobserved kernel-direct/blocked flows cannot be hidden behind a full
 userspace list. Kernel bypasses (multicast, own traffic, local services, closed
 admission) must be declared even where no connection exists.
 
-Capabilities advertise `recording` (`off`, `on`, `sampled`, `on_demand`),
+Capabilities advertise `recording` (`off`, `on`, `auto`, `sampled`),
 `scopes`, the optional `min_flows`, `max_flows`, `max_steps_per_flow`,
 `retention_seconds`, `snapshot_ttl_seconds`, and `max_page_size`.
-`on_demand` follows the
+`auto` follows the
 [runtime settings](runtime-status.html#GET-api-v1-runtime-settings) demand
 rules. `max_flows` and `retention_seconds` are supported maxima, not active
 values; that endpoint reports the active values. Retention is a **maximum age after termination**, not a
@@ -354,7 +354,8 @@ slower approximation that re-executes routing during a read.
 
 An implementation claiming full transparency MUST demonstrate actual records
 for: TCP dial failure before tracker insertion; UDP no-reply expiry versus
-reply-then-idle; kernel direct and block; must/block resisting mode override;
+reply-then-idle; kernel direct and block; rules that an engine-wide outbound
+mode does not override, where the engine has such a mode;
 each supported dial mode; accepted and rejected domain verification; DNS hit,
 stale hit, upstream failure and remote name resolution; nested group selection
 and cancelled/retried dials; interleaved A/AAAA evaluation/attempt references;

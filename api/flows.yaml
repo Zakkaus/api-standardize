@@ -620,7 +620,6 @@ paths:
                             routing_source: evaluation
                             routed_outbound: proxy
                             effective_outbound: proxy
-                            mode_override: none
                             selection_path:
                               - group_id: group-proxy
                                 member_id: node-hk-01
@@ -805,7 +804,6 @@ paths:
                             routing_source: evaluation
                             routed_outbound: proxy
                             effective_outbound: proxy
-                            mode_override: none
                             selection_path: []
                             leaf_node_id: node-hk-01
                             leaf_node_name: hk-01
@@ -880,7 +878,6 @@ paths:
                             routing_source: evaluation
                             routed_outbound: proxy
                             effective_outbound: proxy
-                            mode_override: none
                             selection_path: []
                             leaf_node_id: node-hk-01
                             leaf_node_name: hk-01

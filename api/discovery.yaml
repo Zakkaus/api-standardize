@@ -209,7 +209,6 @@ paths:
                         available: true
                         targets: [ node, group ]
                         kinds: [ tcp_connect, http, dns ]
-                        purposes: [ data, dns ]
                         transports: [ tcp, udp ]
                         ip_versions: [ ipv4, ipv6 ]
                         limits:
@@ -227,7 +226,7 @@ paths:
                         max_bulk_close: 1000
                       flows:
                         available: true
-                        recording: on_demand
+                        recording: auto
                         scopes: [ userspace_tcp, userspace_udp ]
                         min_flows: 64
                         max_flows: 10000
@@ -365,7 +364,7 @@ schemas:
             type: boolean
   AdmittedDiscovery:
     type: object
-    required: [ name, status, api_major, base_path, links ]
+    required: [ name, status, api_major, base_path, links, auth ]
     properties:
       name:
         type: string
@@ -444,7 +443,6 @@ schemas:
             description: Present in password mode, null otherwise.
       auth:
         $ref: ./openapi.yaml#/components/schemas/AuthDiscovery
-        description: Absent from servers that predate password login; clients then assume a configured bearer.
   Version:
     type: object
     required: [ api, engine ]
@@ -765,7 +763,7 @@ schemas:
                 available:
                   const: true
             then:
-              required: [ targets, kinds, purposes, transports, ip_versions, limits ]
+              required: [ targets, kinds, transports, ip_versions, limits ]
             properties:
               available:
                 type: boolean
@@ -780,12 +778,6 @@ schemas:
                 uniqueItems: true
                 items:
                   $ref: ./openapi.yaml#/components/schemas/ProbeKind
-              purposes:
-                type: array
-                uniqueItems: true
-                items:
-                  type: string
-                  enum: [ data, dns ]
               transports:
                 type: array
                 uniqueItems: true
@@ -831,8 +823,8 @@ schemas:
                 type: boolean
               recording:
                 type: string
-                enum: [ off, on, sampled, on_demand ]
-                description: The engine's flow recording policy, not whether the recorder is capturing now. off records none, because the configuration does not permit the flow recorder or its mode is off; on records every flow in scopes (mode on); sampled records a subset; on_demand is mode auto, recording while clients create demand, whether or not any client does now. recording.flows.active in GET /runtime/settings reports whether the recorder is capturing.
+                enum: [ "off", "on", auto, sampled ]
+                description: The engine's flow recording policy, not whether the recorder is capturing now. off records none, because the configuration does not permit the flow recorder or its mode is off; on records every flow in scopes (mode on); auto is mode auto, recording while clients create demand, whether or not any client does now; sampled records a subset. recording.flows.active in GET /runtime/settings reports whether the recorder is capturing.
               scopes:
                 type: array
                 uniqueItems: true

@@ -16,18 +16,19 @@ title: Probes
 |-------|----------|----------|
 | target | yes | Exactly `{type: node, node_id}` or `{type: group, group_id}`. |
 | kind | yes | `tcp_connect`, `http`, or `dns`; supported kinds are advertised. |
-| purpose | yes | `data` or `dns`; the health domain being tested, not inferred from UDP alone. |
 | transport | yes | Nonempty unique array of `tcp`/`udp`; `tcp_connect` and `http` take `[tcp]`. |
 | ip_version | yes | `ipv4`, `ipv6`, or `any`. `any` expands to advertised families. |
 | members | no | Group-only: `direct` (default), `leaves`, or nonempty unique direct-member IDs. |
 | warmth | yes | `cold` or `warm`. An unimplementable reuse constraint returns 422, not mislabeled results. |
 
 `tcp_connect` tests TCP reachability of the configured node server, not a
-proxy handshake or application latency; it requires `transport: [tcp]` and
-`purpose: data`. `http` tests the configured HTTP(S) check through the target
-outbound, requires TCP/data, and measures through the response headers.
-`dns` tests the configured DNS check through the target outbound and requires
-`purpose: dns`; TCP and/or UDP describe that DNS query's transport. The IP
+proxy handshake or application latency; it requires `transport: [tcp]`.
+`http` tests the configured HTTP(S) check through the target outbound, requires
+TCP, and measures through the response headers. `dns` tests the configured DNS
+check through the target outbound; TCP and/or UDP describe that DNS query's
+transport. The kind fixes the health `purpose` that results and health
+observations report: `tcp_connect` and `http` report `data`, `dns` reports
+`dns`, so a DNS check over UDP never collapses into data-UDP health. The IP
 family refers to the check destination (node server for `tcp_connect`), not
 necessarily the tunnel's network. There is no arbitrary UDP echo or generic
 `latency` kind whose success criterion is unspecified.
@@ -35,7 +36,7 @@ necessarily the tunnel's network. There is no arbitrary UDP echo or generic
 A group `direct` target preserves direct members and policy-authorized nested
 resolution; no eligible leaf produces `unavailable`, never an arbitrary
 sibling. `leaves` is an explicit diagnostic expansion. Deduplicate identical
-leaf/kind/transport/purpose/family/warmth executions while retaining every
+leaf/kind/transport/family/warmth executions while retaining every
 member-to-leaf association in the results. `cold` excludes reusable check
 connections; `warm` permits but does not require reuse. Result `warmth` states
 what actually happened (`cold`, `warm`, or `unknown`). Do not claim a cold
@@ -43,8 +44,8 @@ physical tunnel merely because a new logical stream was opened.
 
 The request cannot specify arbitrary URLs, names, IPs or ports. Use
 administrator-configured check destinations under the
-[outbound-request policy](api-config.html#Outbound-requests). `tcp_connect` and `http` take purpose `data` over
-`tcp`; `dns` takes purpose `dns`. The request schema does not restrict these
+[outbound-request policy](api-config.html#Outbound-requests). `tcp_connect` and `http` run over
+`tcp`. The request schema does not restrict kind and transport
 combinations: a request that parses but pairs them otherwise, or asks for a
 target capability the backend lacks, returns `422 unsupported_value` before
 work. `400 invalid_request` is for a request that does not parse or has the

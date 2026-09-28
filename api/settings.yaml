@@ -312,11 +312,9 @@ schemas:
     type: string
     enum: [ log.level, log.buffered_records, dns_log.max_records, flows.max_flows, flows.retention_seconds, record_flows, record_logs, record_dns_log, geodata ]
   RecorderMode:
-    description: The value a PATCH sets for a recorder. true pins a permitted recorder on, false forces it off, and "auto" (the startup default) lets the engine record on demand. What counts as demand, and how long it lasts, is engine-defined. GET reports the result as the string RecorderState.mode, not as this value.
-    oneOf:
-      - type: boolean
-      - type: string
-        enum: [ auto ]
+    type: string
+    enum: [ "on", "off", auto ]
+    description: A recorder's mode. "on" keeps a permitted recorder on without clients, "off" forces it off, and auto (the startup default) lets the engine record on demand. What counts as demand, and how long it lasts, is engine-defined. PATCH sets it, GET reports it in RecorderState.mode, and resources.flows.recording reports the flow recorder's value.
   RecorderState:
     type: object
     required: [ allowed, mode, active ]
@@ -325,9 +323,8 @@ schemas:
         type: boolean
         description: The configuration permits this recorder; false means never, whatever the mode.
       mode:
-        type: string
-        enum: [ auto, "on", "off" ]
-        description: The recorder's mode as reported by GET, always a string. "on" follows a PATCH of true, "off" a PATCH of false, and auto a PATCH of "auto" or no PATCH at all.
+        $ref: ./openapi.yaml#/components/schemas/RecorderMode
+        description: The mode last set by PATCH, or auto when none was set.
       active:
         type: boolean
         description: The recorder is capturing right now.

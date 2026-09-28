@@ -22,7 +22,6 @@ paths:
                     type: group
                     group_id: group-proxy
                   kind: dns
-                  purpose: dns
                   transport: [ udp ]
                   ip_version: ipv4
                   members: [ node-hk-01, group-jp ]
@@ -510,19 +509,18 @@ schemas:
   ProbeRequest:
     type: object
     description: >-
-      The schema does not restrict kind, purpose and transport combinations.
-      tcp_connect and http take purpose data over tcp; dns takes purpose dns.
-      Any other combination parses and returns 422 unsupported_value.
+      The schema does not restrict kind and transport combinations.
+      tcp_connect and http run over tcp; dns runs over tcp, udp or both.
+      Any other combination parses and returns 422 unsupported_value. The
+      kind fixes the health purpose that results report: tcp_connect and http
+      test data, dns tests dns.
     additionalProperties: false
-    required: [ target, kind, purpose, transport, ip_version, warmth ]
+    required: [ target, kind, transport, ip_version, warmth ]
     properties:
       target:
         $ref: ./openapi.yaml#/components/schemas/ProbeTarget
       kind:
         $ref: ./openapi.yaml#/components/schemas/ProbeKind
-      purpose:
-        type: string
-        enum: [ data, dns ]
       transport:
         type: array
         minItems: 1

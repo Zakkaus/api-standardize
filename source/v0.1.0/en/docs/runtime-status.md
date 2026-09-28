@@ -235,17 +235,16 @@ may be empty. honk's rules are in the
 `resources.flows.recording` reports the flow recorder's policy, and
 `recording.flows.active` reports whether it is capturing now. The policy is
 `off` when the configuration does not permit the recorder or its mode is `off`,
-`on` when its mode is `on`, and `on_demand` when its mode is `auto`, whether or
-not a client creates demand at the moment.
+and otherwise the mode itself (`on` or `auto`), whether or not a client creates
+demand at the moment.
 
 ## PATCH /api/v1/runtime/settings
 
 Requires `control`. Only the fields listed in `resources.runtime_settings.fields`
 may appear; the body merges, an absent field keeps its value. `record_flows`,
-`record_logs` and `record_dns_log` take `true` (keep the recorder on without
-clients), `false` (force it off) or `"auto"` (the startup default: record on
-demand). GET reports the result in `recording.*.mode` as the string `on`, `off`
-or `auto`, never as a boolean. Pinning a recorder the configuration forbids rejects the whole patch.
+`record_logs` and `record_dns_log` take `"on"` (keep the recorder on without
+clients), `"off"` (force it off) or `"auto"` (the startup default: record on
+demand). GET reports the same value in `recording.*.mode`. Pinning a recorder the configuration forbids rejects the whole patch.
 `{"log": {"level": "info"}}` is a complete request.
 
 {% api_request patchRuntimeSettings debug %}

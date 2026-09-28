@@ -232,9 +232,6 @@ paths:
                           - tcp_connect
                           - http
                           - dns
-                        purposes:
-                          - data
-                          - dns
                         transports:
                           - tcp
                           - udp
@@ -256,7 +253,7 @@ paths:
                         max_bulk_close: 1000
                       flows:
                         available: true
-                        recording: on_demand
+                        recording: auto
                         scopes:
                           - userspace_tcp
                           - userspace_udp
@@ -3819,7 +3816,6 @@ paths:
                     type: group
                     group_id: group-proxy
                   kind: dns
-                  purpose: dns
                   transport:
                     - udp
                   ip_version: ipv4
@@ -4546,7 +4542,6 @@ paths:
                             routing_source: evaluation
                             routed_outbound: proxy
                             effective_outbound: proxy
-                            mode_override: none
                             selection_path:
                               - group_id: group-proxy
                                 member_id: node-hk-01
@@ -4732,7 +4727,6 @@ paths:
                             routing_source: evaluation
                             routed_outbound: proxy
                             effective_outbound: proxy
-                            mode_override: none
                             selection_path: []
                             leaf_node_id: node-hk-01
                             leaf_node_name: hk-01
@@ -4812,7 +4806,6 @@ paths:
                             routing_source: evaluation
                             routed_outbound: proxy
                             effective_outbound: proxy
-                            mode_override: none
                             selection_path: []
                             leaf_node_id: node-hk-01
                             leaf_node_name: hk-01
@@ -7235,6 +7228,7 @@ components:
         - api_major
         - base_path
         - links
+        - auth
       properties:
         name:
           type: string
@@ -7338,7 +7332,6 @@ components:
               description: Present in password mode, null otherwise.
         auth:
           $ref: '#/components/schemas/AuthDiscovery'
-          description: Absent from servers that predate password login; clients then assume a configured bearer.
     PublicDiscovery:
       type: object
       description: What a client needs before it signs in. Status, base path, resource links, `auth_logout` and `auth.anonymous_loopback` are withheld.
@@ -7824,7 +7817,6 @@ components:
                 required:
                   - targets
                   - kinds
-                  - purposes
                   - transports
                   - ip_versions
                   - limits
@@ -7844,14 +7836,6 @@ components:
                   uniqueItems: true
                   items:
                     $ref: '#/components/schemas/ProbeKind'
-                purposes:
-                  type: array
-                  uniqueItems: true
-                  items:
-                    type: string
-                    enum:
-                      - data
-                      - dns
                 transports:
                   type: array
                   uniqueItems: true
@@ -7911,9 +7895,9 @@ components:
                   enum:
                     - 'off'
                     - 'on'
+                    - auto
                     - sampled
-                    - on_demand
-                  description: The engine's flow recording policy, not whether the recorder is capturing now. off records none, because the configuration does not permit the flow recorder or its mode is off; on records every flow in scopes (mode on); sampled records a subset; on_demand is mode auto, recording while clients create demand, whether or not any client does now. recording.flows.active in GET /runtime/settings reports whether the recorder is capturing.
+                  description: The engine's flow recording policy, not whether the recorder is capturing now. off records none, because the configuration does not permit the flow recorder or its mode is off; on records every flow in scopes (mode on); auto is mode auto, recording while clients create demand, whether or not any client does now; sampled records a subset. recording.flows.active in GET /runtime/settings reports whether the recorder is capturing.
                 scopes:
                   type: array
                   uniqueItems: true
@@ -10714,12 +10698,11 @@ components:
             minLength: 1
     ProbeRequest:
       type: object
-      description: The schema does not restrict kind, purpose and transport combinations. tcp_connect and http take purpose data over tcp; dns takes purpose dns. Any other combination parses and returns 422 unsupported_value.
+      description: 'The schema does not restrict kind and transport combinations. tcp_connect and http run over tcp; dns runs over tcp, udp or both. Any other combination parses and returns 422 unsupported_value. The kind fixes the health purpose that results report: tcp_connect and http test data, dns tests dns.'
       additionalProperties: false
       required:
         - target
         - kind
-        - purpose
         - transport
         - ip_version
         - warmth
@@ -10728,11 +10711,6 @@ components:
           $ref: '#/components/schemas/ProbeTarget'
         kind:
           $ref: '#/components/schemas/ProbeKind'
-        purpose:
-          type: string
-          enum:
-            - data
-            - dns
         transport:
           type: array
           minItems: 1
@@ -11970,7 +11948,6 @@ components:
         - routing_source
         - routed_outbound
         - effective_outbound
-        - mode_override
         - selection_path
         - leaf_node_id
         - leaf_node_name
@@ -12014,14 +11991,6 @@ components:
           type:
             - string
             - 'null'
-        mode_override:
-          type: string
-          enum:
-            - none
-            - direct
-            - global
-            - unknown
-          description: Engine mode override observed for this outbound attempt, separate from the configured dial mode. This field does not expose a native runtime-mode setting. none means no override was applied; unknown means the recorder could not determine it.
         selection_path:
           type: array
           items:
@@ -13413,12 +13382,12 @@ components:
         geodata:
           $ref: '#/components/schemas/GeoDataSettingsPatch'
     RecorderMode:
-      description: The value a PATCH sets for a recorder. true pins a permitted recorder on, false forces it off, and "auto" (the startup default) lets the engine record on demand. What counts as demand, and how long it lasts, is engine-defined. GET reports the result as the string RecorderState.mode, not as this value.
-      oneOf:
-        - type: boolean
-        - type: string
-          enum:
-            - auto
+      type: string
+      enum:
+        - 'on'
+        - 'off'
+        - auto
+      description: A recorder's mode. "on" keeps a permitted recorder on without clients, "off" forces it off, and auto (the startup default) lets the engine record on demand. What counts as demand, and how long it lasts, is engine-defined. PATCH sets it, GET reports it in RecorderState.mode, and resources.flows.recording reports the flow recorder's value.
     RecorderState:
       type: object
       required:
@@ -13430,12 +13399,8 @@ components:
           type: boolean
           description: The configuration permits this recorder; false means never, whatever the mode.
         mode:
-          type: string
-          enum:
-            - auto
-            - 'on'
-            - 'off'
-          description: The recorder's mode as reported by GET, always a string. "on" follows a PATCH of true, "off" a PATCH of false, and auto a PATCH of "auto" or no PATCH at all.
+          $ref: '#/components/schemas/RecorderMode'
+          description: The mode last set by PATCH, or auto when none was set.
         active:
           type: boolean
           description: The recorder is capturing right now.
