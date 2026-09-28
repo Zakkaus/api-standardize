@@ -32,14 +32,15 @@ for a failed configuration change listed under
 | 403 | `permission_denied` | The caller lacks the required permission, or listener security policy rejects the request. |
 | 404 | `resource_not_found` | The requested resource does not exist. |
 | 404 | `capability_not_supported` | The running adapter does not expose the resource or action. |
-| 409 | `state_conflict` | The current state prevents the request: a name in use, a referenced object that is not current, or a transition the current state does not allow. |
+| 405 | `method_not_allowed` | The path exists but does not support the request method; the response lists the supported methods in `Allow`. |
+| 409 | `state_conflict` | The current state prevents the request: a name in use, a referenced object that is not current, a transition the current state does not allow, or a configuration change while a write without `If-Match` was being admitted. |
 | 409 | `idempotency_conflict` | An idempotency key was reused with a different request body. |
 | 409 | `event_cursor_expired` | Event or log SSE cursor cannot be replayed; open a fresh stream and establish a new baseline. |
 | 409 | `setup_required` | Password login was requested before an administrator was created. |
 | 409 | `setup_already_completed` | Administrator setup was requested after an administrator was created. |
 | 410 | `snapshot_expired` | A page cursor is no longer usable; restart the page walk. |
 | 410 | `flow_expired` | Flow evidence was evicted/expired and a tombstone still exists. |
-| 412 | `stale_revision` | `If-Match` does not match the current resource revision or stored source content hash, or the configuration changed while a delete was being admitted. |
+| 412 | `stale_revision` | `If-Match` does not match the current resource revision or stored source content hash. |
 | 413 | `request_too_large` | Request or requested fan-out exceeds an advertised limit. |
 | 415 | `unsupported_media_type` | Request `Content-Type` is unsupported. |
 | 422 | `unsupported_value` | The request is well-formed but the engine does not support its meaning, or full validation of a configuration candidate found error diagnostics. |
@@ -57,8 +58,9 @@ every request, and a `GET` with a body is malformed.
 A server checks a request in this order and returns the status of the first
 check that fails:
 
-1. Authentication, authorization and routing: `401`, `403`, and `404` for an
-   unknown route or an unadvertised capability.
+1. Authentication, authorization and routing: `401`, `403`, `404` for an
+   unknown route or an unadvertised capability, and `405` with `Allow` for a
+   known path that does not support the method.
 2. Request boundary: a missing required `If-Match` (`428`) or a malformed one
    (`400`), then `Content-Type` (`415`), body size (`413`), and parameter and
    body schema (`400`).
@@ -84,8 +86,9 @@ cases fall in which row.
 
 | Status | Code | The request fails because |
 |--------|------|---------------------------|
-| 400 | `invalid_request` | It cannot be parsed, or a parameter or field is outside its schema: wrong type, a missing field, a field the schema does not define, a value outside the schema's enum, range or length, or a scalar value above a bound the capabilities advertise, such as a page `limit` above `max_page_size`. A page cursor sent with different filters or a different `limit` is also `400`. |
+| 400 | `invalid_request` | It cannot be parsed, or a parameter or field is outside its schema: wrong type, a missing field, a field the schema does not define (JSON Patch operation objects ignore such members instead), a value outside the schema's enum, range or length, or a scalar value above a bound the capabilities advertise, such as a page `limit` above `max_page_size`. A page cursor sent with different filters or a different `limit` is also `400`. |
 | 413 | `request_too_large` | The payload, or the fan-out the request asks for, exceeds an advertised bound: the body size, the number of operations in a group patch (`max_patch_operations`), the matching live entries a bulk close selects, including non-closable ones (`max_bulk_close`), or the targets or results of a probe or trace. |
+| 405 | `method_not_allowed` | The path exists, but not with this method ([RFC 9110 §15.5.6](https://www.rfc-editor.org/rfc/rfc9110#section-15.5.6)). An unknown path is `404`. |
 | 428 | `precondition_required` | A required `If-Match` header is missing. |
 | 412 | `stale_revision` | `If-Match` names a revision or content hash that is no longer current. |
 | 422 | `unsupported_value` | It is well-formed and within every bound, but this engine does not support its meaning: an enum member or field the schema defines and the capabilities do not advertise, or a combination of fields or capabilities the engine does not implement. Error diagnostics from full validation of a configuration candidate are also `422`. |
@@ -102,6 +105,29 @@ Responses with `429` or retryable `503` include `Retry-After`. A `503` from a
 write the server could not confirm, such as a group selection, may still have
 taken effect; read the resource back before retrying. Error messages follow the
 [visibility rule](api-config.html#Visibility).
+
+## Conditional requests
+
+Two resources carry a strong `ETag` that a write compares in `If-Match`:
+
+| Read | `ETag` | Conditional write |
+|------|--------|-------------------|
+| `GET /config/sources/{source_id}` | the source's `content_sha256` | `PUT /config/sources/{source_id}` |
+| `GET /groups/{group_id}` | the configuration-wide `revision` | `PATCH /groups/{group_id}` |
+
+The server evaluates `If-Match` as
+[RFC 9110 §13.1.1](https://www.rfc-editor.org/rfc/rfc9110#section-13.1.1)
+defines. `*` matches when the resource exists. A comma-separated list matches
+when any strong tag in it equals the current one. A weak tag (`W/"…"`) never
+matches. A header that does not match returns `412 stale_revision`; a header
+that is not `*` or a list of entity tags returns `400 invalid_request`.
+
+The server checks the request in the order under
+[choosing the status](#Choosing-the-status): body parsing and schema checks come
+before the `412` precondition. RFC 9110 §13.2.1 evaluates preconditions before
+it processes content; the contract keeps the body checks first because neither
+check changes anything, so the order decides only which error a request with
+both faults receives.
 
 ## Page cursors
 

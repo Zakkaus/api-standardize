@@ -16,7 +16,8 @@ the native contract because they make binding and authorization ambiguous.
 
 Configure the native listener under `experimental.native_api`. Its settings
 include `enabled`, `listen`, `secret`, `allow_origins`, and `ui`. Use an explicit
-loopback address for local access. A non-loopback listener requires a secret.
+loopback address for local access. A non-loopback listener requires a secret or
+password mode.
 
 `experimental.clash_api.external_controller` configures the separate
 Clash-compatible listener.
@@ -24,7 +25,8 @@ Clash-compatible listener.
 ## Listener and authentication rules
 
 - Omitting `listen` binds only to loopback.
-- A non-loopback listener requires `secret`; otherwise startup fails closed.
+- A non-loopback listener requires deployment-secret authentication (`secret`)
+  or password authentication; otherwise startup fails closed.
 - `secret` is opaque. Implementations may enforce a minimum entropy policy but
   must not require one specific textual encoding.
 - Authentication uses `Authorization: Bearer <secret>`. Secrets must not appear
@@ -77,7 +79,8 @@ The native API defines two permissions:
 
 The deployment secret and a password session grant `control`. Implementations
 may support additional observe-only credentials, but must preserve these
-permission names. Missing or invalid required credentials return `401`. An
+permission names. Missing or invalid required credentials return `401` with
+`WWW-Authenticate: Bearer`. An
 authenticated caller without the required permission normally receives
 `403 permission_denied`. Operation reads instead return
 `404 resource_not_found` for an operation the caller cannot see.

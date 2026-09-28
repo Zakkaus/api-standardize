@@ -24,7 +24,7 @@ headers:
       type: string
       const: nosniff
   ETag:
-    description: Quoted group configuration revision.
+    description: Strong entity tag of the representation, the value a later If-Match compares.
     required: true
     schema:
       type: string
@@ -106,9 +106,9 @@ parameters:
     name: If-Match
     in: header
     required: true
+    description: Evaluated as RFC 9110 §13.1.1 defines; see Conditional requests in the error contract.
     schema:
-      type: string
-      minLength: 1
+      $ref: ./openapi.yaml#/components/schemas/EntityTagList
     example: '"17"'
   IdempotencyKey:
     name: Idempotency-Key
@@ -196,6 +196,12 @@ responses:
   Unauthorized:
     description: Credentials are missing or invalid
     headers:
+      WWW-Authenticate:
+        description: The authentication challenge (RFC 9110 §15.5.2); the native API uses the Bearer scheme.
+        required: true
+        schema:
+          type: string
+          pattern: ^Bearer(\s|$)
       Cache-Control:
         $ref: ./openapi.yaml#/components/headers/NoStore
       X-Content-Type-Options:
@@ -214,6 +220,7 @@ responses:
               request_id: request-01HZX4K8W6
             x-headers:
               Content-Type: application/json
+              WWW-Authenticate: Bearer
               Cache-Control: no-store
               X-Content-Type-Options: nosniff
   Forbidden:
@@ -548,6 +555,7 @@ schemas:
       - permission_denied
       - resource_not_found
       - capability_not_supported
+      - method_not_allowed
       - state_conflict
       - idempotency_conflict
       - event_cursor_expired
@@ -660,8 +668,13 @@ schemas:
   IpVersion:
     type: string
     enum: [ ipv4, ipv6 ]
+  EntityTagList:
+    type: string
+    description: "`*` or a comma-separated list of entity tags, strong or weak (W/ prefix)."
+    pattern: '^(\*|(W/)?"[^"]*"([ \t]*,[ \t]*(W/)?"[^"]*")*)$'
   IpAddress:
-    oneOf:
+    description: An IPv4 or IPv6 address. The two branches differ only by format, so validating this value requires asserting the ipv4 and ipv6 formats.
+    anyOf:
       - type: string
         format: ipv4
       - type: string

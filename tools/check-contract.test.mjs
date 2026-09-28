@@ -697,7 +697,7 @@ test("source editing examples preserve exact bytes and use the accepted hash as 
   assert.match(renderExample(request, "http"), /^PUT \/api\/v1\/config\/sources\/source-main HTTP\/1\.1/m);
 });
 
-test("source replacement accepts only complete text with a single hash precondition", () => {
+test("source replacement accepts only complete text with an RFC 9110 If-Match precondition", () => {
   const request = example("replaceConfigSource:request:replacement");
   request.body.content = "";
   assertValid(validateExample(contract, request));
@@ -710,11 +710,17 @@ test("source replacement accepts only complete text with a single hash precondit
   const missing = structuredClone(request);
   delete missing.headers["If-Match"];
   assertInvalid(validateExample(contract, missing));
-  for (const value of ["*", `W/${request.headers["If-Match"]}`, '"17"', request.headers["If-Match"].slice(1, -1),
-    `${request.headers["If-Match"]}, ${request.headers["If-Match"]}`]) {
+  // Wildcards, weak tags and lists are well-formed; they fail to match with 412, not 400.
+  for (const value of ["*", `W/${request.headers["If-Match"]}`, '"17"',
+    `${request.headers["If-Match"]}, W/"17"`]) {
     const changed = structuredClone(request);
     changed.headers["If-Match"] = value;
-    assertInvalid(validateExample(contract, changed));
+    assertValid(validateExample(contract, changed));
+  }
+  for (const value of [request.headers["If-Match"].slice(1, -1), '"a" "b"', "*, \"17\""]) {
+    const changed = structuredClone(request);
+    changed.headers["If-Match"] = value;
+    assertInvalid(validateExample(contract, changed), `${value} is not If-Match syntax`);
   }
 });
 
@@ -1991,7 +1997,10 @@ test("group config admits dae's fixed policy, a missing interrupt option and eng
   assertValid(contract.validate(patch, [{ op: "copy", from: "/config/tolerance", path: "/config/idle_timeout" }]));
   assertValid(contract.validate(patch, [{ op: "replace", path: "/config/interrupt_connections", value: null }]));
   assertInvalid(contract.validate(patch, [{ op: "replace", path: "/config/interrupt_connections", value: "on" }]), "interrupt_connections is a boolean or null");
-  assertInvalid(contract.validate(patch, [{ op: "remove", path: "/config/check_url", value: null }]), "remove carries no value");
+  // RFC 6902 §4: members an operation does not define are ignored, not rejected.
+  assertValid(contract.validate(patch, [{ op: "remove", path: "/config/check_url", value: null }]));
+  assertValid(contract.validate(patch, [{ op: "replace", path: "/config/tolerance", value: 100, comment: "tune" }]));
+  assertInvalid(contract.validate(patch, [{ op: "remove", comment: "no path" }]), "an operation still needs its path");
   assertInvalid(contract.validate(patch, [{ op: "replace", path: "/config/x-dae", value: {} }]), "extension members are not patch targets");
 });
 

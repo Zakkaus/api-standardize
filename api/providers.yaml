@@ -80,7 +80,8 @@ paths:
         POST /providers/{provider_id}/refresh to load it. Otherwise the backend may fetch the
         provider during activation and returns its actual state. The response carries the
         URL in url_redacted, as written apart from listener secrets. A name already in use
-        returns 409 state_conflict. A URL that is not HTTP(S) returns 422 unsupported_value.
+        returns 409 state_conflict, as does a configuration change while the create is
+        being admitted. A URL that is not HTTP(S) returns 422 unsupported_value.
         update_interval, user_agent and cache are accepted only when named in
         resources.providers.create_options; an omitted one takes the default listed there,
         and one the backend does not list returns 422 unsupported_value.
@@ -424,10 +425,7 @@ paths:
           $ref: ./openapi.yaml#/components/responses/NotFound
         "409":
           $ref: ./openapi.yaml#/components/responses/Conflict
-          description: The configuration still names the provider in a reference the delete would break (state_conflict); nothing is removed. Filter-matched membership is not a reference.
-        "412":
-          $ref: ./openapi.yaml#/components/responses/PreconditionFailed
-          description: The configuration changed while the delete was being admitted (stale_revision); nothing is removed. Read the provider back and retry.
+          description: The configuration still names the provider in a reference the delete would break, or the configuration changed while the delete was being admitted (state_conflict); nothing is removed. Filter-matched membership is not a reference. After a concurrent change, read the provider back and retry.
         "413":
           $ref: ./openapi.yaml#/components/responses/TooLarge
         "503":

@@ -107,7 +107,9 @@ allowed length. Content that JSON escaping expands can still exceed the body
 limit, and that limit then applies. Exceeding either returns
 `413 request_too_large`.
 
-`If-Match` accepts one quoted strong tag, not a wildcard, weak tag, or tag list.
+`GET /config/sources/{source_id}` returns the quoted `content_sha256` in `ETag`.
+`If-Match` is evaluated as [conditional requests](errors.html#Conditional-requests)
+defines.
 The optional `Idempotency-Key` follows the [operation rules](operations.html):
 within the running instance's retention window, the same caller, method, path,
 key, and body return the original operation without another write or hash

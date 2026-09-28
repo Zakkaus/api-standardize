@@ -4,7 +4,8 @@ info:
   version: 0.1.0-draft
   description: |
     Normative wire contract for the native control-plane API. Unknown response
-    extension fields are permitted. Request objects reject unknown fields.
+    extension fields are permitted. Request objects reject unknown fields,
+    except JSON Patch operation objects, which ignore them as RFC 6902 requires.
     Published as a generated bundle at source/openapi.yaml; edit the api/ sources,
     not the published file.
 jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
@@ -612,27 +613,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
-          description: Credentials are missing or invalid
-          headers:
-            Cache-Control:
-              $ref: '#/components/headers/NoStore'
-            X-Content-Type-Options:
-              $ref: '#/components/headers/NoSniff'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              examples:
-                authentication_required:
-                  value:
-                    error:
-                      code: authentication_required
-                      message: Credentials are required.
-                    request_id: request-config-1
-                  x-headers:
-                    Content-Type: application/json
-                    Cache-Control: no-store
-                    X-Content-Type-Options: nosniff
+          $ref: '#/components/responses/Unauthorized'
         '403':
           description: Authenticated caller lacks observe permission
           headers:
@@ -823,27 +804,7 @@ paths:
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
         '401':
-          description: Credentials are missing or invalid
-          headers:
-            Cache-Control:
-              $ref: '#/components/headers/NoStore'
-            X-Content-Type-Options:
-              $ref: '#/components/headers/NoSniff'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              examples:
-                authentication_required:
-                  value:
-                    error:
-                      code: authentication_required
-                      message: Credentials are required.
-                    request_id: request-validate-2
-                  x-headers:
-                    Content-Type: application/json
-                    Cache-Control: no-store
-                    X-Content-Type-Options: nosniff
+          $ref: '#/components/responses/Unauthorized'
         '403':
           description: Authenticated caller lacks control permission
           headers:
@@ -1276,6 +1237,9 @@ paths:
         '200':
           description: Accepted source; content remains subject to visibility policy
           headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+              description: The source's content_sha256 in double quotes, the value PUT compares in If-Match.
             Cache-Control:
               $ref: '#/components/headers/NoStore'
             X-Content-Type-Options:
@@ -1302,6 +1266,7 @@ paths:
                     line_count: 3
                   x-headers:
                     Content-Type: application/json
+                    ETag: '"d1f62f00c6da9ec33956e66b8cc3b4670f164556fc12453193904af23451dec1"'
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
                 redacted:
@@ -1325,6 +1290,7 @@ paths:
                     line_count: 8
                   x-headers:
                     Content-Type: application/json
+                    ETag: '"0000000000000000000000000000000000000000000000000000000000000000"'
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
         '400':
@@ -1427,18 +1393,14 @@ paths:
         - bearerAuth: []
         - {}
       parameters:
-        - name: If-Match
-          in: header
-          required: true
+        - $ref: '#/components/parameters/IfMatch'
           description: |
-            One strong entity tag containing the source's content_sha256 from
-            GET /config, enclosed in double quotes. Compare the digest with the
-            source's current bytes in the configuration store, not the snapshot revision. Wildcards, weak
-            tags, and tag lists are not accepted.
-          schema:
-            type: string
-            pattern: ^"[0-9a-f]{64}"$
-          example: '"d1f62f00c6da9ec33956e66b8cc3b4670f164556fc12453193904af23451dec1"'
+            The source's content_sha256, from GET /config or the ETag of
+            GET /config/sources/{source_id}, enclosed in double quotes. The server
+            compares it with the source's current bytes in the configuration store,
+            not the snapshot revision, as RFC 9110 §13.1.1 defines: `*` matches the
+            existing source, a list matches when any strong tag in it matches, and a
+            weak tag never matches.
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
@@ -2209,7 +2171,8 @@ paths:
         generation.changed. The response does not echo the link; the source text
         returns it as written (see Visibility in API Configuration). A link the engine
         cannot parse returns 422 unsupported_value with a sanitized reason in
-        error.message. A name already in use returns 409 state_conflict. The node belongs to the
+        error.message. A name already in use, or a configuration change while the
+        create is being admitted, returns 409 state_conflict. The node belongs to the
         inline provider and to every group whose filter matches it after reload.
         Returns 201 with the node once the change is active, or 202 with a
         node_create operation whose result is the created node. A failed
@@ -2485,7 +2448,8 @@ paths:
         POST /providers/{provider_id}/refresh to load it. Otherwise the backend may fetch the
         provider during activation and returns its actual state. The response carries the
         URL in url_redacted, as written apart from listener secrets. A name already in use
-        returns 409 state_conflict. A URL that is not HTTP(S) returns 422 unsupported_value.
+        returns 409 state_conflict, as does a configuration change while the create is
+        being admitted. A URL that is not HTTP(S) returns 422 unsupported_value.
         update_interval, user_agent and cache are accepted only when named in
         resources.providers.create_options; an omitted one takes the default listed there,
         and one the backend does not list returns 422 unsupported_value.
@@ -2833,10 +2797,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
-          description: The configuration still names the provider in a reference the delete would break (state_conflict); nothing is removed. Filter-matched membership is not a reference.
-        '412':
-          $ref: '#/components/responses/PreconditionFailed'
-          description: The configuration changed while the delete was being admitted (stale_revision); nothing is removed. Read the provider back and retry.
+          description: The configuration still names the provider in a reference the delete would break, or the configuration changed while the delete was being admitted (state_conflict); nothing is removed. Filter-matched membership is not a reference. After a concurrent change, read the provider back and retry.
         '413':
           $ref: '#/components/responses/TooLarge'
         '503':
@@ -3114,10 +3075,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
-          description: A group or the routing final outbound still names the node (state_conflict); nothing is removed. Filter-matched membership is not a reference.
-        '412':
-          $ref: '#/components/responses/PreconditionFailed'
-          description: The configuration changed while the delete was being admitted (stale_revision); nothing is removed. Read the node back and retry.
+          description: A group or the routing final outbound still names the node, or the configuration changed while the delete was being admitted (state_conflict); nothing is removed. Filter-matched membership is not a reference. After a concurrent change, read the node back and retry.
         '413':
           $ref: '#/components/responses/TooLarge'
         '503':
@@ -6565,7 +6523,7 @@ components:
         type: string
         const: nosniff
     ETag:
-      description: Quoted group configuration revision.
+      description: Strong entity tag of the representation, the value a later If-Match compares.
       required: true
       schema:
         type: string
@@ -6666,9 +6624,9 @@ components:
       name: If-Match
       in: header
       required: true
+      description: Evaluated as RFC 9110 §13.1.1 defines; see Conditional requests in the error contract.
       schema:
-        type: string
-        minLength: 1
+        $ref: '#/components/schemas/EntityTagList'
       example: '"17"'
     IdempotencyKey:
       name: Idempotency-Key
@@ -6788,6 +6746,12 @@ components:
     Unauthorized:
       description: Credentials are missing or invalid
       headers:
+        WWW-Authenticate:
+          description: The authentication challenge (RFC 9110 §15.5.2); the native API uses the Bearer scheme.
+          required: true
+          schema:
+            type: string
+            pattern: ^Bearer(\s|$)
         Cache-Control:
           $ref: '#/components/headers/NoStore'
         X-Content-Type-Options:
@@ -6806,6 +6770,7 @@ components:
                 request_id: request-01HZX4K8W6
               x-headers:
                 Content-Type: application/json
+                WWW-Authenticate: Bearer
                 Cache-Control: no-store
                 X-Content-Type-Options: nosniff
     Forbidden:
@@ -7135,6 +7100,7 @@ components:
         - permission_denied
         - resource_not_found
         - capability_not_supported
+        - method_not_allowed
         - state_conflict
         - idempotency_conflict
         - event_cursor_expired
@@ -10325,10 +10291,9 @@ components:
           - $ref: '#/components/schemas/InterruptPatch'
           - $ref: '#/components/schemas/RemovePatch'
           - $ref: '#/components/schemas/CopyMovePatch'
-      description: RFC 6902 operations over the group's policy and config, applied in order. Bounded by resources.groups.max_patch_operations.
+      description: RFC 6902 operations over the group's policy and config, applied in order. Bounded by resources.groups.max_patch_operations. Members an operation object does not define are ignored (RFC 6902 §4).
     PolicyPatch:
       type: object
-      additionalProperties: false
       required:
         - op
         - path
@@ -10347,7 +10312,6 @@ components:
           $ref: '#/components/schemas/GroupPolicyRequest'
     MemberIdPatch:
       type: object
-      additionalProperties: false
       required:
         - op
         - path
@@ -10368,7 +10332,6 @@ components:
             - 'null'
     OutboundPatch:
       type: object
-      additionalProperties: false
       required:
         - op
         - path
@@ -10389,7 +10352,6 @@ components:
             - 'null'
     CheckUrlPatch:
       type: object
-      additionalProperties: false
       required:
         - op
         - path
@@ -10410,7 +10372,6 @@ components:
             - $ref: '#/components/schemas/SafeHttpUrl'
     PositiveIntegerPatch:
       type: object
-      additionalProperties: false
       required:
         - op
         - path
@@ -10433,7 +10394,6 @@ components:
           minimum: 1
     TolerancePatch:
       type: object
-      additionalProperties: false
       required:
         - op
         - path
@@ -10455,7 +10415,6 @@ components:
           minimum: 0
     IdleTimeoutPatch:
       type: object
-      additionalProperties: false
       required:
         - op
         - path
@@ -10477,7 +10436,6 @@ components:
           minimum: 0
     InterruptPatch:
       type: object
-      additionalProperties: false
       required:
         - op
         - path
@@ -10509,7 +10467,6 @@ components:
         - /config/interrupt_connections
     RemovePatch:
       type: object
-      additionalProperties: false
       required:
         - op
         - path
@@ -10520,7 +10477,6 @@ components:
           $ref: '#/components/schemas/MutableGroupPath'
     CopyMovePatch:
       type: object
-      additionalProperties: false
       required:
         - op
         - path
@@ -12260,8 +12216,13 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/RuleCondition'
+    EntityTagList:
+      type: string
+      description: '`*` or a comma-separated list of entity tags, strong or weak (W/ prefix).'
+      pattern: ^(\*|(W/)?"[^"]*"([ \t]*,[ \t]*(W/)?"[^"]*")*)$
     IpAddress:
-      oneOf:
+      description: An IPv4 or IPv6 address. The two branches differ only by format, so validating this value requires asserting the ipv4 and ipv6 formats.
+      anyOf:
         - type: string
           format: ipv4
         - type: string

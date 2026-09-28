@@ -82,7 +82,8 @@ paths:
         generation.changed. The response does not echo the link; the source text
         returns it as written (see Visibility in API Configuration). A link the engine
         cannot parse returns 422 unsupported_value with a sanitized reason in
-        error.message. A name already in use returns 409 state_conflict. The node belongs to the
+        error.message. A name already in use, or a configuration change while the
+        create is being admitted, returns 409 state_conflict. The node belongs to the
         inline provider and to every group whose filter matches it after reload.
         Returns 201 with the node once the change is active, or 202 with a
         node_create operation whose result is the created node. A failed
@@ -407,10 +408,7 @@ paths:
           $ref: ./openapi.yaml#/components/responses/NotFound
         "409":
           $ref: ./openapi.yaml#/components/responses/Conflict
-          description: A group or the routing final outbound still names the node (state_conflict); nothing is removed. Filter-matched membership is not a reference.
-        "412":
-          $ref: ./openapi.yaml#/components/responses/PreconditionFailed
-          description: The configuration changed while the delete was being admitted (stale_revision); nothing is removed. Read the node back and retry.
+          description: A group or the routing final outbound still names the node, or the configuration changed while the delete was being admitted (state_conflict); nothing is removed. Filter-matched membership is not a reference. After a concurrent change, read the node back and retry.
         "413":
           $ref: ./openapi.yaml#/components/responses/TooLarge
         "503":
@@ -1194,10 +1192,9 @@ schemas:
         - $ref: ./openapi.yaml#/components/schemas/InterruptPatch
         - $ref: ./openapi.yaml#/components/schemas/RemovePatch
         - $ref: ./openapi.yaml#/components/schemas/CopyMovePatch
-    description: RFC 6902 operations over the group's policy and config, applied in order. Bounded by resources.groups.max_patch_operations.
+    description: RFC 6902 operations over the group's policy and config, applied in order. Bounded by resources.groups.max_patch_operations. Members an operation object does not define are ignored (RFC 6902 §4).
   PolicyPatch:
     type: object
-    additionalProperties: false
     required: [ op, path, value ]
     properties:
       op:
@@ -1210,7 +1207,6 @@ schemas:
         $ref: "./openapi.yaml#/components/schemas/GroupPolicyRequest"
   MemberIdPatch:
     type: object
-    additionalProperties: false
     required: [ op, path, value ]
     properties:
       op:
@@ -1223,7 +1219,6 @@ schemas:
         type: [ string, "null" ]
   OutboundPatch:
     type: object
-    additionalProperties: false
     required: [ op, path, value ]
     properties:
       op:
@@ -1236,7 +1231,6 @@ schemas:
         type: [ string, "null" ]
   CheckUrlPatch:
     type: object
-    additionalProperties: false
     required: [ op, path, value ]
     properties:
       op:
@@ -1251,7 +1245,6 @@ schemas:
           - $ref: "./openapi.yaml#/components/schemas/SafeHttpUrl"
   PositiveIntegerPatch:
     type: object
-    additionalProperties: false
     required: [ op, path, value ]
     properties:
       op:
@@ -1265,7 +1258,6 @@ schemas:
         minimum: 1
   TolerancePatch:
     type: object
-    additionalProperties: false
     required: [ op, path, value ]
     properties:
       op:
@@ -1279,7 +1271,6 @@ schemas:
         minimum: 0
   IdleTimeoutPatch:
     type: object
-    additionalProperties: false
     required: [ op, path, value ]
     properties:
       op:
@@ -1293,7 +1284,6 @@ schemas:
         minimum: 0
   InterruptPatch:
     type: object
-    additionalProperties: false
     required: [ op, path, value ]
     properties:
       op:
@@ -1309,7 +1299,6 @@ schemas:
     enum: [ /policy, /config/default_member_id, /config/final_outbound, /config/check_url, /config/check_interval, /config/tolerance, /config/idle_timeout, /config/interrupt_connections ]
   RemovePatch:
     type: object
-    additionalProperties: false
     required: [ op, path ]
     properties:
       op:
@@ -1318,7 +1307,6 @@ schemas:
         $ref: ./openapi.yaml#/components/schemas/MutableGroupPath
   CopyMovePatch:
     type: object
-    additionalProperties: false
     required: [ op, path, from ]
     properties:
       op:

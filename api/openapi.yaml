@@ -5,7 +5,8 @@ info:
   version: 0.1.0-draft
   description: |
     Normative wire contract for the native control-plane API. Unknown response
-    extension fields are permitted. Request objects reject unknown fields.
+    extension fields are permitted. Request objects reject unknown fields,
+    except JSON Patch operation objects, which ignore them as RFC 6902 requires.
     Published as a generated bundle at source/openapi.yaml; edit the api/ sources,
     not the published file.
 servers:
@@ -506,6 +507,8 @@ components:
       $ref: ./flow-steps.yaml#/schemas/RuleCondition
     RuleEvaluation:
       $ref: ./flow-steps.yaml#/schemas/RuleEvaluation
+    EntityTagList:
+      $ref: ./common.yaml#/schemas/EntityTagList
     IpAddress:
       $ref: ./common.yaml#/schemas/IpAddress
     RoutingTraceInput:

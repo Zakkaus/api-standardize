@@ -79,25 +79,7 @@ paths:
         "400":
           $ref: ./openapi.yaml#/components/responses/BadRequest
         "401":
-          description: Credentials are missing or invalid
-          headers:
-            Cache-Control:
-              $ref: ./openapi.yaml#/components/headers/NoStore
-            X-Content-Type-Options:
-              $ref: ./openapi.yaml#/components/headers/NoSniff
-          content:
-            application/json:
-              schema:
-                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
-              examples:
-                authentication_required:
-                  value:
-                    error: { code: authentication_required, message: Credentials are required. }
-                    request_id: request-config-1
-                  x-headers:
-                    Content-Type: application/json
-                    Cache-Control: no-store
-                    X-Content-Type-Options: nosniff
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
         "403":
           description: Authenticated caller lacks observe permission
           headers:
@@ -433,6 +415,9 @@ paths:
         "200":
           description: Accepted source; content remains subject to visibility policy
           headers:
+            ETag:
+              $ref: ./openapi.yaml#/components/headers/ETag
+              description: The source's content_sha256 in double quotes, the value PUT compares in If-Match.
             Cache-Control:
               $ref: ./openapi.yaml#/components/headers/NoStore
             X-Content-Type-Options:
@@ -456,6 +441,7 @@ paths:
                     line_count: 3
                   x-headers:
                     Content-Type: application/json
+                    ETag: '"d1f62f00c6da9ec33956e66b8cc3b4670f164556fc12453193904af23451dec1"'
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
                 redacted:
@@ -471,6 +457,7 @@ paths:
                     line_count: 8
                   x-headers:
                     Content-Type: application/json
+                    ETag: '"0000000000000000000000000000000000000000000000000000000000000000"'
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
         "400":
@@ -569,18 +556,14 @@ paths:
         - bearerAuth: []
         - {}
       parameters:
-        - name: If-Match
-          in: header
-          required: true
+        - $ref: ./openapi.yaml#/components/parameters/IfMatch
           description: |
-            One strong entity tag containing the source's content_sha256 from
-            GET /config, enclosed in double quotes. Compare the digest with the
-            source's current bytes in the configuration store, not the snapshot revision. Wildcards, weak
-            tags, and tag lists are not accepted.
-          schema:
-            type: string
-            pattern: '^"[0-9a-f]{64}"$'
-          example: '"d1f62f00c6da9ec33956e66b8cc3b4670f164556fc12453193904af23451dec1"'
+            The source's content_sha256, from GET /config or the ETag of
+            GET /config/sources/{source_id}, enclosed in double quotes. The server
+            compares it with the source's current bytes in the configuration store,
+            not the snapshot revision, as RFC 9110 §13.1.1 defines: `*` matches the
+            existing source, a list matches when any strong tag in it matches, and a
+            weak tag never matches.
         - $ref: ./openapi.yaml#/components/parameters/IdempotencyKey
       requestBody:
         required: true
@@ -861,25 +844,7 @@ paths:
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
         "401":
-          description: Credentials are missing or invalid
-          headers:
-            Cache-Control:
-              $ref: ./openapi.yaml#/components/headers/NoStore
-            X-Content-Type-Options:
-              $ref: ./openapi.yaml#/components/headers/NoSniff
-          content:
-            application/json:
-              schema:
-                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
-              examples:
-                authentication_required:
-                  value:
-                    error: { code: authentication_required, message: Credentials are required. }
-                    request_id: request-validate-2
-                  x-headers:
-                    Content-Type: application/json
-                    Cache-Control: no-store
-                    X-Content-Type-Options: nosniff
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
         "403":
           description: Authenticated caller lacks control permission
           headers:

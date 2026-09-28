@@ -133,7 +133,8 @@ a patch changes `check_url`, after which it resolves the new host itself.
 The patch target is the document `{"policy": …, "config": …}` built from the
 group's `policy` and `config` as `GET` returns them. The server applies the
 operations in order, as RFC 6902 requires, to that document; the whole patch
-succeeds or nothing changes.
+succeeds or nothing changes. Members an operation object does not define, such
+as a `comment`, are ignored ([RFC 6902 §4](https://www.rfc-editor.org/rfc/rfc6902#section-4)).
 
 - `remove` makes the targeted property absent. Absent means the group drops
   its own value: the engine applies its inheritance and defaults, which in dae
