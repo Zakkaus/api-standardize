@@ -1969,3 +1969,17 @@ test("engine-only capabilities, links and routes live under x-<engine>", () => {
   version.body.engine.name = "Honk";
   assertInvalid(validateExample(contract, version), "engine.name is a lowercase identifier");
 });
+
+test("group config admits dae's fixed policy, a missing interrupt option and engine extensions", () => {
+  const response = example("getGroup:200:current");
+  response.body.policy = { kind: "fixed", native: "fixed" };
+  response.body.config.interrupt_connections = null;
+  response.body.config["x-dae"] = { check_addresses: ["192.0.2.1"] };
+  assertValid(validateExample(contract, response));
+  const patch = { $ref: "#/components/schemas/JsonPatch" };
+  assertValid(contract.validate(patch, [{ op: "remove", path: "/config/check_url" }, { op: "add", path: "/config/check_url", value: null }]));
+  assertValid(contract.validate(patch, [{ op: "copy", from: "/config/tolerance", path: "/config/idle_timeout" }]));
+  assertInvalid(contract.validate(patch, [{ op: "replace", path: "/config/interrupt_connections", value: null }]), "null only where the schema allows it");
+  assertInvalid(contract.validate(patch, [{ op: "remove", path: "/config/check_url", value: null }]), "remove carries no value");
+  assertInvalid(contract.validate(patch, [{ op: "replace", path: "/config/x-dae", value: {} }]), "extension members are not patch targets");
+});

@@ -751,6 +751,7 @@ schemas:
                 type: boolean
               config_patch:
                 type: boolean
+                description: PATCH /groups/{group_id} is implemented. A group patch is a configuration write, so true requires resources.config.writable.
               selection:
                 type: boolean
               max_patch_operations:

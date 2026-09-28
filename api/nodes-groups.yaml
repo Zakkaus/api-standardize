@@ -566,10 +566,16 @@ paths:
       operationId: patchGroup
       summary: Patch mutable group configuration
       description: |
+        RFC 6902 JSON Patch whose target document is the group's policy and
+        config as GET returns them. Operations apply in order to that document;
+        see groups, Patch semantics, for remove, null, copy, move and test.
         Only fields in capabilities.mutable_config may change, judged by the
         effective write against the policy after the patch: one patch may set
         policy to urltest and add tolerance. When the resulting policy is not
         URLTest, a tolerance left non-null and changed returns 422 unsupported_value.
+        Requires resources.groups.config_patch. If-Match carries the
+        configuration-wide revision, so an accepted change anywhere in the
+        configuration makes an older revision fail with 412.
       x-permission: control
       security:
         - bearerAuth: []
@@ -953,7 +959,7 @@ schemas:
     properties:
       kind:
         type: string
-        enum: [ selector, urltest, loadbalance, fallback, random, score ]
+        enum: [ selector, urltest, loadbalance, fallback, random, score, fixed ]
       native:
         type: string
         minLength: 1
@@ -964,7 +970,7 @@ schemas:
     properties:
       kind:
         type: string
-        enum: [ selector, urltest, loadbalance, fallback, random, score ]
+        enum: [ selector, urltest, loadbalance, fallback, random, score, fixed ]
       native:
         type: string
         minLength: 1
@@ -983,6 +989,7 @@ schemas:
         enum: [ node, group ]
   GroupConfig:
     type: object
+    description: The group's own configured options, the target of PATCH. Null means the group sets no value of its own and the engine's inheritance and defaults apply. Engine-only options go in an x-<engine> member, such as dae's x-dae.check_addresses.
     required: [ default_member_id, final_outbound, check_url, check_interval, tolerance, idle_timeout, interrupt_connections ]
     properties:
       default_member_id:
@@ -990,6 +997,7 @@ schemas:
       final_outbound:
         type: [ string, "null" ]
       check_url:
+        description: The one health-check URL. Engines probe this URL only; there is no list of URLs.
         oneOf:
           - type: "null"
           - $ref: ./openapi.yaml#/components/schemas/SafeHttpUrl
@@ -1006,7 +1014,8 @@ schemas:
         minimum: 0
         description: Inactivity in seconds after which a URLTest group counts as idle.
       interrupt_connections:
-        type: boolean
+        type: [ boolean, "null" ]
+        description: Whether changing the selection closes connections through the previous member. Null when the engine has no such option.
   SafeHttpUrl:
     type: string
     format: uri
@@ -1178,7 +1187,7 @@ schemas:
         - $ref: ./openapi.yaml#/components/schemas/InterruptPatch
         - $ref: ./openapi.yaml#/components/schemas/RemovePatch
         - $ref: ./openapi.yaml#/components/schemas/CopyMovePatch
-    description: Bounded by resources.groups.max_patch_operations.
+    description: RFC 6902 operations over the group's policy and config, applied in order. Bounded by resources.groups.max_patch_operations.
   PolicyPatch:
     type: object
     additionalProperties: false

@@ -27,13 +27,13 @@ The group API separates these responsibilities:
 | id | string | Opaque stable group identifier. Do not derive API identity from `name`. |
 | name | string | Engine-visible group name. |
 | icon | string or null | Icon the configuration names for the group (absolute http(s) URL or data URI), shown beside the name. `null` when none is configured; a client may keep its own local override. |
-| config_revision | string | Revision used for optimistic configuration updates. |
-| policy.kind | string | Canonical behavior: `selector`, `urltest`, `loadbalance`, `fallback`, `random`, or `score`. |
+| config_revision | string | Configuration-wide revision, the same value as `revision` in [GET /config](configuration.html); PATCH sends it in `If-Match`. Any accepted configuration change advances it, not only a change to this group. |
+| policy.kind | string | Canonical behavior: `selector`, `urltest`, `loadbalance`, `fallback`, `random`, `score`, or `fixed` (always the first usable member, as dae's `fixed` policy). |
 | policy.native | string | Effective engine policy, not a configuration alias that the runtime implements differently. |
 | members | array | Direct group members, in declaration order. |
 | members[].id | string | Opaque node or group member identifier. |
 | members[].kind | string | `node` or `group`. |
-| config | object | Configured group options. It is separate from runtime state. |
+| config | object | The group's own configured options, separate from runtime state. `null` means the group sets no value and the engine's inheritance and defaults apply; `interrupt_connections` is null when the engine has no such option. |
 | runtime.selection | object | Current selection by transport. A value may be `null`. |
 | runtime.health | array | Member-context observations using the shared node health dimensions and metrics. Unknown latency is null; zero is never a failure sentinel. |
 | capabilities | object | Operations and fields supported by the current engine. |
@@ -97,7 +97,11 @@ The response includes an `ETag` whose value matches `config_revision`.
 Updates group configuration only. It does not change runtime selection.
 
 Use RFC 6902 JSON Patch and send the revision returned by `GET` in
-`If-Match`.
+`If-Match`. Requires `resources.groups.config_patch`; without it the request
+returns `404 capability_not_supported`. A group patch is a configuration
+write, so `config_patch` is true only when `resources.config.writable` is.
+Because `config_revision` is configuration-wide, a patch sent after an
+unrelated accepted change returns `412`; read the group again and retry.
 
 {% api_example patchGroup request tolerance http %}
 
@@ -115,7 +119,33 @@ More operations than `resources.groups.max_patch_operations` returns
 update returns the new `ETag`; a rejected patch changes nothing.
 
 Mutable `check_url` values follow the
-[outbound-request policy](api-config.html#Outbound-requests).
+[outbound-request policy](api-config.html#Outbound-requests). A group has one
+check URL. dae's `tcp_check_url` may list the URL host's addresses after the
+URL; dae reports them in `config["x-dae"].check_addresses`, an
+[engine extension](capabilities.html#Engine-extensions), and drops them when
+a patch changes `check_url`, after which it resolves the new host itself.
+
+### Patch semantics
+
+The patch target is the document `{"policy": …, "config": …}` built from the
+group's `policy` and `config` as `GET` returns them. The server applies the
+operations in order, as RFC 6902 requires, to that document; the whole patch
+succeeds or nothing changes.
+
+- `remove` makes a member absent. Absent means the group drops its own value:
+  the engine applies its inheritance and defaults, which in dae include the
+  global group options such as `tcp_check_url` and `check_interval`. Within
+  the same patch, `replace`, `remove` or `test` on an absent member, or `copy`
+  or `move` from it, returns `400 invalid_request`, and `add` sets it again.
+- `null` is a value, accepted only where the schema allows it. It likewise
+  means the group sets no value of its own when the patch is committed.
+- `copy` and `move` validate the copied value against the destination exactly
+  as `add` would, including `mutable_config`.
+- `test` compares against the normalized value that `GET` would report. A
+  failed `test` returns `409 state_conflict`.
+- After the last operation the server normalizes the result to the form `GET`
+  reports and validates it as a whole, including cross-field rules such as
+  `tolerance` requiring URLTest, before it commits anything.
 
 ### Responses
 
@@ -123,8 +153,9 @@ Mutable `check_url` values follow the
 |--------|---------|
 | 200 | Configuration was applied and the response contains the updated group. |
 | 202 | The update was accepted and returns the shared `group_update` operation summary. |
-| 412 | `If-Match` does not match the current `config_revision`. |
-| 409 | Current runtime state prevents the requested transition. |
+| 412 | `If-Match` does not match the current configuration-wide `config_revision`. |
+| 404 | The group does not exist, or `resources.groups.config_patch` is false. |
+| 409 | A `test` operation failed, or current runtime state prevents the requested transition. |
 | 422 | The patch is syntactically valid but the field or value is unsupported. |
 | 428 | Required `If-Match` is missing. |
 
