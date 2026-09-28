@@ -179,3 +179,26 @@ joining the current registry after a reload renames or removes a node/group.
 4. Pass the recorded-flow acceptance scenarios before advertising
    `full_transparency`. A useful partial adapter may advertise `base` meanwhile,
    but is not completion of the full per-flow objective.
+
+## Geodata sources in honk
+
+This section is not part of the contract. It records how honk implements the
+[geodata lifecycle](geodata.html#Effective-value-and-lifetime) on the current
+`feat/native-api` branch; another engine may reach the same effective values
+another way.
+
+- honk keeps the geodata settings in its state database. Each stored URL list
+  and the download route carry a mark saying whether the configuration file
+  wrote them.
+- At startup, before anything reads the settings, honk writes
+  `geosite_download_url`, `geoip_download_url` and `geodata_download_detour`
+  from the configuration file over the stored values. A list or route an
+  earlier file wrote and the file no longer names is deleted, so the built-in
+  value applies; a patched one is kept.
+- `source` is `config` while every stored list carries the file mark,
+  `override` once a stored list does not, and `default` when no list is stored.
+- honk advertises `max_urls: 4`, `interval_hours` 6 to 168 with a default of
+  24, and `checksum: sha256sum`.
+- Each automatic wait adds a random delay of up to 60 minutes. After a failed
+  attempt the wait is a backoff that starts at one hour, doubles on each
+  further failure, and never exceeds the interval.

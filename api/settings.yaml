@@ -9,9 +9,8 @@ paths:
         capability ceilings. source is config when values come from the activated
         configuration and runtime after a runtime override. geodata appears when
         resources.geodata.configurable_sources is true and carries its own source.
-        GET needs only observe, so geodata URLs are returned as written only to an
-        authenticated caller with control, which may edit them, and redacted like
-        GeoAsset.source_redacted for everyone else.
+        Its URLs are returned as written, with only listener-secret values masked,
+        to every admitted caller; see the visibility table in api-config.
       x-permission: observe
       security:
         - bearerAuth: []
@@ -100,21 +99,20 @@ paths:
         until the process restarts or the next configuration activation resets it; it
         is not written to the configuration file.
 
-        geodata is the exception. It requires resources.geodata.configurable_sources
-        and an authenticated caller; the anonymous loopback principal gets 403
-        permission_denied. The backend stores it and does not change the top-level
-        source. A geodata patch merges into the stored settings. Patching geosite or
-        geoip stores both URL lists (geodata.source becomes db); auto_update,
-        download and verify_checksum are each stored on their own; null deletes
-        everything stored. It never downloads; POST
-        /geodata/update does. The stored settings are the only ones in force. At
-        startup, the backend writes each geodata download URL the configuration file
-        names into the stored settings, replacing a list a patch stored, and deletes
-        a stored list that an earlier file wrote but the file no longer names.
-        Activations never change them, so patched URLs last until the next startup.
-        download follows the same startup rule as the URLs, and a download with
-        route group whose group_id is not a current group returns 409
-        state_conflict and changes nothing.
+        geodata is the exception. It requires resources.geodata.configurable_sources,
+        control and a credential; an anonymous loopback caller gets 403
+        permission_denied. The backend keeps a geodata patch as an override across
+        restarts and activations and does not change the top-level source. Patching
+        geosite or geoip sets both URL lists as overrides (geodata.source becomes
+        override); auto_update, download and verify_checksum are each overridden on
+        their own; null removes every override and every value an earlier start took
+        from the configuration file, so the built-in sources and defaults apply until
+        the next start. At each start, a URL list or download route the configuration
+        file names replaces the override for that field; activations never change
+        geodata. More URLs than resources.geodata.max_urls or an interval outside
+        resources.geodata.interval_hours returns 400. A patch never downloads; POST
+        /geodata/update does. A download with route group whose group_id is not a
+        current group returns 409 state_conflict and changes nothing.
       x-permission: control
       security:
         - bearerAuth: []
@@ -193,7 +191,7 @@ paths:
                     dns_log: { max_records: 2048 }
                     flows: { max_flows: 10000, retention_seconds: 300 }
                     geodata:
-                      source: db
+                      source: override
                       geosite:
                         urls:
                           - https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat
@@ -388,7 +386,7 @@ schemas:
             description: Seconds left before the automatic log and DNS-log recorders stop, 0 while a stream is open or nothing is attached. The flow-demand grace is not reported.
       geodata:
         $ref: ./openapi.yaml#/components/schemas/GeoDataSettings
-        description: Geodata download sources and automatic updates. Present when resources.geodata.configurable_sources is true. URLs are returned as written only to an authenticated caller with control and redacted for everyone else.
+        description: Geodata download sources and automatic updates. Present when resources.geodata.configurable_sources is true. URLs are returned as written, with only listener-secret values masked, to every admitted caller.
   RuntimeSettingsPatch:
     type: object
     additionalProperties: false

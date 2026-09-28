@@ -288,6 +288,9 @@ paths:
                         can_update: true
                         assets: [ geosite, geoip ]
                         configurable_sources: true
+                        max_urls: 4
+                        interval_hours: { min: 6, max: 168, default: 24 }
+                        checksum: sha256sum
                       operations:
                         available: true
                         retention_seconds: 300
@@ -1054,6 +1057,29 @@ schemas:
               configurable_sources:
                 type: boolean
                 description: Download URLs and automatic updates are managed through geodata in GET and PATCH /runtime/settings, and GET /geodata reports update status and required_codes. Requires runtime_settings.available with geodata in its fields. Absent means false.
+              max_urls:
+                type: integer
+                minimum: 1
+                description: Most download URLs per asset a geodata patch may set. Reported when configurable_sources is true.
+              interval_hours:
+                type: object
+                additionalProperties: false
+                required: [ min, max, default ]
+                description: Bounds and default of geodata auto_update.interval_hours. Reported when configurable_sources is true.
+                properties:
+                  min:
+                    type: integer
+                    minimum: 1
+                  max:
+                    type: integer
+                    minimum: 1
+                  default:
+                    type: integer
+                    minimum: 1
+              checksum:
+                type: [ string, "null" ]
+                enum: [ sha256sum, null ]
+                description: How the backend verifies a download when verify_checksum is true. sha256sum fetches the URL with .sha256sum appended and compares the SHA-256 it names. Null when the backend cannot verify downloads. Reported when configurable_sources is true.
           operations:
             type: object
             required: [ available ]

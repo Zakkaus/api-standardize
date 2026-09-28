@@ -210,7 +210,7 @@ the log level and replay ring, the DNS log ring, and flow retention.
 | flows.max_flows | `flows.max_flows` | Retained flows, at least 64. |
 | flows.retention_seconds | `flows.retention_seconds` | Maximum age after termination; capacity pressure may evict a flow sooner. |
 | source | | `config` while every value comes from the activated configuration, `runtime` once a PATCH overrode one. |
-| geodata | | Geodata download URLs, download route, automatic updates and checksum verification, with their own read-only `source` for the URLs; URLs are redacted except for an authenticated caller with `control`. Present when `resources.geodata.configurable_sources` is true. See [Geodata](geodata.html#Configure-the-sources). |
+| geodata | | Geodata download URLs, download route, automatic updates and checksum verification, with their own read-only `source` for the URLs; URLs are returned as written, with only listener-secret values masked. Present when `resources.geodata.configurable_sources` is true. See [Geodata](geodata.html#Configure-the-sources). |
 | recording | | Read-only recorder state: `flows`, `logs` and `dns_log` each report `allowed`, `mode` (`auto`, `on`, `off`) and `active`; `events.active` reports event capture; `grace_remaining_seconds` counts down after the last attached client left and does not report the flow-demand grace. |
 
 A client is attached while an admitted GET SSE stream on `/events` or `/logs`
@@ -252,6 +252,7 @@ until the process restarts or the next configuration activation resets it.
 
 {% api_example patchRuntimeSettings 400 above_ceiling %}
 
-`geodata` differs: the backend stores it and leaves the top-level `source`
-unchanged. It needs an authenticated caller. URLs named in the configuration
-file are written into it at startup, replacing patched URLs. See [Geodata](geodata.html#Configure-the-sources).
+`geodata` differs: the backend keeps it as an override across restarts and
+activations and leaves the top-level `source` unchanged. It needs `control` and
+a credential. A URL list or download route the configuration file names
+replaces the override at the next start. See [Geodata](geodata.html#Configure-the-sources).

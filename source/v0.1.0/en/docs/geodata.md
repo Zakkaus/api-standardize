@@ -20,17 +20,24 @@ returns `404 capability_not_supported`.
 One entry per kind in `resources.geodata.assets` describes the file the
 running datapath was built from: `sha256` of the file, `size_bytes` as a
 UInt64 decimal string, `modified_at` (nullable) and `source_redacted`, the
-display-only download source with userinfo, query, fragment, and secret-bearing
-path segments removed or redacted. With several configured URLs it shows the
-first. It is null when no source is configured or safe display is impossible.
+display-only download source. With several configured URLs it shows the first.
 Reading never touches the network.
+
+`source_redacted` and `fetched_url_redacted` use one display form for every
+caller. It keeps the scheme, host, port and path, removes userinfo, the query
+and the fragment, and replaces each path segment that may carry a credential,
+such as a token after `/token/` or a long random value, with `[redacted]`.
+Listener-secret values are masked as everywhere else. The field is null when no
+source is configured or the backend cannot produce a safe display form, for
+example for a URL it cannot parse. The display form is not the configured URL;
+`GET /runtime/settings` returns that.
 
 When `resources.geodata.configurable_sources` is true, the response also
 carries the update status, and each asset reports where its file came from:
 
 | Field | Meaning |
 |-------|---------|
-| assets[].fetched_url_redacted | Display-only URL the loaded file was downloaded from, redacted like `source_redacted`. Null when the backend did not download it, for example a file installed by a package. |
+| assets[].fetched_url_redacted | Display-only URL the loaded file was downloaded from, in the display form above. Null when the backend did not download it, for example a file installed by a package. |
 | assets[].verified | The file matched the sha256 published beside its URL. False when no checksum was published, `verify_checksum` was false, or the backend did not download the file. |
 | assets[].download_route | The route the file was downloaded through: `route` as `download` was set for that download, and `group_id` the group the request went through, including the group the routing rules chose. Null when the backend did not download the file. |
 | last_checked_at | When the last update attempt, manual or automatic, finished, whatever its outcome. |
@@ -72,10 +79,12 @@ the next only when one fails:
 - any status other than `200`. Redirects are not followed, so a link that
   redirects, such as a GitHub `/releases/download/` URL, never works; use a
   raw or CDN URL that serves the file directly;
-- a sha256 mismatch. When a checksum is published at the URL with
-  `.sha256sum` appended, the backend fetches and compares it; without one the
-  file is accepted unverified and `verified` is false. With `verify_checksum`
-  false, the backend requests no checksum and accepts the file unverified.
+- a sha256 mismatch. `resources.geodata.checksum` names how the backend finds
+  the checksum. With `sha256sum`, it fetches the URL with `.sha256sum` appended
+  and compares the SHA-256 it names; when none is published, the file is
+  accepted unverified and `verified` is false. With `verify_checksum` false, or
+  a null `checksum`, the backend requests no checksum and accepts the file
+  unverified.
 
 Every request, the checksum included, leaves through the route in
 `download` (see below). A URL the route cannot reach, because the group has no
@@ -111,53 +120,61 @@ automatic updates are the `geodata` section of
 
 | Field | Meaning |
 |-------|---------|
-| geosite.urls, geoip.urls | Up to 4 URLs per asset, in fallback order, each at most 4096 bytes with no userinfo or fragment. |
+| geosite.urls, geoip.urls | Up to `resources.geodata.max_urls` URLs per asset, in fallback order, each at most 4096 bytes with no userinfo or fragment. |
 | auto_update.enabled | Update on a schedule. On by default. |
-| auto_update.interval_hours | Hours between automatic updates, 6 to 168, default 24. |
-| source | Read-only: where the stored URL lists came from, `config`, `db` or `default`. |
+| auto_update.interval_hours | Hours between automatic updates, within `resources.geodata.interval_hours`, which also gives the default. |
+| source | Read-only: where the effective URL lists came from, `config`, `override` or `default`. |
 | download.route | How downloads leave the device: `routing` (default), `group` or `direct`. |
 | download.group_id | The group for `route: group`, as in `GET /groups`; null otherwise. |
-| verify_checksum | Fetch the checksum beside each URL and reject a file that does not match it. True when nothing is stored; a backend that omits the field behaves as true. |
+| verify_checksum | Fetch the checksum by the advertised `checksum` method and reject a file that does not match it. True when nothing is set; a backend that omits the field behaves as true. |
 
-`GET /runtime/settings` needs only `observe`. The URLs are returned as written,
-with only listener-secret values masked, to an authenticated caller with
-`control`, who may edit them. Every other caller, including the anonymous
-loopback principal, receives them redacted like `source_redacted`.
+Every admitted caller reads the URLs as written, with only listener-secret
+values masked; see the [visibility table](api-config.html#Visibility).
 
-The stored settings are the only ones in force. At startup, before anything
-reads them, the backend writes each geodata download URL the configuration file
-names, and the download route it names, into the stored settings, replacing a
-patched value. Activations never
-change them, so a patch lasts until the next startup. For an asset the file
-names no URL for, a list an earlier file wrote is deleted and the built-in URLs
-apply, while a patched list is kept. The route follows the same rule, and
-does not affect `source`. The file never sets `auto_update` or `verify_checksum`.
+### Effective value and lifetime
 
-`source` tells a client where the stored URL lists came from:
+Each field has one effective value: the latest of the value the configuration
+file names, taken at process start, and an override set by `PATCH`; the
+backend's built-in value applies when neither exists. The configuration file
+names only the URL lists and the download route, never `auto_update` or
+`verify_checksum`.
 
-- `config`: every stored list was written from the configuration file. A panel
-  can still edit them, and should say that the file sets them again at the next
-  startup.
-- `db`: a patch stored at least one list.
-- `default`: no list is stored and the backend's built-in sources apply.
+- An override lasts across restarts and configuration activations. A backend
+  that cannot keep overrides across a restart does not advertise
+  `configurable_sources`.
+- At each process start, a URL list or download route the configuration file
+  names replaces the override for that field. A value the file does not name
+  keeps its override.
+- Activations never change geodata settings, so a changed file value takes
+  effect at the next start.
+- `"geodata": null` removes every override and every value an earlier start took
+  from the file: the URLs return to the built-in sources and the other fields to
+  their defaults until the next start takes the file values again.
 
-An asset without a stored list uses its built-in URLs under any `source`.
+`source` tells a client where the effective URL lists came from:
+
+- `config`: every list that is not built in comes from the configuration file.
+  A panel can still edit them, and should say that the file sets them again at
+  the next start.
+- `override`: a patch set at least one list that is still in force.
+- `default`: both assets use the backend's built-in URLs.
+
+An asset with neither a file value nor an override uses its built-in URLs under
+any `source`. The download route does not affect `source`.
+[honk notes](honk-mapping.html#Geodata-sources-in-honk) describe how honk stores
+and reconciles these values.
 
 {% api_example getRuntimeSettings 200 config_sources %}
 
-A patch merges into the stored settings and may set URLs under any `source`. Setting `geosite` or `geoip`
-stores both URL lists, so `source` becomes `db`; a `urls` list replaces the
-whole list. `auto_update`, `download` and `verify_checksum` are each stored on
-their own and never change `source`.
-`"geodata": null` deletes everything stored: the URLs return to the built-in
-sources, and the other fields to their defaults. A configuration file that names URLs
-writes them again at the next startup.
+A patch may set URLs under any `source`. Setting `geosite` or `geoip` sets both
+URL lists as overrides, so `source` becomes `override`; a `urls` list replaces
+the whole list. `auto_update`, `download` and `verify_checksum` are each
+overridden on their own and never change `source`. More URLs than `max_urls`
+or an interval outside `interval_hours` returns `400 invalid_request`.
 Plain `http` URLs are accepted, but a file fetched without a published checksum
-is unverified, so prefer `https`. Changing `geodata` requires `control` and an
-authenticated caller; the anonymous loopback principal gets
-`403 permission_denied`. The backend keeps the settings across restarts and
-activations, apart from the writes from the configuration file described above. A patch never downloads anything; queue an update
-to fetch from the new URLs.
+is unverified, so prefer `https`. Changing `geodata` requires `control` and a
+credential; an anonymous loopback caller gets `403 permission_denied`. A patch
+never downloads anything; queue an update to fetch from the new URLs.
 
 {% api_request patchRuntimeSettings geodata_sources %}
 
@@ -190,8 +207,8 @@ Prefer a mirror that publishes checksums.
 
 `group_id` is a current group id from `GET /groups`, required for `group` and
 not allowed otherwise. An id that is not a current group returns
-`409 state_conflict` and changes nothing. `download` is stored on its own,
-like `auto_update`. If the stored group later disappears from the
+`409 state_conflict` and changes nothing. `download` is overridden on its own,
+like `auto_update`. If the chosen group later disappears from the
 configuration, `group_id` reads null and downloads fail until the route is
 changed.
 
@@ -202,9 +219,10 @@ connection error, the backend tries the next URL, and when all fail it reports
 `last_error`. It never switches to direct on its own, so a download meant for a
 proxy is not sent in the clear.
 
-Automatic updates are on by default, every 24 hours, so the loaded files follow
-the upstream lists without a manual update. Set `auto_update.enabled` to false
-to stop them. Each wait adds a random delay of up to 60 minutes, so many
-devices do not download at once. A failed attempt is retried with exponential
-backoff starting at one hour and never longer than the interval; a success
-restores the normal interval.
+Automatic updates are on by default, at the advertised default interval, so the
+loaded files follow the upstream lists without a manual update. Set
+`auto_update.enabled` to false to stop them. The backend may add a random delay
+to each wait, so many devices do not download at once, and may retry a failed
+attempt sooner than the interval, never later; a success restores the normal
+interval. `next_check_at` reports the resulting time. honk's delay and backoff
+values are in the [honk notes](honk-mapping.html#Geodata-sources-in-honk).

@@ -248,14 +248,21 @@ test("geodata sources are patched through runtime settings and reported with the
   const resources = example("getCapabilities:200:available").body.resources;
   assert.equal(resources.geodata.configurable_sources, true);
   assert.ok(resources.runtime_settings.fields.includes("geodata"));
+  const bounds = resources.geodata.interval_hours;
+  assert.ok(bounds.min <= bounds.default && bounds.default <= bounds.max, "the advertised default is within its bounds");
   for (const key of ["current", "config_sources"]) {
     const settings = example(`getRuntimeSettings:200:${key}`);
     assertValid(validateExample(contract, settings));
-    settings.body.geodata.auto_update.interval_hours = 5;
-    assertInvalid(validateExample(contract, settings), "the interval is at least 6 hours");
+    const {interval_hours} = settings.body.geodata.auto_update;
+    assert.ok(bounds.min <= interval_hours && interval_hours <= bounds.max, "examples stay within the advertised interval");
+    for (const asset of ["geosite", "geoip"]) {
+      assert.ok(settings.body.geodata[asset].urls.length <= resources.geodata.max_urls, "examples stay within max_urls");
+    }
+    settings.body.geodata.auto_update.interval_hours = 0;
+    assertInvalid(validateExample(contract, settings), "the interval is at least 1 hour");
   }
   const stored = example("patchRuntimeSettings:200:geodata_stored").body.geodata;
-  assert.equal(stored.source, "db");
+  assert.equal(stored.source, "override");
   const patch = example("patchRuntimeSettings:request:geodata_sources");
   assertValid(validateExample(contract, patch));
   assert.deepEqual(stored.geosite.urls, patch.body.geodata.geosite.urls);
@@ -267,7 +274,7 @@ test("geodata sources are patched through runtime settings and reported with the
     autoUpdate.body.geodata.auto_update);
   const autoDefaults = spec.components.schemas.GeoDataAutoUpdate.properties;
   assert.deepEqual(example("getRuntimeSettings:200:current").body.geodata.auto_update,
-    {enabled: autoDefaults.enabled.default, interval_hours: autoDefaults.interval_hours.default},
+    {enabled: autoDefaults.enabled.default, interval_hours: bounds.default},
     "the built-in settings show the defaults");
   assert.equal(autoDefaults.enabled.default, true, "automatic updates are on by default");
   const downloadDefault = spec.components.schemas.GeoDataSettings.properties.download.default;
@@ -277,13 +284,12 @@ test("geodata sources are patched through runtime settings and reported with the
   patch.body = {geodata: {geosite: {urls: ["http://mirror.example.net/geosite.dat"]}}};
   assertValid(validateExample(contract, patch), "plain http is accepted");
   for (const [geodata, label] of [
-    [{source: "db"}, "source is read-only"],
+    [{source: "override"}, "source is read-only"],
     [{geosite: {urls: []}}, "a URL list is never empty"],
     [{geosite: {urls: ["ftp://mirror.example.net/geosite.dat"]}}, "URLs are HTTP(S)"],
     [{geosite: {urls: ["https://user@mirror.example.net/geosite.dat"]}}, "URLs carry no userinfo"],
     [{geosite: {urls: ["https://mirror.example.net/geosite.dat#x"]}}, "URLs carry no fragment"],
-    [{geosite: {urls: Array.from({length: 5}, (_, i) => `https://m${i}.example.net/geosite.dat`)}}, "at most 4 URLs"],
-    [{auto_update: {interval_hours: 169}}, "the interval is at most 168 hours"],
+    [{auto_update: {interval_hours: 0}}, "the interval is at least 1 hour"],
     [{auto_update: {}}, "an empty auto_update is rejected"],
     [{download: {route: "group"}}, "route group names its group"],
     [{download: {route: "direct", group_id: "group-proxy"}}, "only route group takes a group_id"],
