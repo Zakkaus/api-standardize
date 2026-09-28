@@ -24,4 +24,6 @@ jobs:
           corepack prepare yarn@1.22.22 --activate
       - run: yarn install --frozen-lockfile
       - run: yarn check:contract
+      - name: Bundle matches api/ sources
+        run: git diff --exit-code -- source/openapi.yaml
       - run: yarn exec hexo clean && yarn exec hexo generate
