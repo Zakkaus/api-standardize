@@ -544,7 +544,7 @@ paths:
                         path: api.dae
                         kind: main
                         content_sha256: '0000000000000000000000000000000000000000000000000000000000000000'
-                        bytes: 128
+                        bytes: 90
                         writable: false
                         loaded_at: '2026-08-15T09:30:00Z'
                         content: |
@@ -1293,7 +1293,7 @@ paths:
                     path: api.dae
                     kind: main
                     content_sha256: '0000000000000000000000000000000000000000000000000000000000000000'
-                    bytes: 128
+                    bytes: 90
                     writable: false
                     loaded_at: '2026-08-15T09:30:00Z'
                     content: |
