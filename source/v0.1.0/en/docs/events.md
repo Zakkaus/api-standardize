@@ -36,12 +36,8 @@ use streaming `fetch` with the header and an SSE parser, or a same-origin
 server-side credential boundary. Do not add query tokens or weaken auth to
 accommodate `EventSource`.
 
-For explicitly allowed origins, CORS permits `Authorization`, `Last-Event-ID`,
-`Content-Type`, `If-Match`, `Idempotency-Key`, and `Accept` request headers,
-and exposes `Location`, `Retry-After`, and `ETag`. The server validates the
-origin, requested method, and requested headers before answering a CORS
-preflight without bearer authentication; the actual request keeps its normal
-authentication and permission checks.
+Cross-origin access follows the
+[listener rules](api-config.html#Listener-and-authentication-rules).
 
 ## Event kinds
 
@@ -49,7 +45,7 @@ Each named event has one JSON `data` object. Unknown kinds/fields are ignored.
 
 | Kind | Payload | Invalidates |
 |------|---------|-------------|
-| `stream.ready` | `instance_id`, `observed_at`. Signals that replay is attached and new events are buffered. No resource ID. Sent on every connection, even if not in `kinds`. | Every resource on a fresh stream, and on a resumed stream after a gap or a filter change: fetch the baselines as described under [Replay and recovery](#Replay-and-recovery). |
+| `stream.ready` | `instance_id`, `observed_at`. Signals that replay is attached and new events are buffered. No resource ID. Sent on every connection, even if not in `kinds`. | Every resource on a fresh stream: fetch the baselines as described under [Replay and recovery](#Replay-and-recovery). |
 | `runtime.updated` | `instance_id`, `observed_at`, `href` (`/api/v1/runtime`). Coalesced invalidation; fetch the current snapshot. Also sent when a `degradations` entry is added, changed or cleared. | Runtime status, outbound counters, traffic and memory history, runtime memory, runtime settings, capabilities (a recorder mode change moves `resources.flows.recording` without a new generation), group selection and health, node health, and the connection list. |
 | `flow.updated` | `instance_id`, `observed_at`, `resource_id` (flow ID), `revision`, `href`. Includes first observation, decisions, attempts, status changes, and terminal state. Fetch the retained record; coalescing must preserve the latest revision. | That flow and the flow list. |
 | `flow.gap` | `instance_id`, `observed_at`, nullable `resource_id`, `reason` (`buffer_overflow`, `sampled`, `evicted`, `recording_changed`), nullable `dropped_records` (the same decimal uint64 string counter used by flow coverage). No invented close event. | The flow list and its coverage, and the named flow when `resource_id` is not null. |
@@ -73,33 +69,38 @@ GET. Operation IDs must not leak through events to other observe principals.
 
 ## Replay and recovery
 
-- Replay retained events strictly after `Last-Event-ID` and then switch to
-  live delivery without an unobserved gap. Duplicate delivery is permitted;
-  deduplicate by event ID, and flow snapshots by `(instance_id, id, revision)`.
-- A fresh connection sends `stream.ready` with a replay cursor **before** the
-  client fetches its baseline snapshots. Buffer notifications during GETs,
-  apply them after the snapshots, and ignore older/equal flow revisions.
-  This closes the snapshot/subscribe race without requiring a database log.
-- An unknown, expired, or previous-instance cursor returns
-  `409 event_cursor_expired` **before** a `200` stream begins. The client
-  discards the cursor, opens a new stream, waits for ready, and refetches
-  snapshots. Never silently resume at the present or pretend lost history
-  was recovered. Changing filters requires a new baseline; filtered-out
-  events are not replayed under a different filter set.
-- Send `stream.ready` before replay on a resumed connection. Its cursor must not
-  skip unread retained events; preserve the supplied `Last-Event-ID` until replay
-  advances it. Deliver matching retained events strictly after that cursor, then
-  switch to live delivery. Filtered-out IDs may leave gaps; clients must not infer
-  loss by subtracting IDs.
+The connection, cursor, replay, queue and authorization rules below also apply
+to log streams; [logs](logs.html#Replay-and-recovery) lists only where its
+stream differs. Baseline snapshots and flow revisions apply only to `/events`.
+
+- Every connection starts with `stream.ready`, which carries a replay cursor.
+  On a fresh connection the client then fetches its baseline snapshots,
+  buffers notifications that arrive during those GETs, applies them after the
+  snapshots, and ignores older or equal flow revisions. This closes the
+  snapshot/subscribe race without requiring a database log.
+- On a resumed connection, `stream.ready` comes before replay. Its cursor must
+  not skip unread retained events: keep the supplied `Last-Event-ID` until
+  replay advances it. The server then delivers matching retained events
+  strictly after that cursor and switches to live delivery without an
+  unobserved gap.
+- Duplicate delivery is permitted; deduplicate by event ID, and flow snapshots
+  by `(instance_id, id, revision)`. Filtered-out IDs may leave gaps; clients
+  must not infer loss by subtracting IDs.
+- A cursor is bound to the filters it was issued under. An unknown, expired,
+  or previous-instance cursor, or one sent with changed `kinds` or `flow_id`,
+  returns `409 event_cursor_expired` **before** a `200` stream begins. The
+  client discards the cursor, opens a new stream, waits for ready, and
+  refetches snapshots. Never silently resume at the present or pretend lost
+  history was recovered.
 - If a slow client exceeds its bounded queue, close the stream. Reconnection
   replays from its last acknowledged event; if that is no longer retained,
   return the cursor-expired error. No unbounded queues and no blocking
   datapath writers. Loss before the replay buffer is separately reported by
   `flow.gap` and flow coverage, not hidden as a successful replay.
+- Recheck credentials on reconnect and terminate a live stream when its
+  authorization is revoked. Bearer secrets never go in URLs.
 
 Capabilities advertise `kinds`, `retention_seconds`, `max_buffered_events`,
 `max_clients`, and `heartbeat_seconds`. Retention is an upper bound subject
-to buffer pressure; no at-least-once durable guarantee. Recheck credentials
-on reconnect and terminate a live stream when its authorization is revoked.
-A stream proves event delivery, not that the underlying engine captured all
-routing decisions.
+to buffer pressure; no at-least-once durable guarantee. A stream proves event
+delivery, not that the underlying engine captured all routing decisions.

@@ -20,20 +20,20 @@ All native API errors use one JSON envelope:
 The `ErrorCode` schema in the OpenAPI document enumerates exactly the codes below
 for HTTP error bodies (`ApiError`); adding one is a contract change. Errors embedded
 in resources (`operation.error`, `datapath.errors`, `last_reload.error`,
-`provider.last_error`) carry an adapter-defined code, except the shared codes
+`provider.last_error`) carry an engine-defined code, except the shared codes
 for a failed configuration change listed under
 [activation outcomes](#Activation-outcomes).
 
-| Status | Typical code | Meaning |
-|--------|--------------|---------|
-| 400 | `invalid_request` | Malformed parameter or request shape. |
+| Status | Code | Meaning |
+|--------|------|---------|
+| 400 | `invalid_request` | The request cannot be parsed, or a parameter or field is outside its schema: wrong type, a missing field, a field the schema does not define (JSON Patch operation objects ignore such members instead), a value outside the schema's enum, range or length, or a scalar value above a bound the capabilities advertise, such as a page `limit` above `max_page_size`. A page cursor sent with different filters or a different `limit` is also `400`. |
 | 401 | `authentication_required` | Credentials are missing or invalid. |
 | 401 | `invalid_credentials` | Username or password is incorrect during password login. |
 | 403 | `permission_denied` | The caller lacks the required permission, or listener security policy rejects the request. |
 | 404 | `resource_not_found` | The requested resource does not exist. |
-| 404 | `capability_not_supported` | The running adapter does not expose the resource or action. |
-| 405 | `method_not_allowed` | The path exists but does not support the request method; the response lists the supported methods in `Allow`. |
-| 409 | `state_conflict` | The current state prevents the request: a name in use, a referenced object that is not current, a transition the current state does not allow, or a configuration change while a write without `If-Match` was being admitted. |
+| 404 | `capability_not_supported` | The running engine does not expose the resource or action. |
+| 405 | `method_not_allowed` | The path exists, but not with this method ([RFC 9110 §15.5.6](https://www.rfc-editor.org/rfc/rfc9110#section-15.5.6)); the response lists the supported methods in `Allow`. An unknown path is `404`. |
+| 409 | `state_conflict` | The request is supported, but the current state prevents it: a name already in use, a referenced object that is not current, a transition the current state does not allow, or a configuration change while a write without `If-Match` was being admitted. The same request can succeed after the state changes. |
 | 409 | `idempotency_conflict` | An idempotency key was reused with a different request body. |
 | 409 | `event_cursor_expired` | Event or log SSE cursor cannot be replayed; open a fresh stream and establish a new baseline. |
 | 409 | `setup_required` | Password login was requested before an administrator was created. |
@@ -41,11 +41,11 @@ for a failed configuration change listed under
 | 410 | `snapshot_expired` | A page cursor is no longer usable; restart the page walk. |
 | 410 | `flow_expired` | Flow evidence was evicted/expired and a tombstone still exists. |
 | 412 | `stale_revision` | `If-Match` does not match the current resource revision or stored source content hash. |
-| 413 | `request_too_large` | Request or requested fan-out exceeds an advertised limit. |
+| 413 | `request_too_large` | The payload, or the fan-out the request asks for, exceeds an advertised bound: the body size, the number of operations in a group patch (`max_patch_operations`), the matching live entries a bulk close selects, including non-closable ones (`max_bulk_close`), or the targets or results of a probe or trace. |
 | 415 | `unsupported_media_type` | Request `Content-Type` is unsupported. |
-| 422 | `unsupported_value` | The request is well-formed but the engine does not support its meaning, or full validation of a configuration candidate found error diagnostics. |
+| 422 | `unsupported_value` | The request is well-formed and within every bound, but this engine does not support its meaning: an enum member or field the schema defines and the capabilities do not advertise, or a combination of fields or capabilities the engine does not implement. Error diagnostics from full validation of a configuration candidate are also `422`. |
 | 428 | `precondition_required` | A required `If-Match` header is missing. |
-| 429 | `rate_limited` | A request-rate limit, or a limit on repeating the same work, was reached. |
+| 429 | `rate_limited` | The caller exceeded a request-rate limit, or a limit on repeating the same work, such as a second probe of a target that already has one admitted. |
 | 503 | `temporarily_unavailable` | A shared capacity limit is full, such as a bounded queue or the stream subscriber slots, or a required runtime component is unavailable. |
 | 503 | `snapshot_unavailable` | A coherent snapshot could not be pinned or held within its memory budget; retry the read. |
 
@@ -64,37 +64,25 @@ check that fails:
 2. Request boundary: a missing required `If-Match` (`428`) or a malformed one
    (`400`), then `Content-Type` (`415`), body size (`413`), and parameter and
    body schema (`400`).
-3. Idempotent replay, when the request carries `Idempotency-Key`: a retained
-   key with the same body returns the original response and no later check
-   runs, the same key with a different body returns `409 idempotency_conflict`,
-   and a replay store full of unfinished operations returns `503`. See
-   [replay](operations.html#Replay).
+3. Idempotent replay, when the request carries `Idempotency-Key`, as
+   [replay](operations.html#Replay) defines: a replay returns the original
+   response and no later check runs, and `409 idempotency_conflict` and the
+   full-store `503` are decided at this step.
 4. Precondition: `412` when `If-Match` no longer matches.
 5. Semantic validation: `422`, including error diagnostics from full
    validation of a configuration candidate.
 6. Current state: `409`.
 
 A rate limit (`429`) or full shared capacity (`503`) is reported when the
-request is admitted, after the checks it passed. Three exceptions apply.
-Source creation returns `409` for a `path` already in use before it validates
-the content. A configuration write decides the listener-settings `403` during
-validation. For a group-configuration patch, check `Content-Type` (`415`) first.
-Check a missing (`428`) or malformed (`400`) `If-Match` after replay lookup; a
-retained replay can therefore omit the header. The table below defines each status. Endpoint pages link here
+request is admitted, after the checks it passed. Three exceptions: source
+creation returns `409` for a `path` already in use before it validates the
+content; a configuration write decides the listener-settings `403` during
+validation; and a group patch checks `Content-Type` (`415`) first and reports a
+missing (`428`) or malformed (`400`) `If-Match` after the replay lookup, so a
+retained replay can omit `If-Match`. The
+[status table](#Shared-status-semantics) defines each status. Endpoint pages link here
 instead of repeating the order; an endpoint page names only which of its own
 cases fall in which row.
-
-| Status | Code | The request fails because |
-|--------|------|---------------------------|
-| 400 | `invalid_request` | It cannot be parsed, or a parameter or field is outside its schema: wrong type, a missing field, a field the schema does not define (JSON Patch operation objects ignore such members instead), a value outside the schema's enum, range or length, or a scalar value above a bound the capabilities advertise, such as a page `limit` above `max_page_size`. A page cursor sent with different filters or a different `limit` is also `400`. |
-| 413 | `request_too_large` | The payload, or the fan-out the request asks for, exceeds an advertised bound: the body size, the number of operations in a group patch (`max_patch_operations`), the matching live entries a bulk close selects, including non-closable ones (`max_bulk_close`), or the targets or results of a probe or trace. |
-| 405 | `method_not_allowed` | The path exists, but not with this method ([RFC 9110 §15.5.6](https://www.rfc-editor.org/rfc/rfc9110#section-15.5.6)). An unknown path is `404`. |
-| 428 | `precondition_required` | A required `If-Match` header is missing. |
-| 412 | `stale_revision` | `If-Match` names a revision or content hash that is no longer current. |
-| 422 | `unsupported_value` | It is well-formed and within every bound, but this engine does not support its meaning: an enum member or field the schema defines and the capabilities do not advertise, or a combination of fields or capabilities the engine does not implement. Error diagnostics from full validation of a configuration candidate are also `422`. |
-| 409 | `state_conflict` | The request is supported, but the current state prevents it: a name already in use, a referenced object that is not current, or a transition the current state does not allow. The same request can succeed after the state changes. |
-| 429 | `rate_limited` | The caller exceeded a request-rate limit, or a limit on repeating the same work, such as a second probe of a target that already has one admitted. |
-| 503 | `temporarily_unavailable`, `snapshot_unavailable` | A shared capacity limit is full (a bounded queue, the stream subscriber slots, the snapshot memory budget), or a required runtime component is unavailable. |
 
 A rejection that depends on the current state is `409`, never `422`: `422`
 depends only on the request and on what the engine supports, so a `400` or `422`
@@ -146,6 +134,11 @@ the retained snapshot or record, the filters, and `limit`.
   cursor.
 - A server never continues a walk against a different snapshot.
 
+An expired page cursor is `410` because the snapshot it names is gone for good,
+while an expired [event or log cursor](events.html#Replay-and-recovery) is `409`
+because the stream still exists and the client recovers by reopening it without
+a cursor and fetching new baselines.
+
 A list `limit` is 1–1000 unless the resource advertises a lower
 `max_page_size`; a larger value returns `400 invalid_request`, not a shorter
 page.
@@ -172,7 +165,7 @@ outcome in `error.details`:
 | `written` | boolean | The store holds the change after the failure. A plain reload stores nothing and omits it. |
 | `committed` | boolean or null | Whether the new generation is active. Present on every activation failure. |
 | `active_generation_id` | string or null | Present when `committed` is `true`: the active generation, or `null` when the server cannot name it. |
-| `stage` | string | Synchronous responses only: the outcome code, or an adapter-defined code for a failure before activation starts. |
+| `stage` | string | Synchronous responses only: the outcome code, or an engine-defined code for a failure before activation starts. |
 | `durability_confirmed` | boolean | Optional. `false` when the store holds the change but could not confirm that it survives a crash. |
 
 - `committed: false`: the change never became active, and the previous
@@ -189,7 +182,7 @@ recovery, see [creating a source](configuration.html#Creating-a-source).
 
 A failed operation carries the outcome code in `error.code`. A synchronous
 request returns an HTTP error, usually `503 temporarily_unavailable`, and
-carries the outcome code in `error.details.stage`. An adapter uses each code
+carries the outcome code in `error.details.stage`. An engine uses each code
 below when its case applies. `supervisor_reconciliation_failed` and
 `store_unavailable` apply only to an engine with a separate worker supervisor
 or a store it records after activation; other engines never report them.
@@ -203,7 +196,7 @@ or a store it records after activation; other engines never report them.
 | `store_unavailable` | `true` | The new generation is active, but the store could not record it. `written` is `false`, and a restart loads the previously stored configuration. |
 
 A failure before activation starts, such as an unavailable engine, has
-`committed: false` and may use another adapter-defined code.
+`committed: false` and may use another engine-defined code.
 
 These outcomes are reported only by an instance that survives the failure. If
 the engine process stops or restarts, queued and running operations and their

@@ -38,11 +38,11 @@ paths:
                         path: api.dae
                         kind: main
                         content_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
-                        bytes: 90
+                        bytes: 60
                         writable: false
                         loaded_at: 2026-08-15T09:30:00Z
-                        content: "global {\n  log_level: info\n}\nexperimental {\n  native_api {\n    secret: '<redacted>'\n  }\n}\n"
-                        line_count: 8
+                        content: "global {\n  log_level: info\n}\napi {\n  secret: '<redacted>'\n}\n"
+                        line_count: 6
                     diagnostics:
                       - level: warning
                         source_id: source-main
@@ -57,7 +57,7 @@ paths:
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
                 editable:
-                  summary: Unredacted dae text.
+                  summary: Unredacted engine-native text.
                   value:
                     generation_id: generation-42
                     revision: "17"
@@ -435,7 +435,7 @@ paths:
                 $ref: ./openapi.yaml#/components/schemas/ConfigSourceContent
               examples:
                 editable:
-                  summary: Unredacted dae text.
+                  summary: Unredacted engine-native text.
                   value:
                     id: source-main
                     path: config.dae
@@ -455,9 +455,9 @@ paths:
                     path: api.dae
                     kind: main
                     content_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
-                    bytes: 90
-                    content: "global {\n  log_level: info\n}\nexperimental {\n  native_api {\n    secret: '<redacted>'\n  }\n}\n"
-                    line_count: 8
+                    bytes: 60
+                    content: "global {\n  log_level: info\n}\napi {\n  secret: '<redacted>'\n}\n"
+                    line_count: 6
                   x-headers:
                     Content-Type: application/json
                     Cache-Control: no-store
@@ -506,54 +506,12 @@ paths:
       summary: Replace one configuration source and reload
       description: |
         Requires control, resources.config.available, resources.config.writable,
-        and writable: true on the accepted source. A disabled write switch, a
-        read-only source, or a replacement that sets or changes API listener
-        settings or secrets returns 403 permission_denied. Generated and subscription
-        sources are never writable. Unknown IDs return 404 resource_not_found.
-        The body replaces the complete source with UTF-8 dae text; no partial
-        patches, caller-supplied file paths, or multi-source writes are accepted.
-        Enforce resources.config.max_bytes on replacement UTF-8 bytes and the
-        shared limits.max_json_body_bytes independently; excess returns 413.
-        Check If-Match before validating or writing: missing returns 428
-        precondition_required; a hash different from the source's current bytes
-        in the configuration store returns 412 stale_revision, even if it
-        matches the accepted snapshot.
-        Validate the resulting source set with the same full-mode checks as
-        POST /config/validate, substituting the replacement for this source.
-        Resolve dependencies only from submitted text, authorized local files,
-        and cached data; never use the network or refresh caches during validation.
-        Missing or inaccessible required local dependencies produce error diagnostics.
-        An unfetched subscription produces a subscription-not-fetched warning and
-        does not by itself invalidate the candidate; validation does not fetch it.
-        A requested change that cannot take effect through reload, compared
-        with the active configuration, is a restart-required error diagnostic. If any diagnostic has level error,
-        return 422 unsupported_value with error.details.diagnostics using
-        ConfigDiagnostic; never store the replacement or start a reload. Warnings
-        and info alone do not prevent a write.
-        Otherwise commit the replacement to the configuration store atomically,
-        either before activation or after the new generation becomes active;
-        readers of the store see the old or the new bytes, never a mix. A file
-        store writes a temporary file in the same directory and renames it,
-        preserving the mode. Serialize the hash check, validation, and commit
-        against concurrent API writes; recheck the stored hash at commit and
-        return 412 if it changed. Start a reload operation and return 202
-        OperationAccepted with kind reload, Location, and Retry-After. 202
-        means accepted, not stored or active; the operation succeeds only after
-        both the commit and the activation finish. Activate the candidate that
-        was validated. The next configuration write waits until this activation
-        finishes, or returns 409 state_conflict if the server does not queue
-        writes. An edit to the store outside the API before the commit fails
-        the commit with 412; one made after the commit takes effect at a later
-        reload.
-        If reload publishes a new generation and events are available, emit
-        generation.changed. After successful reload, GET /config reports the accepted
-        content_sha256. A failed operation reports error.details.written and
-        error.details.committed as defined under activation outcomes in the
-        error contract.
-        Idempotency-Key follows the operation retention rules: scope it to caller,
-        method, and path in this instance. A retained same-body replay returns the
-        original operation without another write or hash check; a different body
-        returns 409 idempotency_conflict.
+        and writable: true on the source. Checks If-Match against the stored
+        source hash, validates the complete engine-native replacement in full
+        mode, and returns 202 with a reload operation that commits the validated
+        replacement atomically, before activation or after the new generation
+        becomes active.
+        The normative rules are in [Configuration: Editing](/v0.1.0/en/docs/configuration.html#Editing).
       x-permission: control
       security:
         - bearerAuth: []
@@ -579,7 +537,7 @@ paths:
               properties:
                 content:
                   type: string
-                  description: Complete UTF-8 dae source text; empty text is validated, not rejected as malformed.
+                  description: Complete UTF-8 engine-native text; empty text is validated, not rejected as malformed.
             examples:
               replacement:
                 value:
@@ -751,7 +709,7 @@ paths:
         Requires resources.config_validate.available and control because the body
         may contain secrets. Syntax mode parses only submitted text. Full mode also
         checks semantics and resolves includes/subscriptions from submitted sources
-        or adapter-authorized local files and cached data, never from the network.
+        or engine-authorized local files and cached data, never from the network.
         Missing or inaccessible required local dependencies produce error diagnostics.
         An unfetched subscription produces a subscription-not-fetched warning and
         does not by itself invalidate the candidate; validation does not fetch it.
@@ -1010,7 +968,7 @@ schemas:
           $ref: ./openapi.yaml#/components/schemas/ConfigDiagnostic
       secrets_redacted:
         type: boolean
-        description: True when a listener-secret value (the deployment secret of an API listener, such as honk's native_api.secret and clash_api.secret) was masked somewhere in this response. Content, paths and diagnostics are otherwise returned in the clear to an admitted request.
+        description: True when a listener-secret value (the deployment secret of an API listener) was masked somewhere in this response. Content, paths and diagnostics are otherwise returned in the clear to an admitted request.
   ConfigSourceContent:
     type: object
     description: One accepted source's identity and content, the representation GET /config/sources/{source_id} returns. Every field stays the same while the source bytes do, so content_sha256 can serve as its entity tag.
@@ -1042,7 +1000,7 @@ schemas:
         description: Accepted source size in bytes before redaction.
       content:
         type: string
-        description: Accepted dae text with listener-secret values masked. Use for editing only if its UTF-8 SHA-256 matches content_sha256.
+        description: Accepted engine-native text with listener-secret values masked. Use for editing only if its UTF-8 SHA-256 matches content_sha256.
       line_count:
         $ref: ./openapi.yaml#/components/schemas/SafeUInt
         description: Lines in the accepted source before redaction; empty text has zero lines, and a final newline does not add an empty line.
@@ -1086,7 +1044,7 @@ schemas:
         description: New file path relative to the main source's directory, as ConfigSource.path reports it. Normal segments only, ending in .dae, at most 1024 UTF-8 bytes, no control characters. An include pattern of the resulting source set must match it.
       content:
         type: string
-        description: Complete UTF-8 dae source text; empty text is validated, not rejected as malformed.
+        description: Complete UTF-8 engine-native text; empty text is validated, not rejected as malformed.
   ConfigDiagnosticsErrorResponse:
     description: unsupported_value error whose details.diagnostics holds at least one error-level diagnostic.
     allOf:
@@ -1130,7 +1088,7 @@ schemas:
       path:
         type: string
         minLength: 1
-        description: Optional engine-native source name and include-resolution base within the adapter's authorized local roots; never grants arbitrary file access.
+        description: Optional engine-native source name and include-resolution base within the engine's authorized local roots; never grants arbitrary file access.
       content:
         type: string
         description: Candidate engine-native source text; empty text is a candidate, not a malformed request.

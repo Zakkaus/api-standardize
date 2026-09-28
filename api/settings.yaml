@@ -117,13 +117,13 @@ paths:
 
         geodata is the exception. It requires resources.geodata.configurable_sources,
         control and a credential; an anonymous loopback caller gets 403
-        permission_denied. The backend keeps a geodata patch as an override for as
+        permission_denied. The engine keeps a geodata patch as an override for as
         long as resources.geodata.lifecycle advertises and does not change the
         top-level source. Patching geosite or geoip overrides only that URL list
         (geodata.source becomes override); auto_update, download and verify_checksum
         are each overridden on their own; null removes every override and every
         value taken from the configuration file, so the built-in sources and
-        defaults apply until the backend next takes file values. When it takes file
+        defaults apply until the engine next takes file values. When it takes file
         values, a URL list or download route the configuration file names replaces
         the override for that field. Geodata URLs are fetched under the
         outbound-request policy in api-config. More URLs than resources.geodata.max_urls or an interval outside

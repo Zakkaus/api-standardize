@@ -24,7 +24,7 @@ not reflected.
 each in evaluation order and ending with exactly one `kind: fallback` entry.
 Request rules decide how a query is resolved; response rules decide what
 happens to the answer. A fallback the configuration does not write still
-appears, with the backend's default action and a null `source`. A rule the
+appears, with the engine's default action and a null `source`. A rule the
 parser omitted with a diagnostic is not listed; read the diagnostics from
 [GET /config](configuration.html).
 
@@ -64,10 +64,10 @@ pagination.
 `resources.dns_rules.max_rules` bounds each list, including its fallback,
 under the same rule as [traffic rules](rules.html#Generation-changes-and-limits):
 it is never below either running list's size, so both lists are always
-returned complete. Return `503 snapshot_unavailable` if the adapter cannot pin
+returned complete. Return `503 snapshot_unavailable` if the engine cannot pin
 one coherent generation.
 
-A backend that does not implement this endpoint advertises
+An engine that does not implement this endpoint advertises
 `resources.dns_rules.available: false` and returns
 `404 capability_not_supported`. A
 client then shows no DNS rule list.

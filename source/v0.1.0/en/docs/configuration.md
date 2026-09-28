@@ -6,7 +6,8 @@ title: Configuration
 
 The native API exposes accepted configuration sources, dry-run validation, and
 single-source replacement followed by reload. Source replacement accepts a
-complete dae file, not a partial patch or a multi-source write.
+complete engine-native text of one source, not a partial patch or a
+multi-source write.
 
 ## GET /api/v1/config
 
@@ -79,9 +80,9 @@ source writable. Includes and subscriptions written by the engine, including
    full text from that snapshot or the single-source GET. If content is absent
    or its digest differs, obtain the complete source through an authorized
    channel; never replace it with redacted text.
-2. Edit the complete dae text.
+2. Edit the complete engine-native text.
 3. Optionally call `POST /config/validate` in `full` mode with the resulting
-   source set, if the adapter advertises that mode. The server repeats the same checks
+   source set, if the engine advertises that mode. The server repeats the same checks
    before storing; a successful dry run does not bypass them or pin the store's state.
 4. PUT `{content: string}` as `application/json`, with the retained SHA-256
    enclosed in double quotes in `If-Match`. This precondition uses source bytes,
@@ -113,11 +114,9 @@ limit, and that limit then applies. Exceeding either returns
 when its content is complete. A body with a masked listener-secret value has no
 `ETag`: it is not the representation that `PUT` replaces.
 `If-Match` is evaluated as [conditional requests](errors.html#Conditional-requests)
-defines.
-The optional `Idempotency-Key` follows the [operation rules](operations.html):
-within the running instance's retention window, the same caller, method, path,
-key, and body return the original operation without another write or hash
-check. Reusing the key with a different body returns `409 idempotency_conflict`.
+defines. The optional `Idempotency-Key` follows the
+[replay rules](operations.html#Replay); a replay returns the original operation
+without another write or hash check.
 
 ### Validation and commit
 
@@ -192,7 +191,7 @@ the source's accepted hash becomes the latter.
 
 ## Creating a source
 
-`POST /api/v1/config/sources` adds one new dae file and reloads. It requires
+`POST /api/v1/config/sources` adds one new source file and reloads. It requires
 `control`, `resources.config.available`, `resources.config.writable`, and
 `resources.config.create`. `create` is false by default and is true only when
 `writable` is true. Without it, the request returns
@@ -205,14 +204,15 @@ the source's accepted hash becomes the latter.
 | Field | Type | Description |
 |-------|------|-------------|
 | path | string | New file path relative to the main source's directory, in the same form as `ConfigSource.path`. |
-| content | string | Complete UTF-8 dae text; empty text is a validation candidate, not a malformed request. |
+| content | string | Complete UTF-8 engine-native text; empty text is a validation candidate, not a malformed request. |
 
 `path` uses only normal segments: no leading `/`, no empty, `.`, or `..`
 segment. It ends in `.dae`, has at most 1024 UTF-8 bytes, and contains no
 control characters. The server resolves it inside the configuration root and
 returns `400 invalid_request` for a malformed path or one whose parent resolves
-outside the root, including through a symlink. A path that already names a file
-or an accepted source returns `409 state_conflict`; creation never overwrites.
+outside the root, including through a symlink. Creation returns
+`409 state_conflict` for a `path` already in use, by a file or an accepted
+source, before it validates the content; it never overwrites.
 
 The same content limits as for [replacement](#Editing) apply, and so does the
 optional `Idempotency-Key`.
@@ -260,8 +260,7 @@ A failure before the source is stored creates nothing. After it is stored, the
 - `committed: null`: the source stays. Read `GET /config` and `GET /runtime`
   back to learn whether it became active.
 
-A second create for a `path` that is still in the store returns
-`409 state_conflict`. After a successful reload, `GET /config` lists the new source
+After a successful reload, `GET /config` lists the new source
 with `path` as given, and it can be edited through
 `PUT /config/sources/{source_id}`. Replacement never removes a source: a
 replaced source keeps its accepted ID, so a later PUT can repair it.
@@ -336,7 +335,7 @@ permission, media-type, and rate failures use the [shared errors](errors.html).
 ## Diagnostic fields
 
 Readback, dry-run validation, and rejected writes use `ConfigDiagnostic`.
-Diagnostic codes are adapter-defined, not members of the HTTP `ErrorCode` catalogue.
+Diagnostic codes are engine-defined, not members of the HTTP `ErrorCode` catalogue.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -344,16 +343,10 @@ Diagnostic codes are adapter-defined, not members of the HTTP `ErrorCode` catalo
 | source_id | string | Source ID in the effective snapshot, validation request, or replacement's resulting source set. |
 | line | integer or null | One-based source line; null when unknown. |
 | column | integer or null | One-based UTF-8 byte column, not a character or UTF-16 offset; null when unknown. |
-| span | object or null | `start_line`, `start_column`, `end_line`, `end_column`; one-based, start inclusive and end exclusive. End must not precede start; adapters may return zero-width spans. |
-| code | string | Nonempty adapter-defined diagnostic code. |
+| span | object or null | `start_line`, `start_column`, `end_line`, `end_column`; one-based, start inclusive and end exclusive. End must not precede start; engines may return zero-width spans. |
+| code | string | Nonempty engine-defined diagnostic code. |
 | message | string | Safe operator-facing description, never raw parser output. |
 
 Coordinates refer to the original source before redaction. When known, `line`
-and `column` equal the span start. Unknown locations stay null; adapters must
+and `column` equal the span start. Unknown locations stay null; engines must
 not invent positions from setting names.
-
-## Honk mapping
-
-Honk implements native configuration readback, validation, source replacement,
-and reload operations. These are separate from the Clash-compatible `/configs`
-endpoint.

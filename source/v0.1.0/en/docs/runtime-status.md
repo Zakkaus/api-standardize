@@ -20,7 +20,7 @@ bounded counts and decimal string `"0"` for `uint64` quantities.
 {% api_request getRuntime %}
 
 `detail=summary` is the default and omits `process.pid`. `detail=full` includes
-it when the adapter can observe it.
+it when the engine can observe it.
 
 ## Response
 
@@ -33,7 +33,7 @@ it when the adapter can observe it.
 | Field | Type | Description |
 |-------|------|-------------|
 | observed_at | string | Snapshot timestamp (RFC3339). |
-| instance_id | string | Unique adapter process incarnation; changes on restart. |
+| instance_id | string | Unique engine process incarnation; changes on restart. |
 | lifecycle.state | string | `starting`, `running`, `reloading`, `suspended`, `draining`, `degraded`, or `failed`. |
 | lifecycle.started_at | string or null | Process start time, when known. |
 | lifecycle.uptime_seconds | decimal uint64 string or null | Process uptime. |
@@ -52,7 +52,7 @@ it when the adapter can observe it.
 | traffic.bytes | object | Cumulative visible bytes. Each value is a decimal uint64 string or `null` when unobservable. |
 | traffic.rates | object or null | Current rates. `null` when unavailable; `window_seconds` stays numeric and byte rates are decimal uint64 strings or `null`. |
 | process.pid | uint32 or null, optional | Engine process ID with `detail=full`. |
-| process.cpu_percent | number or null | CPU time the engine process used over the adapter's latest sampling interval, as a percentage of one CPU. 100 means one core fully busy; the value may exceed 100 on multi-core hosts. Null until two samples exist or when unmeasurable. |
+| process.cpu_percent | number or null | CPU time the engine process used over the engine's latest sampling interval, as a percentage of one CPU. 100 means one core fully busy; the value may exceed 100 on multi-core hosts. Null until two samples exist or when unmeasurable. |
 | last_reload | object or null | Most recent reload operation and its result. |
 | degradations | array, optional | Features running reduced after a recovered failure; see below. |
 
@@ -61,10 +61,10 @@ ending at `traffic.sampled_at`. A cached sample retains its original
 timestamp; `counter_since` instead marks the cumulative counter reset
 boundary. A null sample timestamp does not establish freshness.
 
-`degradations` lists features the backend keeps running in a reduced mode
+`degradations` lists features the engine keeps running in a reduced mode
 after a failure it recovered from, such as a state database that could not be
-opened. Each entry is a [SafeError](errors.html) with an adapter-defined `code`,
-`message` and optional `details`, plus `component`, an adapter-defined feature
+opened. Each entry is a [SafeError](errors.html) with an engine-defined `code`,
+`message` and optional `details`, plus `component`, an engine-defined feature
 identifier that stays stable across releases and appears at most once, and
 `since`, the time (RFC3339) the feature started running reduced. The list holds
 at most 64 entries. An absent or empty list means no degradation is known.
@@ -72,7 +72,7 @@ Adding, changing or clearing an entry emits `runtime.updated`.
 
 `datapath.ebpf` is the eBPF summary, or null when inapplicable.
 [Datapath](datapath.html) defines its states and the readiness rules for eBPF,
-userspace, and mock backends. Loaded programs alone do not establish an active datapath.
+userspace, and mock datapaths. Loaded programs alone do not establish an active datapath.
 
 > **Note:** Per-connection details and byte counters are available from
 > [`GET /api/v1/connections`](connections.html). They carry the same visibility limits.
@@ -83,16 +83,18 @@ truncated, and unobserved connections; it is not a usage total.
 
 During reload, the old active generation remains reported until the new
 generation has passed configuration validation and datapath publication. A
-failed reload therefore leaves `generation.active_id` unchanged and is exposed
-through `last_reload`.
+reload that fails before publication therefore leaves `generation.active_id`
+unchanged and is exposed through `last_reload`. A failure after publication can
+leave the new generation active; see
+[activation outcomes](errors.html#Activation-outcomes).
 
-Generation identifiers are adapter-owned, instance-scoped opaque references
+Generation identifiers are engine-owned, instance-scoped opaque references
 with distinct namespaces for runtime commits and kernel policy publications.
 DNS cache epochs, outbound-registry generations, diagnostic generations and
 eBPF double-buffer slot numbers are not interchangeable configuration
 revisions. A reload that reuses an unchanged kernel policy can promote a new
 runtime generation while retaining the old datapath generation ID. The
-adapter must retain that relationship, not forge equal strings.
+engine must retain that relationship, not forge equal strings.
 
 Runtime fields are a coherent control-plane snapshot; independently sampled
 kernel/traffic counters retain their own timestamps. Reads of two separate

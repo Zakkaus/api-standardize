@@ -18,9 +18,11 @@ publishes both.
 
 ## Build and check
 
-CI uses Node.js 24 and Yarn Classic from `yarn.lock`:
+CI uses Node.js 24 and Yarn Classic from `yarn.lock`. The site theme is a git
+submodule, so initialise it before building:
 
 ```sh
+git submodule update --init --recursive
 corepack enable
 yarn install --frozen-lockfile
 yarn check:contract

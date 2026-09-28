@@ -4,39 +4,34 @@ title: API Configuration
 
 # API Configuration
 
-Honk configures its native API under `experimental.native_api`, separately from
-`experimental.clash_api`. This page describes native listener security and
-permissions; configuration syntax remains engine-specific.
+This page describes native listener security, authentication and permissions.
+How an engine configures its listener is engine-specific; honk's keys are in
+the [honk notes](honk-notes.html#Listener-configuration-in-honk).
 
-The shared adapter should use a single listen address, an opaque bearer secret,
-and explicit CORS origins. Interface-name wildcards and regexes are not part of
-the native contract because they make binding and authorization ambiguous.
-
-## Honk listener configuration
-
-Configure the native listener under `experimental.native_api`. Its settings
-include `enabled`, `listen`, `secret`, `allow_origins`, and `ui`. Use an explicit
-loopback address for local access. A non-loopback listener requires a secret or
-password mode.
-
-`experimental.clash_api.external_controller` configures the separate
-Clash-compatible listener.
+A server uses one listen address and explicit CORS origins. Token mode may use
+a deployment secret; password mode uses session tokens. Interface-name
+wildcards and regexes are not part of the native contract because they make
+binding and authorization ambiguous.
 
 ## Listener and authentication rules
 
-- Omitting `listen` binds only to loopback.
-- A non-loopback listener requires deployment-secret authentication (`secret`)
-  or password authentication; otherwise startup fails closed.
-- `secret` is opaque. Implementations may enforce a minimum entropy policy but
+- A listener without a configured address binds only to loopback.
+- A non-loopback listener requires deployment-secret authentication or
+  password authentication; otherwise startup fails closed.
+- The deployment secret is opaque. Implementations may enforce a minimum entropy policy but
   must not require one specific textual encoding.
 - Authentication uses `Authorization: Bearer <secret>`. Secrets must not appear
   in URLs, responses, or logs.
-- Cross-origin browser access requires an exact origin in `allow_origins`.
-  An empty list disables cross-origin access, not the same-origin `/ui/`
-  interface. Bearer authentication still follows the listener configuration.
+- Cross-origin browser access requires the exact origin in the listener's
+  allowed-origin list. An empty list disables cross-origin access; same-origin
+  requests are unaffected. Bearer authentication still follows the listener configuration.
+- For an allowed origin, CORS permits the `Authorization`, `Last-Event-ID`,
+  `Content-Type`, `If-Match`, `Idempotency-Key`, and `Accept` request headers,
+  and exposes `Location`, `Retry-After`, and `ETag`.
 - Browsers send CORS preflights without credentials. The server validates the
   origin, requested method, and requested headers, then answers the preflight
-  without bearer authentication; the actual request is authenticated as usual.
+  without bearer authentication; the actual request keeps its normal
+  authentication and permission checks.
 - Non-loopback bearer transport MUST use TLS at the listener or a trusted
   local reverse proxy; a secret sent over untrusted cleartext is not secure.
 - Reject unapproved browser Origins on all native requests, including
@@ -46,9 +41,6 @@ Clash-compatible listener.
 - On a secretless loopback listener, reject browser requests marked
   `Sec-Fetch-Site: cross-site`, even without Origin. Cross-site GET navigation
   must not trigger a control action such as a live DNS query.
-
-Honk serves the native and Clash-compatible APIs on separate listeners and ports,
-with independent routing, authentication, and CORS. Native resources use `/api/v1/*`.
 
 ## Authentication modes
 
@@ -119,8 +111,7 @@ restrict access.
 | Writes to geodata sources | `control` and a credential; an anonymous loopback caller gets `403 permission_denied`. |
 | Configuration writes | As `resources.config.writable` advertises; an engine may keep writes off on a secretless listener. |
 
-A listener secret is identified by its role, not by a key name; honk's are
-`native_api.secret` and `clash_api.secret`. An engine masks the fields that
+A listener secret is identified by its role, not by a key name. An engine masks the fields that
 carry these secrets, and the deployment secret values it holds, before it
 stores or emits text. It need not keep a recoverable password or past session
 tokens to find other copies of them.
@@ -134,7 +125,7 @@ masked a value says so where its schema has a flag, such as `secrets_redacted`.
 
 ## Outbound requests
 
-Group health checks (`check_url`), [node checks](check-nodes.html), and
+Group health checks (`check_url`), [node checks](probes.html), and
 [geodata downloads](geodata.html) follow this outbound-request policy against
 server-side request forgery (SSRF).
 
@@ -152,11 +143,11 @@ server-side request forgery (SSRF).
   any nonzero port is allowed. A DNS check target may use port 53 or a port in
   the allowlist. Port 0 is never allowed.
 - The rules apply after the final route is selected and before each dial,
-  including each retry. When the backend resolves the name itself, whether the
+  including each retry. When the engine resolves the name itself, whether the
   route is direct or through a node, it rejects loopback, link-local,
   multicast, unspecified, private and cloud-metadata addresses unless the
   destination allowlist names them, and dials the validated address it pinned.
-  When a node resolves the name, the backend checks only a destination written
+  When a node resolves the name, the engine checks only a destination written
   as a literal address. A literal address is always checked. The HTTP `Host`
   header and TLS SNI keep the name from the URL.
 - A group health check dialled through the group's own members validates a
@@ -167,6 +158,6 @@ server-side request forgery (SSRF).
   names for that asset is exempt from the address and port rules, for both the
   file download and its checksum request. The same URL set by a geodata source
   PATCH is exempt too; any other URL follows every rule.
-- The backend bounds response size and time. Where a feature follows
+- The engine bounds response size and time. Where a feature follows
   redirects, it bounds their number and repeats these checks for each one;
   geodata downloads follow none.

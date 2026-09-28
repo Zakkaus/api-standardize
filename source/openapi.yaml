@@ -186,7 +186,7 @@ paths:
         - {}
       responses:
         '200':
-          description: Adapter capabilities
+          description: Engine capabilities
           headers:
             Cache-Control:
               $ref: '#/components/headers/NoStore'
@@ -608,19 +608,17 @@ paths:
                         path: api.dae
                         kind: main
                         content_sha256: '0000000000000000000000000000000000000000000000000000000000000000'
-                        bytes: 90
+                        bytes: 60
                         writable: false
                         loaded_at: '2026-08-15T09:30:00Z'
                         content: |
                           global {
                             log_level: info
                           }
-                          experimental {
-                            native_api {
-                              secret: '<redacted>'
-                            }
+                          api {
+                            secret: '<redacted>'
                           }
-                        line_count: 8
+                        line_count: 6
                     diagnostics:
                       - level: warning
                         source_id: source-main
@@ -635,7 +633,7 @@ paths:
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
                 editable:
-                  summary: Unredacted dae text.
+                  summary: Unredacted engine-native text.
                   value:
                     generation_id: generation-42
                     revision: '17'
@@ -747,7 +745,7 @@ paths:
         Requires resources.config_validate.available and control because the body
         may contain secrets. Syntax mode parses only submitted text. Full mode also
         checks semantics and resolves includes/subscriptions from submitted sources
-        or adapter-authorized local files and cached data, never from the network.
+        or engine-authorized local files and cached data, never from the network.
         Missing or inaccessible required local dependencies produce error diagnostics.
         An unfetched subscription produces a subscription-not-fetched warning and
         does not by itself invalidate the candidate; validation does not fetch it.
@@ -1308,7 +1306,7 @@ paths:
                 $ref: '#/components/schemas/ConfigSourceContent'
               examples:
                 editable:
-                  summary: Unredacted dae text.
+                  summary: Unredacted engine-native text.
                   value:
                     id: source-main
                     path: config.dae
@@ -1331,17 +1329,15 @@ paths:
                     path: api.dae
                     kind: main
                     content_sha256: '0000000000000000000000000000000000000000000000000000000000000000'
-                    bytes: 90
+                    bytes: 60
                     content: |
                       global {
                         log_level: info
                       }
-                      experimental {
-                        native_api {
-                          secret: '<redacted>'
-                        }
+                      api {
+                        secret: '<redacted>'
                       }
-                    line_count: 8
+                    line_count: 6
                   x-headers:
                     Content-Type: application/json
                     Cache-Control: no-store
@@ -1395,54 +1391,12 @@ paths:
       summary: Replace one configuration source and reload
       description: |
         Requires control, resources.config.available, resources.config.writable,
-        and writable: true on the accepted source. A disabled write switch, a
-        read-only source, or a replacement that sets or changes API listener
-        settings or secrets returns 403 permission_denied. Generated and subscription
-        sources are never writable. Unknown IDs return 404 resource_not_found.
-        The body replaces the complete source with UTF-8 dae text; no partial
-        patches, caller-supplied file paths, or multi-source writes are accepted.
-        Enforce resources.config.max_bytes on replacement UTF-8 bytes and the
-        shared limits.max_json_body_bytes independently; excess returns 413.
-        Check If-Match before validating or writing: missing returns 428
-        precondition_required; a hash different from the source's current bytes
-        in the configuration store returns 412 stale_revision, even if it
-        matches the accepted snapshot.
-        Validate the resulting source set with the same full-mode checks as
-        POST /config/validate, substituting the replacement for this source.
-        Resolve dependencies only from submitted text, authorized local files,
-        and cached data; never use the network or refresh caches during validation.
-        Missing or inaccessible required local dependencies produce error diagnostics.
-        An unfetched subscription produces a subscription-not-fetched warning and
-        does not by itself invalidate the candidate; validation does not fetch it.
-        A requested change that cannot take effect through reload, compared
-        with the active configuration, is a restart-required error diagnostic. If any diagnostic has level error,
-        return 422 unsupported_value with error.details.diagnostics using
-        ConfigDiagnostic; never store the replacement or start a reload. Warnings
-        and info alone do not prevent a write.
-        Otherwise commit the replacement to the configuration store atomically,
-        either before activation or after the new generation becomes active;
-        readers of the store see the old or the new bytes, never a mix. A file
-        store writes a temporary file in the same directory and renames it,
-        preserving the mode. Serialize the hash check, validation, and commit
-        against concurrent API writes; recheck the stored hash at commit and
-        return 412 if it changed. Start a reload operation and return 202
-        OperationAccepted with kind reload, Location, and Retry-After. 202
-        means accepted, not stored or active; the operation succeeds only after
-        both the commit and the activation finish. Activate the candidate that
-        was validated. The next configuration write waits until this activation
-        finishes, or returns 409 state_conflict if the server does not queue
-        writes. An edit to the store outside the API before the commit fails
-        the commit with 412; one made after the commit takes effect at a later
-        reload.
-        If reload publishes a new generation and events are available, emit
-        generation.changed. After successful reload, GET /config reports the accepted
-        content_sha256. A failed operation reports error.details.written and
-        error.details.committed as defined under activation outcomes in the
-        error contract.
-        Idempotency-Key follows the operation retention rules: scope it to caller,
-        method, and path in this instance. A retained same-body replay returns the
-        original operation without another write or hash check; a different body
-        returns 409 idempotency_conflict.
+        and writable: true on the source. Checks If-Match against the stored
+        source hash, validates the complete engine-native replacement in full
+        mode, and returns 202 with a reload operation that commits the validated
+        replacement atomically, before activation or after the new generation
+        becomes active.
+        The normative rules are in [Configuration: Editing](/v0.1.0/en/docs/configuration.html#Editing).
       x-permission: control
       security:
         - bearerAuth: []
@@ -1469,7 +1423,7 @@ paths:
               properties:
                 content:
                   type: string
-                  description: Complete UTF-8 dae source text; empty text is validated, not rejected as malformed.
+                  description: Complete UTF-8 engine-native text; empty text is validated, not rejected as malformed.
             examples:
               replacement:
                 value:
@@ -2236,7 +2190,7 @@ paths:
       summary: Add an inline node from a share link
       description: |
         Requires resources.nodes.can_manage; otherwise returns 404
-        capability_not_supported. The backend parses the link with the engine's own
+        capability_not_supported. The engine parses the link with its own
         share-link support, writes it into the node section of its managed main
         source under the given name, advances the configuration revision and emits
         generation.changed. The response does not echo the link; the source text
@@ -2514,20 +2468,20 @@ paths:
       description: |
         Requires resources.providers.can_manage; otherwise returns 404
         capability_not_supported. Only kind subscription can be created here: file and
-        inline providers are authored in the configuration sources. The backend writes
+        inline providers are authored in the configuration sources. The engine writes
         the provider into the subscription section of its managed main source,
         advances the configuration revision, and emits generation.changed. A later
         replacement of that main source using its previous content_sha256 returns
         412 stale_revision. When resources.providers.create_unfetched is true, the provider is
         created unfetched: node_count 0, updated_at null and status stale; call
-        POST /providers/{provider_id}/refresh to load it. Otherwise the backend may fetch the
+        POST /providers/{provider_id}/refresh to load it. Otherwise the engine may fetch the
         provider during activation and returns its actual state. The response carries the
         URL in url_redacted, as written apart from listener secrets. A name already in use
         returns 409 state_conflict, as does a configuration change while the create is
         being admitted. A URL that is not HTTP(S) returns 422 unsupported_value.
         update_interval, user_agent and cache are accepted only when named in
         resources.providers.create_options; an omitted one takes the default listed there,
-        and one the backend does not list returns 422 unsupported_value.
+        and one the engine does not list returns 422 unsupported_value.
         Returns 201 with the provider once the change is active, or 202 with a
         provider_create operation whose result is the created provider. A
         failed activation reports its outcome as defined under activation
@@ -3297,11 +3251,11 @@ paths:
       description: |
         Requires resources.geodata.can_update; otherwise returns 404
         capability_not_supported. Takes no request body and never changes the
-        configured sources. The backend downloads every asset from its source into a
+        configured sources. The engine downloads every asset from its source into a
         temporary file, verifies it parses, replaces the loaded file and reloads the
         datapath once, emitting generation.changed; an asset that fails to download
         or parse leaves the loaded file in place and fails the operation. With
-        several URLs for an asset, the backend tries them in order and moves to the
+        several URLs for an asset, the engine tries them in order and moves to the
         next only when one fails: a connection error, a status other than 200
         (redirects are not followed), the per-URL deadline, or a failed checksum
         by the resources.geodata.checksum method. With sha256sum, a 404 for the
@@ -3312,7 +3266,7 @@ paths:
         checksum is checked and the file is accepted unverified. Every request leaves
         through the route in GeoDataSettings.download; a URL the route cannot reach,
         because a group has no usable member or the routing rules block it, fails like
-        a connection error and the next URL is tried. The backend never falls back to
+        a connection error and the next URL is tried. The engine never falls back to
         direct. The update fails when the new file lacks a category the active
         configuration uses.
         Identical bytes leave the loaded file and generation unchanged. An automatic
@@ -4439,7 +4393,7 @@ paths:
             default: all
         - name: connection_id
           in: query
-          description: Exact opaque connection ID within the current adapter instance; never inferred from a tuple. Matches active and retained terminal flows.
+          description: Exact opaque connection ID within the current engine instance; never inferred from a tuple. Matches active and retained terminal flows.
           schema:
             type: string
             minLength: 1
@@ -5530,13 +5484,13 @@ paths:
 
         geodata is the exception. It requires resources.geodata.configurable_sources,
         control and a credential; an anonymous loopback caller gets 403
-        permission_denied. The backend keeps a geodata patch as an override for as
+        permission_denied. The engine keeps a geodata patch as an override for as
         long as resources.geodata.lifecycle advertises and does not change the
         top-level source. Patching geosite or geoip overrides only that URL list
         (geodata.source becomes override); auto_update, download and verify_checksum
         are each overridden on their own; null removes every override and every
         value taken from the configuration file, so the built-in sources and
-        defaults apply until the backend next takes file values. When it takes file
+        defaults apply until the engine next takes file values. When it takes file
         values, a URL list or download route the configuration file names replaces
         the override for that field. Geodata URLs are fetched under the
         outbound-request policy in api-config. More URLs than resources.geodata.max_urls or an interval outside
@@ -6241,7 +6195,7 @@ paths:
         request rules pick how a query is resolved, and response rules decide whether
         an answer is accepted, rejected or re-queried. Each list is in evaluation order
         and ends with exactly one fallback entry. A fallback the configuration does not
-        write still appears, with the backend's default action and a null source.
+        write still appears, with the engine's default action and a null source.
         A rule the configuration parser omitted with a diagnostic is not listed.
         This resource is read-only. Rules are edited by replacing the source that holds
         them with PUT /api/v1/config/sources/{source_id}, the same as traffic rules;
@@ -7284,7 +7238,7 @@ components:
       format: date-time
     ErrorCode:
       type: string
-      description: 'Closed catalogue of HTTP error codes. Adding a code changes the contract. Embedded errors such as operation.error, datapath.errors, last_reload.error, and provider.last_error use SafeError with adapter-defined codes, except the shared activation outcome codes an adapter uses for a failed configuration change when the case applies: reload_rejected, reload_degraded, supervisor_reconciliation_failed, activation_unconfirmed and store_unavailable.'
+      description: 'Closed catalogue of HTTP error codes. Adding a code changes the contract. Embedded errors such as operation.error, datapath.errors, last_reload.error, and provider.last_error use SafeError with engine-defined codes, except the shared activation outcome codes an engine uses for a failed configuration change when the case applies: reload_rejected, reload_degraded, supervisor_reconciliation_failed, activation_unconfirmed and store_unavailable.'
       enum:
         - invalid_request
         - authentication_required
@@ -7715,7 +7669,7 @@ components:
                 max_sources:
                   $ref: '#/components/schemas/SafeUInt'
                   minimum: 1
-                  description: Maximum complete effective source set the adapter can expose; never silently truncate it.
+                  description: Maximum complete effective source set the engine can expose; never silently truncate it.
             config_validate:
               type: object
               required:
@@ -7867,7 +7821,7 @@ components:
                   type: boolean
                 can_manage:
                   type: boolean
-                  description: POST /nodes and DELETE /nodes/{node_id} are implemented for inline nodes; the backend owns a writable main source.
+                  description: POST /nodes and DELETE /nodes/{node_id} are implemented for inline nodes; the engine owns a writable main source.
             providers:
               type: object
               required:
@@ -7892,11 +7846,11 @@ components:
                   description: Supports creating subscription providers and deleting subscription or file providers from a writable managed main source.
                 create_unfetched:
                   type: boolean
-                  description: A created provider is not fetched until POST /providers/{provider_id}/refresh; it starts with node_count 0, updated_at null and status stale. False or absent means the backend may fetch it during activation and reports its actual state.
+                  description: A created provider is not fetched until POST /providers/{provider_id}/refresh; it starts with node_count 0, updated_at null and status stale. False or absent means the engine may fetch it during activation and reports its actual state.
                 create_options:
                   type: object
                   additionalProperties: false
-                  description: Optional ProviderCreate fields the backend accepts, each with the value it applies when the field is omitted. A field not listed is unsupported. Absent means none are supported.
+                  description: Optional ProviderCreate fields the engine accepts, each with the value it applies when the field is omitted. A field not listed is unsupported. Absent means none are supported.
                   properties:
                     update_interval:
                       type: integer
@@ -8314,7 +8268,7 @@ components:
                 fields:
                   type: array
                   uniqueItems: true
-                  description: The settings PATCH /runtime/settings accepts on this backend; another field the schema defines returns 422.
+                  description: The settings PATCH /runtime/settings accepts on this engine; another field the schema defines returns 422.
                   items:
                     $ref: '#/components/schemas/RuntimeSettingField'
             geodata:
@@ -8360,7 +8314,7 @@ components:
                 assets:
                   type: array
                   uniqueItems: true
-                  description: The asset kinds GET /geodata reports on this backend.
+                  description: The asset kinds GET /geodata reports on this engine.
                   items:
                     $ref: '#/components/schemas/GeoAssetKind'
                 configurable_sources:
@@ -8396,7 +8350,7 @@ components:
                     - sha256sum
                     - pinned
                     - null
-                  description: How the backend verifies a download when verify_checksum is true. sha256sum appends .sha256sum to the URL path, keeping any query, and compares the SHA-256 the response names; a 404 means none is published. pinned compares with a SHA-256 the backend holds for the URL. Null means downloads are unverified. Required when can_update or configurable_sources is true.
+                  description: How the engine verifies a download when verify_checksum is true. sha256sum appends .sha256sum to the URL path, keeping any query, and compares the SHA-256 the response names; a 404 means none is published. pinned compares with a SHA-256 the engine holds for the URL. Null means downloads are unverified. Required when can_update or configurable_sources is true.
                 lifecycle:
                   type: object
                   additionalProperties: false
@@ -8468,7 +8422,7 @@ components:
             $ref: '#/components/schemas/ConfigDiagnostic'
         secrets_redacted:
           type: boolean
-          description: True when a listener-secret value (the deployment secret of an API listener, such as honk's native_api.secret and clash_api.secret) was masked somewhere in this response. Content, paths and diagnostics are otherwise returned in the clear to an admitted request.
+          description: True when a listener-secret value (the deployment secret of an API listener) was masked somewhere in this response. Content, paths and diagnostics are otherwise returned in the clear to an admitted request.
     ConfigSourceContent:
       type: object
       description: One accepted source's identity and content, the representation GET /config/sources/{source_id} returns. Every field stays the same while the source bytes do, so content_sha256 can serve as its entity tag.
@@ -8511,7 +8465,7 @@ components:
           description: Accepted source size in bytes before redaction.
         content:
           type: string
-          description: Accepted dae text with listener-secret values masked. Use for editing only if its UTF-8 SHA-256 matches content_sha256.
+          description: Accepted engine-native text with listener-secret values masked. Use for editing only if its UTF-8 SHA-256 matches content_sha256.
         line_count:
           $ref: '#/components/schemas/SafeUInt'
           description: Lines in the accepted source before redaction; empty text has zero lines, and a final newline does not add an empty line.
@@ -8562,7 +8516,7 @@ components:
           description: New file path relative to the main source's directory, as ConfigSource.path reports it. Normal segments only, ending in .dae, at most 1024 UTF-8 bytes, no control characters. An include pattern of the resulting source set must match it.
         content:
           type: string
-          description: Complete UTF-8 dae source text; empty text is validated, not rejected as malformed.
+          description: Complete UTF-8 engine-native text; empty text is validated, not rejected as malformed.
     ConfigDiagnostic:
       type: object
       required:
@@ -8603,7 +8557,7 @@ components:
         code:
           type: string
           minLength: 1
-          description: Adapter-defined diagnostic code, independent of the HTTP ErrorCode catalogue.
+          description: Engine-defined diagnostic code, independent of the HTTP ErrorCode catalogue.
         message:
           type: string
           minLength: 1
@@ -8681,7 +8635,7 @@ components:
         path:
           type: string
           minLength: 1
-          description: Optional engine-native source name and include-resolution base within the adapter's authorized local roots; never grants arbitrary file access.
+          description: Optional engine-native source name and include-resolution base within the engine's authorized local roots; never grants arbitrary file access.
         content:
           type: string
           description: Candidate engine-native source text; empty text is a candidate, not a malformed request.
@@ -8886,7 +8840,7 @@ components:
                 - number
                 - 'null'
               minimum: 0
-              description: CPU time the engine process used over the adapter's latest sampling interval, as a percentage of one CPU. 100 means one core fully busy; the value may exceed 100 on multi-core hosts. Null until two samples exist or when unmeasurable.
+              description: CPU time the engine process used over the server's latest sampling interval, as a percentage of one CPU. 100 means one core fully busy; the value may exceed 100 on multi-core hosts. Null until two samples exist or when unmeasurable.
         last_reload:
           oneOf:
             - type: 'null'
@@ -8894,7 +8848,7 @@ components:
         degradations:
           type: array
           maxItems: 64
-          description: Features running reduced after a failure the backend recovered from. An absent or empty list means none are known. Codes are adapter-defined like other SafeError codes. A change to the list is announced by runtime.updated.
+          description: Features running reduced after a failure the engine recovered from. An absent or empty list means none are known. Codes are engine-defined like other SafeError codes. A change to the list is announced by runtime.updated.
           items:
             allOf:
               - $ref: '#/components/schemas/SafeError'
@@ -8906,7 +8860,7 @@ components:
                   component:
                     type: string
                     minLength: 1
-                    description: Adapter-defined feature identifier, such as persistence or pname_routing. Stable across releases of one adapter; each component appears at most once.
+                    description: Engine-defined feature identifier, such as persistence or pname_routing. Stable across releases of one engine; each component appears at most once.
                   since:
                     $ref: '#/components/schemas/Timestamp'
                     description: When the feature started running reduced. A failure that repeats while the entry is listed keeps the original time.
@@ -9683,7 +9637,7 @@ components:
             - $ref: '#/components/schemas/SafeError'
           description: The last failure, or null. A subscription fetch whose download route has no usable node yet reports code route_unavailable; other fetch failures report fetch_failed.
         download:
-          description: The route a subscription's fetches take, with the values of the geodata download route. routing follows the routing rules like user traffic, group always goes through the group in group_id, and direct connects straight to the host. group_id is null for routing and direct and for a group that no longer exists. Null for file and inline providers. Backends that fetch subscriptions only directly omit it.
+          description: The route a subscription's fetches take, with the values of the geodata download route. routing follows the routing rules like user traffic, group always goes through the group in group_id, and direct connects straight to the host. group_id is null for routing and direct and for a group that no longer exists. Null for file and inline providers. Engines that fetch subscriptions only directly omit it.
           oneOf:
             - type: 'null'
             - $ref: '#/components/schemas/GeoDataDownload'
@@ -9890,12 +9844,12 @@ components:
             - string
             - 'null'
           minLength: 1
-          description: Display-only URL the loaded file was downloaded from, in the same display form as source_redacted and null under the same conditions. Null when the backend did not download the loaded file, for example a file installed by a package. Reported when resources.geodata.configurable_sources is true.
+          description: Display-only URL the loaded file was downloaded from, in the same display form as source_redacted and null under the same conditions. Null when the engine did not download the loaded file, for example a file installed by a package. Reported when resources.geodata.configurable_sources is true.
         verified:
           type: boolean
-          description: The loaded file was downloaded and matched the checksum found by the resources.geodata.checksum method for its download URL. False when no checksum was found, the method is null, verification was off, or the backend did not download the file. Reported when resources.geodata.configurable_sources is true.
+          description: The loaded file was downloaded and matched the checksum found by the resources.geodata.checksum method for its download URL. False when no checksum was found, the method is null, verification was off, or the engine did not download the file. Reported when resources.geodata.configurable_sources is true.
         download_route:
-          description: The route the loaded file was downloaded through. route is the GeoDataSettings.download route in force for that download. group_id is the group the request went through, the one the routing rules chose for route routing, and null for direct, for routing rules that chose direct or a single node, and for a group that no longer exists. Null when the backend did not download the loaded file. Reported when resources.geodata.configurable_sources is true.
+          description: The route the loaded file was downloaded through. route is the GeoDataSettings.download route in force for that download. group_id is the group the request went through, the one the routing rules chose for route routing, and null for direct, for routing rules that chose direct or a single node, and for a group that no longer exists. Null when the engine did not download the loaded file. Reported when resources.geodata.configurable_sources is true.
           oneOf:
             - type: 'null'
             - $ref: '#/components/schemas/GeoDataDownload'
@@ -9929,7 +9883,7 @@ components:
           $ref: '#/components/schemas/NullableTimestamp'
           description: When the next automatic update is due, including its random delay and any failure backoff. Null while automatic updates are off.
         last_error:
-          description: Why the last attempt failed after every URL was tried, with an adapter-defined code. Null after a successful or unchanged attempt, and before the first.
+          description: Why the last attempt failed after every URL was tried, with an engine-defined code. Null after a successful or unchanged attempt, and before the first.
           oneOf:
             - type: 'null'
             - $ref: '#/components/schemas/SafeError'
@@ -9987,13 +9941,13 @@ components:
         - config
         - override
         - default
-      description: Where the effective URL lists came from. config when every list that is not built in comes from the configuration file. override when a PATCH set at least one list that is still in force, even to the URLs the file names. default when both assets use the backend's built-in URLs. An asset with neither a file value nor an override uses its built-in URLs under any source. A PATCH may set URLs under any source.
+      description: Where the effective URL lists came from. config when every list that is not built in comes from the configuration file. override when a PATCH set at least one list that is still in force, even to the URLs the file names. default when both assets use the engine's built-in URLs. An asset with neither a file value nor an override uses its built-in URLs under any source. A PATCH may set URLs under any source.
     GeoDataUrl:
       type: string
       format: uri
       maxLength: 4096
       pattern: ^https?://(?![^/?#]*@)[^#]*$
-      description: Absolute HTTP(S) URL without userinfo or fragment, fetched under the outbound-request policy in api-config. The backend does not follow redirects.
+      description: Absolute HTTP(S) URL without userinfo or fragment, fetched under the outbound-request policy in api-config. The engine does not follow redirects.
     GeoDataSources:
       type: object
       required:
@@ -10019,7 +9973,7 @@ components:
         interval_hours:
           type: integer
           minimum: 1
-          description: Hours between automatic updates, within resources.geodata.interval_hours, whose default applies when nothing is set. The backend may add a random delay; next_check_at reports the result.
+          description: Hours between automatic updates, within resources.geodata.interval_hours, whose default applies when nothing is set. The engine may add a random delay; next_check_at reports the result.
     GeoDataDownloadRoute:
       type: string
       enum:
@@ -10087,10 +10041,10 @@ components:
           default:
             route: routing
             group_id: null
-          description: The route every geodata request takes. routing when nothing is stored, as for every download the backend makes itself. When the backend takes file values (resources.geodata.lifecycle.file_values), a route the configuration file names replaces a stored one, and a route an earlier file set returns to routing when the file names none; a patched route is kept. It does not affect source. A group that has no usable member when an update runs, for example just after startup before its health checks finish, fails that URL like a connection error; the backend tries the next URL and reports last_error, and never falls back to direct.
+          description: The route every geodata request takes. routing when nothing is stored, as for every download the engine makes itself. When the engine takes file values (resources.geodata.lifecycle.file_values), a route the configuration file names replaces a stored one, and a route an earlier file set returns to routing when the file names none; a patched route is kept. It does not affect source. A group that has no usable member when an update runs, for example just after startup before its health checks finish, fails that URL like a connection error; the engine tries the next URL and reports last_error, and never falls back to direct.
         verify_checksum:
           type: boolean
-          description: Whether an update verifies each file by the resources.geodata.checksum method and rejects a file that does not match. true when nothing is set, and a backend that omits the field behaves as true. false sends no checksum request and accepts the file unverified, with verified false, for a mirror that answers the checksum URL with an error page or a status other than 404. honk's configuration file never sets it.
+          description: Whether an update verifies each file by the resources.geodata.checksum method and rejects a file that does not match. true when nothing is set, and an engine that omits the field behaves as true. false sends no checksum request and accepts the file unverified, with verified false, for a mirror that answers the checksum URL with an error page or a status other than 404.
     GeoDataSourcesPatch:
       type: object
       additionalProperties: false
@@ -10105,7 +10059,7 @@ components:
           items:
             $ref: '#/components/schemas/GeoDataUrl'
     GeoDataSettingsPatch:
-      description: Merged into the current settings as overrides. A patch with geosite or geoip overrides only that list, so source becomes override, under any source; the other list is unchanged. auto_update, download and verify_checksum are each overridden on their own. null removes every override and every value taken from the configuration file until the backend next takes file values.
+      description: Merged into the current settings as overrides. A patch with geosite or geoip overrides only that list, so source becomes override, under any source; the other list is unchanged. auto_update, download and verify_checksum are each overridden on their own. null removes every override and every value taken from the configuration file until the engine next takes file values.
       oneOf:
         - type: 'null'
         - type: object
@@ -10234,7 +10188,7 @@ components:
             - integer
             - 'null'
           minimum: 1
-          description: Configured health-check interval in seconds. A backend that runs checks on one global interval may keep this value without applying it.
+          description: Configured health-check interval in seconds. An engine that runs checks on one global interval may keep this value without applying it.
         tolerance:
           type:
             - integer
@@ -11110,10 +11064,10 @@ components:
           $ref: '#/components/schemas/NullableUInt64'
         upload_bytes_per_second:
           $ref: '#/components/schemas/NullableUInt64'
-          description: Visible upload rate, or null when the adapter does not sample per connection. See connections.md for deriving a rate from two list snapshots.
+          description: Visible upload rate, or null when the engine does not sample per connection. See connections.md for deriving a rate from two list snapshots.
         download_bytes_per_second:
           $ref: '#/components/schemas/NullableUInt64'
-          description: Visible download rate, or null when the adapter does not sample per connection. See connections.md for deriving a rate from two list snapshots.
+          description: Visible download rate, or null when the engine does not sample per connection. See connections.md for deriving a rate from two list snapshots.
     ConnectionList:
       type: object
       required:

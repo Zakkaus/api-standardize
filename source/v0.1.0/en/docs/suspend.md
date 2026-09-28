@@ -7,7 +7,7 @@ title: Suspend
 > Draft endpoint. Suspension is capability-gated and asynchronous. It is not
 > a universal dae/honk operation.
 
-Starts the adapter's suspend transition when `resources.suspend.available` is true.
+Starts the engine's suspend transition when `resources.suspend.available` is true.
 
 ## Request
 
@@ -27,14 +27,14 @@ Poll [`GET /api/v1/operations/{operation_id}`](operations.html) for completion.
 
 The [operation envelope](operations.html) reports completion and failure. After
 successful suspension, `result.runtime_state` is `suspended`, or null when the
-adapter cannot observe the resulting state. Acceptance alone does not establish suspension.
+engine cannot observe the resulting state. Acceptance alone does not establish suspension.
 
-If the adapter advertises `resources.resume.available`, resume uses:
+If the engine advertises `resources.resume.available`, resume uses:
 
 {% api_example startResume request empty http %}
 
 Resume returns the same operation envelope with `kind: resume`. On success,
-`result.runtime_state` is `running`, or null when the adapter cannot observe
+`result.runtime_state` is `running`, or null when the engine cannot observe
 the resulting state, consistent with suspension's nullable state field.
 Acceptance alone must never be reported as successful resumption.
 

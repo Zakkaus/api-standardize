@@ -4,9 +4,8 @@ title: Recorded Flows
 
 # Recorded flows
 
-Recorded flows expose retained routing and lifecycle evidence. Honk implements
-the endpoint, but clients must inspect its advertised recording scopes and each
-trace's completeness. The causal chain is rule input, dial mode, IP/DNS decisions,
+Recorded flows expose retained routing and lifecycle evidence. Clients must
+inspect the advertised recording scopes and each trace's completeness. The causal chain is rule input, dial mode, IP/DNS decisions,
 rerouting, outbound selection, and connection status; record the order the engine
 actually executed.
 
@@ -43,9 +42,9 @@ Requires `observe`. Returns active **and retained terminal** flows.
 |-----------|---------|---------|
 | network | all | `tcp`, `udp`, or `all`. |
 | state | all | One lifecycle state below, or `all`. |
-| connection_id | absent | Exact opaque connection ID within the current adapter instance; includes retained terminal flows, never tuple matching. |
+| connection_id | absent | Exact opaque connection ID within the current engine instance; includes retained terminal flows, never tuple matching. |
 | limit | 100 | 1–1000, additionally bounded by the advertised limit. |
-| cursor | absent | Opaque snapshot cursor; includes the original filters and `limit`. |
+| cursor | absent | Opaque cursor from `next_cursor`. |
 | detail | summary | `full` adds source/destination/domain inputs; not the trace. |
 
 {% api_example listFlows 200 visible %}
@@ -344,11 +343,14 @@ All snapshots, rule dictionaries and variable-length step data share bounded
 recorder memory. Admission to a new snapshot may return `503 snapshot_unavailable` rather than
 allocate without limit; oversized candidate/rule evidence marks the trace
 partial. Neither longer retention nor pagination permits unbounded metadata.
-Do not stream packets, format rule strings, walk all maps on each GET, or make
-forwarding await a dashboard. Capture compact decision IDs into bounded
-buffers at existing decision boundaries; serialize on the control plane.
-The full-transparency profile requires the missing decision hooks, not a
-slower approximation that re-executes routing during a read.
+The full-transparency profile requires decision hooks in the datapath; a
+read that re-executes routing does not satisfy it.
+
+> **Note:** This is implementation advice, not part of the contract. A
+> recorder stays within these bounds by capturing compact decision IDs into
+> bounded buffers at existing decision boundaries and serializing them on the
+> control plane. It does not stream packets, format rule strings, walk all
+> maps on each GET, or make forwarding wait for a client.
 
 ## Acceptance scenarios
 

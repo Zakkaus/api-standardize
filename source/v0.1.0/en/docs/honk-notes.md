@@ -8,6 +8,20 @@ This page is not part of the contract. It records how honk, on its
 `feat/native-api` branch, implements rules that the contract leaves to the
 engine. Another engine may make different choices within the same rules.
 
+## Listener configuration in honk
+
+- honk configures the native listener under `experimental.native_api`; its
+  settings include `enabled`, `listen`, `secret`, `allow_origins` and `ui`.
+  `experimental.clash_api.external_controller` configures the separate
+  Clash-compatible listener.
+- The native and Clash-compatible APIs run on separate listeners and ports,
+  with independent routing, authentication and CORS. Native configuration
+  readback, validation, source replacement and reload are separate from the
+  Clash-compatible `/configs` endpoint.
+- An empty `allow_origins` does not disable the same-origin `/ui/` interface.
+- honk's listener secrets are `experimental.native_api.secret` and
+  `experimental.clash_api.secret`.
+
 ## Password sessions in honk
 
 honk's password mode keeps at most 32 sessions; creating another expires the
@@ -22,6 +36,8 @@ This section records how honk implements the
 `feat/native-api` branch; another engine may reach the same effective values
 another way.
 
+- honk's configuration file can name the URL lists and the download route,
+  but not `auto_update` or `verify_checksum`.
 - honk keeps the geodata settings in its state database. Each stored URL list
   and the download route carry a mark saying whether the configuration file
   wrote them.

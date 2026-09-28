@@ -9,7 +9,7 @@ title: Operations
 > operation envelope.
 
 An operation ID is opaque, unguessable, and unique for the lifetime of the
-running adapter. Clients must not derive its kind or creation time from the ID.
+running engine. Clients must not derive its kind or creation time from the ID.
 
 ## Accepted operation
 
@@ -62,7 +62,7 @@ A successful `geodata_update` result is the new [GeoData](geodata.html);
 the datapath has already been reloaded with it.
 
 A successful `node_create` or `provider_create` result is the created
-[Node](node-latency.html) or [Provider](providers.html), carrying its ID. A
+[Node](nodes.html) or [Provider](providers.html), carrying its ID. A
 successful `node_delete` or `provider_delete` result is the `deleted` count the
 synchronous `200` would have returned.
 
@@ -72,7 +72,7 @@ configuration fragments, and listener secrets must not be returned.
 
 Completed operations remain queryable for up to the
 `resources.operations.retention_seconds` value advertised by
-`GET /api/v1/capabilities`. A backend with a bounded operation store may evict
+`GET /api/v1/capabilities`. An engine with a bounded operation store may evict
 its oldest completed operation early to admit a new one; it refuses a new
 operation with `503 temporarily_unavailable` only when every slot holds an
 unfinished one. Clients that need a result should read it once the operation

@@ -5,7 +5,7 @@ title: Capabilities
 # GET /api/v1/capabilities
 
 > Draft endpoint. This is the authoritative coarse-grained feature declaration
-> for the running adapter. Resource responses may further narrow capabilities
+> for the running engine. Resource responses may further narrow capabilities
 > for an individual node or group; provider refresh support may vary by kind.
 
 ## Request
@@ -59,7 +59,7 @@ filters, and errors.
 separately from invalidation events.
 `providers` advertises `can_refresh`, `can_manage` and `max_page_size`
 (1–1000); refresh requires `control` and the operation resource, and
-`can_manage` means the backend owns a writable main source and implements
+`can_manage` means the engine owns a writable main source and implements
 provider create and delete. `create_unfetched: true` means a created provider
 is not fetched until refresh. `nodes` advertises `can_manage` on the same terms
 for inline nodes. `geodata` advertises `can_update` and the `assets` it reports
@@ -72,10 +72,10 @@ including the fallback entry, for a complete running-generation dictionary.
 Reads of logs, providers, nodes, geodata, and rules require `observe`. Available
 resources must include their required capability fields; buffer and rule limits
 are positive safe integers. See [Logs](logs.html), [Providers](providers.html),
-[Nodes](node-latency.html), [Geodata](geodata.html), and [Rules](rules.html).
+[Nodes](nodes.html), [Geodata](geodata.html), and [Rules](rules.html).
 
 `runtime_settings.available` declares `GET`/`PATCH /api/v1/runtime/settings`;
-when true, `fields` lists which settings the PATCH accepts on this backend.
+when true, `fields` lists which settings the PATCH accepts on this engine.
 
 `dns_log.available` declares the ring of recent client resolutions; when
 true, `max_records` and `max_page_size` are required positive safe integers,
@@ -102,7 +102,7 @@ source file that an include pattern loads; it is true only when `writable` is.
 
 Paths are returned as the configuration references them, with `absolute_path`
 beside the relative `path`. What is masked follows the
-[visibility table](api-config.html#Visibility); the adapter sets
+[visibility table](api-config.html#Visibility); the engine sets
 `secrets_redacted` when it masked a value in the response.
 
 `resources.config_validate.available` independently gates dry-run validation.
@@ -134,7 +134,8 @@ unversioned or under another name.
 ## Conformance profiles
 
 `profiles` is an array, not a feature inferred from engine identity. The
-example is an illustrative partial adapter, **not honk's current response**.
+example is an illustrative response from a partial implementation, **not
+honk's current response**.
 
 - **`base`** requires discovery, version, capabilities, runtime, the shared
   authentication/error/visibility rules, and honest capability declarations.
@@ -155,7 +156,7 @@ example is an illustrative partial adapter, **not honk's current response**.
 Profile support describes implemented instrumentation, not losslessness of
 every snapshot. Buffer loss, disabled recording or redaction downgrades the
 current coverage and affected traces even on a conforming engine. A
-userspace-only adapter MUST NOT advertise `full_transparency`. A simulator,
+userspace-only engine MUST NOT advertise `full_transparency`. A simulator,
 Clash connection list, log parser, or map snapshot cannot satisfy it.
 
 ## Example

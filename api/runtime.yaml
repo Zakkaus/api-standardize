@@ -551,7 +551,7 @@ schemas:
           cpu_percent:
             type: [ number, "null" ]
             minimum: 0
-            description: CPU time the engine process used over the adapter's latest sampling interval, as a percentage of one CPU. 100 means one core fully busy; the value may exceed 100 on multi-core hosts. Null until two samples exist or when unmeasurable.
+            description: CPU time the engine process used over the server's latest sampling interval, as a percentage of one CPU. 100 means one core fully busy; the value may exceed 100 on multi-core hosts. Null until two samples exist or when unmeasurable.
       last_reload:
         oneOf:
           - type: "null"
@@ -559,7 +559,7 @@ schemas:
       degradations:
         type: array
         maxItems: 64
-        description: Features running reduced after a failure the backend recovered from. An absent or empty list means none are known. Codes are adapter-defined like other SafeError codes. A change to the list is announced by runtime.updated.
+        description: Features running reduced after a failure the engine recovered from. An absent or empty list means none are known. Codes are engine-defined like other SafeError codes. A change to the list is announced by runtime.updated.
         items:
           allOf:
             - $ref: ./openapi.yaml#/components/schemas/SafeError
@@ -569,7 +569,7 @@ schemas:
                 component:
                   type: string
                   minLength: 1
-                  description: Adapter-defined feature identifier, such as persistence or pname_routing. Stable across releases of one adapter; each component appears at most once.
+                  description: Engine-defined feature identifier, such as persistence or pname_routing. Stable across releases of one engine; each component appears at most once.
                 since:
                   $ref: ./openapi.yaml#/components/schemas/Timestamp
                   description: When the feature started running reduced. A failure that repeats while the entry is listed keeps the original time.

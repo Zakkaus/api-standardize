@@ -40,8 +40,8 @@ The group API separates these responsibilities:
 | capabilities | object | Operations and fields supported by the current engine. |
 
 `resolved_leaf_node_id` is optional. It is present when a member resolves to an
-actual node, and is separate from `member_id` because a honk group can select a
-nested group tag while dialing its selected leaf node.
+actual node, and is separate from `member_id` because a group can select a
+nested group while dialing that group's selected leaf node.
 
 The API must not assume that every group has one current node:
 
@@ -61,7 +61,7 @@ group offset. It is not defined for random/selector or non-latency Score
 ranking. Nullable `ranking` describes `metric` (native metric name),
 `recovery_penalty_ms`, `group_offset_ms`, `score`, and a safe `reason`.
 Unknown components are null; do not reverse-engineer them from a group winner.
-Health fields use [Nodes](node-latency.html)'s raw metric definitions.
+Health fields use [Nodes](nodes.html)'s raw metric definitions.
 
 `tolerance` is path-dependent switching hysteresis in whole milliseconds, not an
 additive latency. `check_interval` and `idle_timeout` are whole seconds.
@@ -144,6 +144,8 @@ check URL. dae's `tcp_check_url` may list the URL host's addresses after the
 URL; dae reports them in `config["x-dae"].check_addresses`, an
 [engine extension](capabilities.html#Engine-extensions), and drops them when
 a patch changes `check_url`, after which it resolves the new host itself.
+dae's other check options have no shared field; dae reports them under their
+own names in `config["x-dae"]`: `tcp_check_http_method` and `udp_check_dns`.
 
 ### Patch semantics
 
@@ -228,7 +230,7 @@ current selection is returned unchanged. A selector group returns `409 state_con
 
 ## Group probes
 
-Use [`POST /api/v1/probes`](check-nodes.html) with a group target. Results preserve
+Use [`POST /api/v1/probes`](probes.html) with a group target. Results preserve
 the requested direct `member_id` separately from the actual `resolved_leaf_node_id`.
 The probe contract defines nested resolution, `direct` and `leaves` scopes,
 deduplication, health effects, and failed measurements.

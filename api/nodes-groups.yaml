@@ -78,7 +78,7 @@ paths:
       summary: Add an inline node from a share link
       description: |
         Requires resources.nodes.can_manage; otherwise returns 404
-        capability_not_supported. The backend parses the link with the engine's own
+        capability_not_supported. The engine parses the link with its own
         share-link support, writes it into the node section of its managed main
         source under the given name, advances the configuration revision and emits
         generation.changed. The response does not echo the link; the source text
@@ -1083,7 +1083,7 @@ schemas:
       check_interval:
         type: [ integer, "null" ]
         minimum: 1
-        description: Configured health-check interval in seconds. A backend that runs checks on one global interval may keep this value without applying it.
+        description: Configured health-check interval in seconds. An engine that runs checks on one global interval may keep this value without applying it.
       tolerance:
         type: [ integer, "null" ]
         minimum: 0

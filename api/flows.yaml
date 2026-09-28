@@ -409,7 +409,7 @@ paths:
             default: all
         - name: connection_id
           in: query
-          description: Exact opaque connection ID within the current adapter instance; never inferred from a tuple. Matches active and retained terminal flows.
+          description: Exact opaque connection ID within the current engine instance; never inferred from a tuple. Matches active and retained terminal flows.
           schema:
             type: string
             minLength: 1
@@ -979,10 +979,10 @@ schemas:
         $ref: ./openapi.yaml#/components/schemas/NullableUInt64
       upload_bytes_per_second:
         $ref: ./openapi.yaml#/components/schemas/NullableUInt64
-        description: Visible upload rate, or null when the adapter does not sample per connection. See connections.md for deriving a rate from two list snapshots.
+        description: Visible upload rate, or null when the engine does not sample per connection. See connections.md for deriving a rate from two list snapshots.
       download_bytes_per_second:
         $ref: ./openapi.yaml#/components/schemas/NullableUInt64
-        description: Visible download rate, or null when the adapter does not sample per connection. See connections.md for deriving a rate from two list snapshots.
+        description: Visible download rate, or null when the engine does not sample per connection. See connections.md for deriving a rate from two list snapshots.
   ConnectionList:
     type: object
     required: [ observed_at, instance_id, visibility, truncated, tcp, udp, total_tcp, total_udp ]
