@@ -117,7 +117,9 @@ paths:
         next only when one fails: a connection error, a status other than 200
         (redirects are not followed), the per-URL deadline, or a sha256 mismatch
         against a checksum published at the URL with .sha256sum appended. The
-        checksum goes through the same route as its file. Every request leaves
+        checksum goes through the same route as its file. With
+        GeoDataSettings.verify_checksum false, no checksum is requested and the
+        file is accepted unverified. Every request leaves
         through the route in GeoDataSettings.download; a URL the route cannot reach,
         because a group has no usable member or the routing rules block it, fails like
         a connection error and the next URL is tried. The backend never falls back to
@@ -236,7 +238,7 @@ schemas:
         description: Display-only URL the loaded file was downloaded from, redacted like source_redacted. Null when the backend did not download the loaded file, for example a file installed by a package. Reported when resources.geodata.configurable_sources is true.
       verified:
         type: boolean
-        description: The loaded file was downloaded and matched the sha256 published at the download URL with .sha256sum appended. False when no checksum was published or the backend did not download the file. Reported when resources.geodata.configurable_sources is true.
+        description: The loaded file was downloaded and matched the sha256 published at the download URL with .sha256sum appended. False when no checksum was published, verification was off, or the backend did not download the file. Reported when resources.geodata.configurable_sources is true.
       download_route:
         description: The route the loaded file was downloaded through. route is the GeoDataSettings.download route in force for that download. group_id is the group the request went through, the one the routing rules chose for route routing, and null for direct, for routing rules that chose direct or a single node, and for a group that no longer exists. Null when the backend did not download the loaded file. Reported when resources.geodata.configurable_sources is true.
         oneOf:
@@ -375,6 +377,9 @@ schemas:
         $ref: ./openapi.yaml#/components/schemas/GeoDataDownload
         default: { route: routing, group_id: null }
         description: The route every geodata request takes. routing when nothing is stored, as for every download the backend makes itself. At startup, a route the configuration file names replaces a stored one, and a route an earlier file wrote is deleted when the file names none, as for the URLs; it does not affect source. A group that has no usable member when an update runs, for example just after startup before its health checks finish, fails that URL like a connection error; the backend tries the next URL and reports last_error, and never falls back to direct.
+      verify_checksum:
+        type: boolean
+        description: Whether an update fetches each URL with .sha256sum appended and rejects a file that does not match it. true when nothing is stored, and a backend that omits the field behaves as true. false sends no checksum request and accepts the file unverified, with verified false, for a mirror that answers the checksum URL with an error page or a status other than 404. The configuration file never sets it.
   GeoDataSourcesPatch:
     type: object
     additionalProperties: false
@@ -389,7 +394,7 @@ schemas:
         items:
           $ref: ./openapi.yaml#/components/schemas/GeoDataUrl
   GeoDataSettingsPatch:
-    description: Merged into the stored settings. A patch with geosite or geoip stores both URL lists, so source becomes db, under any source. auto_update and download are each stored on their own. null deletes everything stored.
+    description: Merged into the stored settings. A patch with geosite or geoip stores both URL lists, so source becomes db, under any source. auto_update, download and verify_checksum are each stored on their own. null deletes everything stored.
     oneOf:
       - type: "null"
       - type: object
@@ -402,6 +407,8 @@ schemas:
             $ref: ./openapi.yaml#/components/schemas/GeoDataSourcesPatch
           download:
             $ref: ./openapi.yaml#/components/schemas/GeoDataDownloadPatch
+          verify_checksum:
+            type: boolean
           auto_update:
             type: object
             additionalProperties: false
