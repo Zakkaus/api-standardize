@@ -100,10 +100,8 @@ state again, and a `429` or `503` may succeed after `Retry-After`.
 
 Responses with `429` or retryable `503` include `Retry-After`. A `503` from a
 write the server could not confirm, such as a group selection, may still have
-taken effect; read the resource back before retrying. Error messages are safe
-text as the [visibility table](api-config.html#Visibility) describes: no
-listener secrets, raw configuration, stack traces, or unredacted chained engine
-errors.
+taken effect; read the resource back before retrying. Error messages follow the
+[visibility rule](api-config.html#Visibility).
 
 ## Page cursors
 

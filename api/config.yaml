@@ -420,8 +420,8 @@ paths:
       summary: Read one accepted configuration source
       description: |
         Requires resources.config.available. Returns the same ConfigSource as
-        GET /config, not a fresh read of the store, with its content; apply the
-        same path and secret redaction.
+        GET /config, not a fresh read of the store, with its content; mask listener
+        secrets as in GET /config.
         Unknown source IDs return 404 resource_not_found. Redacted text must never
         be saved as a replacement; compare its UTF-8 SHA-256 with content_sha256
         before using returned content as an editing representation.
@@ -1179,7 +1179,7 @@ schemas:
         description: True when validation completes without error diagnostics. Successful validation does not guarantee a later apply will succeed.
       diagnostics:
         type: array
-        description: Source IDs identify submitted sources. Attribute a dependency failure to the referring submitted source and its include/subscription location, not an undisclosed local path.
+        description: Source IDs identify submitted sources. Attribute a dependency failure to the referring submitted source and its include/subscription location.
         items:
           $ref: ./openapi.yaml#/components/schemas/ConfigDiagnostic
       generation_id:

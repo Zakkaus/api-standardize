@@ -17,8 +17,8 @@ paths:
         There is no paginated snapshot and no 410 snapshot_expired response. If a coherent
         generation cannot be pinned, return 503 snapshot_unavailable. If the complete
         dictionary exceeds resources.rules.max_rules, return 503 temporarily_unavailable
-        rather than silently truncate it. Redact local paths and secret-bearing expression
-        values without changing rule identities or order; never expose raw configuration.
+        rather than silently truncate it. Mask listener secrets in expression values without
+        changing rule identities or order; other values follow the visibility table in api-config.
       x-permission: observe
       security:
         - bearerAuth: []
@@ -138,7 +138,7 @@ schemas:
           file:
             type: string
             minLength: 1
-            description: Redacted source label; never an absolute local path or credential-bearing URL.
+            description: Source path or URL as written, apart from listener secrets.
           source_id:
             type: string
             minLength: 1

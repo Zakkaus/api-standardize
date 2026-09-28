@@ -78,8 +78,8 @@ paths:
         412 stale_revision. When resources.providers.create_unfetched is true, the provider is
         created unfetched: node_count 0, updated_at null and status stale; call
         POST /providers/{provider_id}/refresh to load it. Otherwise the backend may fetch the
-        provider during activation and returns its actual state. The URL is stored,
-        never returned; the response carries url_redacted. A name already in use
+        provider during activation and returns its actual state. The response carries the
+        URL in url_redacted, as written apart from listener secrets. A name already in use
         returns 409 state_conflict. A URL that is not HTTP(S) returns 422 unsupported_value.
         update_interval, user_agent and cache are accepted only when named in
         resources.providers.create_options; an omitted one takes the default listed there,
@@ -589,7 +589,7 @@ schemas:
       url_redacted:
         type: [ string, "null" ]
         minLength: 1
-        description: The configured source URL as written, with only listener-secret values (native_api.secret, clash_api.secret) masked. Null for file/inline sources. The wire name is kept for compatibility.
+        description: The configured source URL as written, with only listener-secret values masked; subscription credentials in it are returned. Null for file/inline sources. The wire name is kept for compatibility.
       node_count:
         $ref: ./openapi.yaml#/components/schemas/SafeUInt
       updated_at:
@@ -648,7 +648,7 @@ schemas:
         minLength: 1
         maxLength: 4096
         pattern: ^https?://
-        description: Fetched by the engine on refresh; stored in the managed main source and never returned.
+        description: Fetched by the engine on refresh and stored in the managed main source; returned in url_redacted as written, apart from listener secrets.
       update_interval:
         type: integer
         minimum: 0

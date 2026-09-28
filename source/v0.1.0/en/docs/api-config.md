@@ -61,13 +61,10 @@ administrator; the modes differ only in how the caller proves it.
 
 A password session lasts until `expires_at`, until
 [logout](auth.html#POST-api-v1-auth-logout), or until the engine ends it
-earlier, for example when a new login exceeds the engine's session limit (honk
-keeps 32 sessions and ends the oldest). A request with an ended session gets
-`401 authentication_required`, and an event stream opened with it closes. A
-setup request that carries a live session gets `409 setup_already_completed`,
-because an administrator exists; a login request that carries one opens another
-session. A mode does not combine with another: password mode has no deployment
-secret and no anonymous loopback access.
+earlier, for example to stay within its session limit. A request with an ended
+session gets `401 authentication_required`, and an event stream opened with it
+closes. Password mode has no deployment secret and does not admit anonymous
+loopback callers. [Authentication](auth.html) describes setup and login.
 
 ## Permissions
 
@@ -103,21 +100,31 @@ Capability flags describe engine support, not caller authorization.
 
 ## Visibility
 
-This table is the one visibility rule for every endpoint, event and recorded
-step; other pages link here instead of restating it. Every admitted caller is
-an administrator and sees the same data, whatever its permission, auth mode or
-`detail` tier. `detail=summary` only reduces response size.
+This table applies to every endpoint, event and recorded step. Admitted callers
+have the same visibility regardless of permission, authentication mode, or
+`detail` tier. `detail=summary` omits fields to reduce response size, not to
+restrict access.
 
 | Data | Returned to every admitted caller |
 |------|-----------------------------------|
-| Listener secrets: `native_api.secret`, `clash_api.secret`, the administrator password, and session tokens | Never. A secret value is replaced by a mask wherever it appears: source text, paths, diagnostics, URLs, errors, events and recorded steps. A session token appears only in the setup or login response that issues it. |
-| Configuration: source text, paths, diagnostics and rule values | As written, apart from listener secrets. |
+| Listener secrets: the deployment secret of each API listener, the administrator password, and session tokens | Secret values are masked in source text, paths, diagnostics, URLs, errors, events, and recorded steps. A session token is returned only in the setup or login response that issues it. |
+| Configuration source text, paths, and rule values | As written, apart from listener secrets. |
 | Provider URLs and geodata source URLs (`geodata.*.urls` in runtime settings) | As written, apart from listener secrets. |
-| Display URLs: `source_redacted` and `fetched_url_redacted` | The display-only form in [Geodata](geodata.html#Read-the-loaded-assets), for every caller. |
-| Error and diagnostic messages | Safe text: no raw engine output, stack traces, source excerpts or raw configuration, and no listener secrets. |
+| Display URLs: `source_redacted` and `fetched_url_redacted` | The display form in [Geodata](geodata.html#Read-the-loaded-assets). |
+| Error and diagnostic messages | Safe text built by the engine: parser and log output is sanitised, not forwarded. No raw engine output, stack traces, source excerpts or raw configuration, and no listener secrets. |
 | Log records | Sanitised as [Logs](logs.html) describes. |
 | Writes to geodata sources | `control` and a credential; an anonymous loopback caller gets `403 permission_denied`. |
 | Configuration writes | As `resources.config.writable` advertises; an engine may keep writes off on a secretless listener. |
+
+A listener secret is identified by its role, not by a key name; honk's are
+`native_api.secret` and `clash_api.secret`. An engine masks the fields that
+carry these secrets, and the deployment secret values it holds, before it
+stores or emits text. It need not keep a recoverable password or past session
+tokens to find other copies of them.
+
+Proxy and subscription credentials are not listener secrets. Node definitions,
+share links and provider URLs that carry them are returned to every admitted
+caller as written.
 
 A trace is marked partial when a mask hid required evidence. A response that
 masked a value says so where its schema has a flag, such as `secrets_redacted`.

@@ -9,12 +9,17 @@ for the client selection rules.
 
 Credentials require a `username` matching `[A-Za-z0-9_.-]{1,64}` and a
 `password` of 8 to 128 Unicode scalar values and at most 512 UTF-8 bytes.
-The server does not trim either value. Setup and login requests must not include
-an `Authorization` header. A request that includes one is authenticated first
-and gets `401 authentication_required` unless the header carries a live session.
-With a live session, setup gets `409 setup_already_completed` and login opens
-another session. [API Configuration](api-config.html#Authentication-modes)
-describes what a session grants and when it ends.
+The server does not trim either value.
+
+Setup and login check a request in this order: the `Authorization` header, the
+peer address (setup only), the account state, then the credentials in the body.
+A header is authenticated first; one that does not carry a live session gets
+`401 authentication_required`. With a live session, setup gets
+`409 setup_already_completed`, and login still validates the body and opens
+another session only when the credentials are correct. Omit the header to
+authenticate with the body alone.
+[API Configuration](api-config.html#Authentication-modes) describes session
+access and lifetime.
 
 ## POST /api/v1/auth/setup
 
@@ -34,11 +39,11 @@ state.
 {% api_example setupAdministrator 201 created http %}
 
 The returned `token` is a bearer credential for later requests. It expires at
-`expires_at`; honk sessions expire after 12 hours.
+`expires_at`.
 
 | Status and code | Meaning |
 |-----------------|---------|
-| `401 authentication_required` | The request carries an `Authorization` header. Resend it without one. |
+| `401 authentication_required` | The request carries an invalid or ended bearer credential. Resend it without the header. |
 | `409 setup_already_completed` | An administrator already exists. Use login. |
 | `429 rate_limited` | Setup is rate limited. Respect `Retry-After`. |
 
@@ -56,11 +61,12 @@ mode after setup.
 {% api_example login 200 opened http %}
 
 The returned `token` is a bearer credential for later requests. It expires at
-`expires_at`; honk sessions expire after 12 hours. The engine may end a
-session earlier, for example to stay within its session limit.
+`expires_at`. The engine may end a session earlier, for example to stay within
+its session limit.
 
 | Status and code | Meaning |
 |-----------------|---------|
+| `401 authentication_required` | The request carries an invalid or ended bearer credential. Resend it without the header. |
 | `401 invalid_credentials` | The username or password is incorrect. |
 | `409 setup_required` | No administrator exists. Use setup. |
 | `429 rate_limited` | Login is rate limited. Respect `Retry-After`. |

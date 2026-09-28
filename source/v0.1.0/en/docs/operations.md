@@ -68,7 +68,7 @@ synchronous `200` would have returned.
 
 `error` uses the same `code`, `message`, and optional `details` object defined
 by the [native error contract](errors.html). Raw engine errors, stack traces,
-configuration fragments, credentials, and local paths must not be returned.
+configuration fragments, and listener secrets must not be returned.
 
 Completed operations remain queryable for up to the
 `resources.operations.retention_seconds` value advertised by

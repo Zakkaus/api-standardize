@@ -85,7 +85,7 @@ paths:
     get:
       operationId: getVersion
       summary: Read native and engine version identity
-      description: Requires bearer authentication when the listener has a deployment secret. Anonymous access is permitted only on an explicitly secretless loopback listener. No resource permission is required.
+      description: Requires bearer authentication when the listener has a deployment secret or runs in password mode. Anonymous access is permitted only on an explicitly secretless loopback listener. No resource permission is required.
       security:
         - bearerAuth: []
         - {}
@@ -131,7 +131,7 @@ paths:
     get:
       operationId: getCapabilities
       summary: Negotiate resources, visibility, and limits
-      description: Requires bearer authentication when the listener has a deployment secret. Anonymous access is permitted only on an explicitly secretless loopback listener. No resource permission is required.
+      description: Requires bearer authentication when the listener has a deployment secret or runs in password mode. Anonymous access is permitted only on an explicitly secretless loopback listener. No resource permission is required.
       security:
         - bearerAuth: []
         - {}

@@ -5,12 +5,13 @@ paths:
       summary: Create the administrator account and open a session
       description: >-
         Available only while discovery reports `auth.mode: password` with
-        `setup_required: true`. The peer must be loopback, RFC 1918, RFC 4193 or
+        `setup_required: true`. Checks run in this order: the Authorization
+        header, the peer, the account state, the body. A header that does not
+        carry a live session gets 401 `authentication_required`; before setup no
+        session exists. The peer must be loopback, RFC 1918, RFC 4193 or
         link-local; any other peer is refused with `permission_denied` before the
-        account state is read. Authorization must be absent: a request that
-        carries it is authenticated first, and before setup no session exists, so
-        it gets 401 `authentication_required`. After setup, a request with a live
-        session gets 409 `setup_already_completed`.
+        account state is read. After setup, the answer is 409
+        `setup_already_completed`, with or without a live session.
       security: []
       requestBody:
         required: true
@@ -67,12 +68,13 @@ paths:
       operationId: login
       summary: Exchange the administrator credentials for a session
       description: >-
-        Available only in password mode after setup. A wrong username or password
-        is `invalid_credentials`; before setup the answer is `setup_required`.
-        Authorization must be absent. A request that carries it is authenticated
-        first: a live session opens another session, anything else gets 401
-        `authentication_required`. The engine may end a session before
-        `expires_at`, for example to stay within its session limit.
+        Available only in password mode after setup. Checks run in this order:
+        the Authorization header, the account state, the body. A header that does
+        not carry a live session gets 401 `authentication_required`; a live
+        session does not replace the body, which is still validated. Before setup
+        the answer is `setup_required`; a wrong username or password is
+        `invalid_credentials`. The engine may end a session before `expires_at`,
+        for example to stay within its session limit.
       security: []
       requestBody:
         required: true

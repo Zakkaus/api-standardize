@@ -262,9 +262,9 @@ independent booleans. `expression` is a sanitized display of that rule or
 predicate, including its configured operands; it is not a second executable
 rule language. Keep the generation's rule dictionary while records refer to
 it, and expand compact IDs at serialization, not on the packet path.
-Compiler-inserted rules use a distinct namespace. Never expose raw config or
-credentials through expressions; redacted required evidence marks a trace
-partial. Consumed bitmap predicate IDs are valid recorded inputs even when
+Compiler-inserted rules use a distinct namespace. Expressions follow the
+[visibility table](api-config.html#Visibility); masked required evidence marks
+a trace partial. Consumed bitmap predicate IDs are valid recorded inputs even when
 the client's domain string was never observable.
 
 `result` is `matched`, `not_matched`, `skipped`, or `indeterminate`. `skipped`

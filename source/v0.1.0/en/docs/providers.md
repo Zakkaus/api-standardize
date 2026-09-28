@@ -99,7 +99,9 @@ a generation change alone does not invalidate an unchanged source's hash.
 A backend that advertises `resources.providers.create_unfetched` creates the
 provider unfetched (`node_count` 0, `updated_at` null, `status` stale); call
 refresh to load it. Otherwise the backend may fetch the provider while it
-activates the change, and the created provider reports its actual state. The URL is stored and never returned. A name already in use
+activates the change, and the created provider reports its actual state. The
+response returns the URL in `url_redacted` as written, apart from listener
+secrets. A name already in use
 returns `409 state_conflict`; a URL that is not http(s) returns
 `422 unsupported_value`.
 

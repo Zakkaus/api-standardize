@@ -90,7 +90,7 @@ paths:
     get:
       operationId: getVersion
       summary: Read native and engine version identity
-      description: Requires bearer authentication when the listener has a deployment secret. Anonymous access is permitted only on an explicitly secretless loopback listener. No resource permission is required.
+      description: Requires bearer authentication when the listener has a deployment secret or runs in password mode. Anonymous access is permitted only on an explicitly secretless loopback listener. No resource permission is required.
       security:
         - bearerAuth: []
         - {}
@@ -136,7 +136,7 @@ paths:
     get:
       operationId: getCapabilities
       summary: Negotiate resources, visibility, and limits
-      description: Requires bearer authentication when the listener has a deployment secret. Anonymous access is permitted only on an explicitly secretless loopback listener. No resource permission is required.
+      description: Requires bearer authentication when the listener has a deployment secret or runs in password mode. Anonymous access is permitted only on an explicitly secretless loopback listener. No resource permission is required.
       security:
         - bearerAuth: []
         - {}
@@ -375,7 +375,7 @@ paths:
     post:
       operationId: setupAdministrator
       summary: Create the administrator account and open a session
-      description: 'Available only while discovery reports `auth.mode: password` with `setup_required: true`. The peer must be loopback, RFC 1918, RFC 4193 or link-local; any other peer is refused with `permission_denied` before the account state is read. Authorization must be absent: a request that carries it is authenticated first, and before setup no session exists, so it gets 401 `authentication_required`. After setup, a request with a live session gets 409 `setup_already_completed`.'
+      description: 'Available only while discovery reports `auth.mode: password` with `setup_required: true`. Checks run in this order: the Authorization header, the peer, the account state, the body. A header that does not carry a live session gets 401 `authentication_required`; before setup no session exists. The peer must be loopback, RFC 1918, RFC 4193 or link-local; any other peer is refused with `permission_denied` before the account state is read. After setup, the answer is 409 `setup_already_completed`, with or without a live session.'
       security: []
       requestBody:
         required: true
@@ -431,7 +431,7 @@ paths:
     post:
       operationId: login
       summary: Exchange the administrator credentials for a session
-      description: 'Available only in password mode after setup. A wrong username or password is `invalid_credentials`; before setup the answer is `setup_required`. Authorization must be absent. A request that carries it is authenticated first: a live session opens another session, anything else gets 401 `authentication_required`. The engine may end a session before `expires_at`, for example to stay within its session limit.'
+      description: 'Available only in password mode after setup. Checks run in this order: the Authorization header, the account state, the body. A header that does not carry a live session gets 401 `authentication_required`; a live session does not replace the body, which is still validated. Before setup the answer is `setup_required`; a wrong username or password is `invalid_credentials`. The engine may end a session before `expires_at`, for example to stay within its session limit.'
       security: []
       requestBody:
         required: true
@@ -1254,8 +1254,8 @@ paths:
       summary: Read one accepted configuration source
       description: |
         Requires resources.config.available. Returns the same ConfigSource as
-        GET /config, not a fresh read of the store, with its content; apply the
-        same path and secret redaction.
+        GET /config, not a fresh read of the store, with its content; mask listener
+        secrets as in GET /config.
         Unknown source IDs return 404 resource_not_found. Redacted text must never
         be saved as a replacement; compare its UTF-8 SHA-256 with content_sha256
         before using returned content as an editing representation.
@@ -2187,7 +2187,8 @@ paths:
         capability_not_supported. The backend parses the link with the engine's own
         share-link support, writes it into the node section of its managed main
         source under the given name, advances the configuration revision and emits
-        generation.changed. The link is stored, never returned. A link the engine
+        generation.changed. The response does not echo the link; the source text
+        returns it as written (see Visibility in API Configuration). A link the engine
         cannot parse returns 422 unsupported_value with a sanitized reason in
         error.message. A name already in use returns 409 state_conflict. The node belongs to the
         inline provider and to every group whose filter matches it after reload.
@@ -2463,8 +2464,8 @@ paths:
         412 stale_revision. When resources.providers.create_unfetched is true, the provider is
         created unfetched: node_count 0, updated_at null and status stale; call
         POST /providers/{provider_id}/refresh to load it. Otherwise the backend may fetch the
-        provider during activation and returns its actual state. The URL is stored,
-        never returned; the response carries url_redacted. A name already in use
+        provider during activation and returns its actual state. The response carries the
+        URL in url_redacted, as written apart from listener secrets. A name already in use
         returns 409 state_conflict. A URL that is not HTTP(S) returns 422 unsupported_value.
         update_interval, user_agent and cache are accepted only when named in
         resources.providers.create_options; an omitted one takes the default listed there,
@@ -4942,8 +4943,8 @@ paths:
         There is no paginated snapshot and no 410 snapshot_expired response. If a coherent
         generation cannot be pinned, return 503 snapshot_unavailable. If the complete
         dictionary exceeds resources.rules.max_rules, return 503 temporarily_unavailable
-        rather than silently truncate it. Redact local paths and secret-bearing expression
-        values without changing rule identities or order; never expose raw configuration.
+        rather than silently truncate it. Mask listener secrets in expression values without
+        changing rule identities or order; other values follow the visibility table in api-config.
       x-permission: observe
       security:
         - bearerAuth: []
@@ -8440,7 +8441,7 @@ components:
           description: True when validation completes without error diagnostics. Successful validation does not guarantee a later apply will succeed.
         diagnostics:
           type: array
-          description: Source IDs identify submitted sources. Attribute a dependency failure to the referring submitted source and its include/subscription location, not an undisclosed local path.
+          description: Source IDs identify submitted sources. Attribute a dependency failure to the referring submitted source and its include/subscription location.
           items:
             $ref: '#/components/schemas/ConfigDiagnostic'
         generation_id:
@@ -9334,7 +9335,7 @@ components:
             - string
             - 'null'
           minLength: 1
-          description: The configured source URL as written, with only listener-secret values (native_api.secret, clash_api.secret) masked. Null for file/inline sources. The wire name is kept for compatibility.
+          description: The configured source URL as written, with only listener-secret values masked; subscription credentials in it are returned. Null for file/inline sources. The wire name is kept for compatibility.
         node_count:
           $ref: '#/components/schemas/SafeUInt'
         updated_at:
@@ -9499,7 +9500,7 @@ components:
           minLength: 1
           maxLength: 4096
           pattern: ^https?://
-          description: Fetched by the engine on refresh; stored in the managed main source and never returned.
+          description: Fetched by the engine on refresh and stored in the managed main source; returned in url_redacted as written, apart from listener secrets.
         update_interval:
           type: integer
           minimum: 0
@@ -9530,7 +9531,7 @@ components:
           type: string
           minLength: 1
           maxLength: 8192
-          description: A share link in a scheme the engine parses (for example vless, vmess, trojan, ss); stored in the managed main source and never returned.
+          description: A share link in a scheme the engine parses (for example vless, vmess, trojan, ss); stored in the managed main source, whose text returns it as written.
     GeoAssetKind:
       type: string
       enum:
@@ -12273,7 +12274,7 @@ components:
             file:
               type: string
               minLength: 1
-              description: Redacted source label; never an absolute local path or credential-bearing URL.
+              description: Source path or URL as written, apart from listener secrets.
             source_id:
               type: string
               minLength: 1

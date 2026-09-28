@@ -43,7 +43,7 @@ dae guarantee.
 | Engine logs | Add read-only `/logs` SSE with typed, sanitized records, minimum-level/module-prefix filters and bounded cursor replay. Logs are not recorded-flow evidence; redact before buffering rather than forwarding raw engine output. |
 | DNS log | `GET /dns/log`: record each client resolution (question, source, upstream or cache, answers, routing decision, elapsed) into a bounded ring in the DNS layer; filters and cursor paging over the ring. |
 | Runtime settings | `GET`/`PATCH /runtime/settings`: one place for the tracing filter level, the log and DNS log ring capacities and flow retention; a PATCH reloads the filter handle and resizes the rings at runtime without writing the configuration file. Ceilings are the capability values. |
-| Providers | Add paginated provider metadata, optional `Node.provider_id`, and a control-only refresh operation. Preserve native subscription/file/inline provenance, redact source URLs, and keep provider usage separate from runtime counters. |
+| Providers | Add paginated provider metadata, optional `Node.provider_id`, and a control-only refresh operation. Preserve native subscription/file/inline provenance, return source URLs as written apart from listener secrets, and keep provider usage separate from runtime counters. |
 | Running rules | Expose a read-only, generation-scoped dictionary using the same rule IDs as routing simulation and flow summaries. Edit rules through their configuration sources; there is no rule-level write endpoint. Expressions and file labels are display data, not editable source text. |
 
 ## Evidence from the pinned honk revision
@@ -179,6 +179,13 @@ joining the current registry after a reload renames or removes a node/group.
 4. Pass the recorded-flow acceptance scenarios before advertising
    `full_transparency`. A useful partial adapter may advertise `base` meanwhile,
    but is not completion of the full per-flow objective.
+
+## Password sessions in honk
+
+This section is not part of the contract. honk's password mode keeps at most
+32 sessions; a login beyond that ends the oldest. Each session lasts 12 hours.
+Another engine chooses its own limit and lifetime and reports the end in
+`expires_at`.
 
 ## Geodata sources in honk
 
