@@ -14,6 +14,15 @@ export function validateFlowTrace(flow) {
     errors.push("complete trace must not name missing evidence sources");
   }
 
+  let previousSeq = null;
+  for (const step of trace.steps) {
+    if (!Number.isInteger(step?.seq)) continue;
+    if (previousSeq !== null && step.seq <= previousSeq) {
+      errors.push(`step seq ${step.seq} does not increase after seq ${previousSeq}`);
+    }
+    previousSeq = step.seq;
+  }
+
   const evaluations = new Map();
   const attempts = new Set();
   const lookups = new Set();
