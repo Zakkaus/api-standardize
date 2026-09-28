@@ -184,7 +184,7 @@ paths:
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
         "409":
-          description: A node with this name exists
+          description: A node with this name exists, or the configuration changed while the create was being admitted (state_conflict)
           headers:
             Cache-Control:
               $ref: ./openapi.yaml#/components/headers/NoStore
@@ -666,6 +666,9 @@ paths:
                   - op: replace
                     path: /config/interrupt_connections
                     value: true
+                x-headers:
+                  Content-Type: application/json-patch+json
+                  If-Match: '"17"'
       responses:
         "200":
           description: Updated group configuration

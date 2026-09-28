@@ -2343,7 +2343,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: A node with this name exists
+          description: A node with this name exists, or the configuration changed while the create was being admitted (state_conflict)
           headers:
             Cache-Control:
               $ref: '#/components/headers/NoStore'
@@ -2640,7 +2640,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: A provider with this name exists
+          description: A provider with this name exists, or the configuration changed while the create was being admitted (state_conflict)
           headers:
             Cache-Control:
               $ref: '#/components/headers/NoStore'
@@ -3666,6 +3666,9 @@ paths:
                   - op: replace
                     path: /config/interrupt_connections
                     value: true
+                x-headers:
+                  Content-Type: application/json-patch+json
+                  If-Match: '"17"'
       responses:
         '200':
           description: Updated group configuration
@@ -6831,7 +6834,7 @@ components:
       description: Evaluated as RFC 9110 §13.1.1 defines; see Conditional requests in the error contract.
       schema:
         $ref: '#/components/schemas/EntityTagList'
-      example: '"17"'
+      example: '"d1f62f00c6da9ec33956e66b8cc3b4670f164556fc12453193904af23451dec1"'
     IfMatchOptional:
       name: If-Match
       in: header

@@ -71,8 +71,7 @@ Clash-compatible `/version` payload.
 In password mode, use setup when `auth.setup_required` is true and login when
 it is false. In token mode, use the configured bearer when the response is the
 public view or `auth.anonymous_loopback` is false, and no credential when it is
-true. When `auth` is absent on an older server, or discovery answers `401`, use
-the configured bearer.
+true. When discovery answers `401`, use the configured bearer.
 
 ## Example
 

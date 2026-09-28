@@ -2054,6 +2054,9 @@ test("group conditional writes use the configuration document, not the group", (
   const ifMatch = config.patch.parameters.map(resolveRef).find((parameter) => parameter.name === "If-Match");
   assert.equal(ifMatch.required ?? false, false, "a retained replay may omit If-Match");
   const request = example("patchGroupConfig:request:tolerance");
+  assert.equal(request.headers["If-Match"], example("getGroupConfig:200:current").headers.ETag);
+  assert.equal(request.headers["Content-Type"], "application/json-patch+json");
+  assertValid(validateExample(contract, request));
   delete request.headers["If-Match"];
   assertValid(validateExample(contract, request));
   const document = example("getGroupConfig:200:current");

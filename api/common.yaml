@@ -109,7 +109,7 @@ parameters:
     description: Evaluated as RFC 9110 §13.1.1 defines; see Conditional requests in the error contract.
     schema:
       $ref: ./openapi.yaml#/components/schemas/EntityTagList
-    example: '"17"'
+    example: '"d1f62f00c6da9ec33956e66b8cc3b4670f164556fc12453193904af23451dec1"'
   IfMatchOptional:
     name: If-Match
     in: header

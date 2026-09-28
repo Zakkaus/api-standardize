@@ -197,7 +197,7 @@ paths:
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
         "409":
-          description: A provider with this name exists
+          description: A provider with this name exists, or the configuration changed while the create was being admitted (state_conflict)
           headers:
             Cache-Control:
               $ref: ./openapi.yaml#/components/headers/NoStore
