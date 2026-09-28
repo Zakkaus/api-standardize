@@ -48,22 +48,22 @@ paths:
     $ref: ./nodes-groups.yaml#/paths/~1api~1v1~1nodes
   /api/v1/providers:
     $ref: ./providers.yaml#/paths/~1api~1v1~1providers
-  /api/v1/providers/{id}:
-    $ref: ./providers.yaml#/paths/~1api~1v1~1providers~1{id}
-  /api/v1/providers/{id}/refresh:
-    $ref: ./providers.yaml#/paths/~1api~1v1~1providers~1{id}~1refresh
-  /api/v1/nodes/{id}:
-    $ref: ./nodes-groups.yaml#/paths/~1api~1v1~1nodes~1{id}
+  /api/v1/providers/{provider_id}:
+    $ref: ./providers.yaml#/paths/~1api~1v1~1providers~1{provider_id}
+  /api/v1/providers/{provider_id}/refresh:
+    $ref: ./providers.yaml#/paths/~1api~1v1~1providers~1{provider_id}~1refresh
+  /api/v1/nodes/{node_id}:
+    $ref: ./nodes-groups.yaml#/paths/~1api~1v1~1nodes~1{node_id}
   /api/v1/geodata:
     $ref: ./geodata.yaml#/paths/~1api~1v1~1geodata
   /api/v1/geodata/update:
     $ref: ./geodata.yaml#/paths/~1api~1v1~1geodata~1update
   /api/v1/groups:
     $ref: ./nodes-groups.yaml#/paths/~1api~1v1~1groups
-  /api/v1/groups/{groupId}:
-    $ref: ./nodes-groups.yaml#/paths/~1api~1v1~1groups~1{groupId}
-  /api/v1/groups/{groupId}/selection:
-    $ref: ./nodes-groups.yaml#/paths/~1api~1v1~1groups~1{groupId}~1selection
+  /api/v1/groups/{group_id}:
+    $ref: ./nodes-groups.yaml#/paths/~1api~1v1~1groups~1{group_id}
+  /api/v1/groups/{group_id}/selection:
+    $ref: ./nodes-groups.yaml#/paths/~1api~1v1~1groups~1{group_id}~1selection
   /api/v1/probes:
     $ref: ./operations-probes.yaml#/paths/~1api~1v1~1probes
   /api/v1/connections:
@@ -102,8 +102,8 @@ paths:
     $ref: ./operations-probes.yaml#/paths/~1api~1v1~1operations~1suspend
   /api/v1/operations/resume:
     $ref: ./operations-probes.yaml#/paths/~1api~1v1~1operations~1resume
-  /api/v1/operations/{id}:
-    $ref: ./operations-probes.yaml#/paths/~1api~1v1~1operations~1{id}
+  /api/v1/operations/{operation_id}:
+    $ref: ./operations-probes.yaml#/paths/~1api~1v1~1operations~1{operation_id}
 components:
   securitySchemes:
     bearerAuth:

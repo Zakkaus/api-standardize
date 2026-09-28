@@ -19,7 +19,7 @@ Starts a configuration reload operation.
 
 {% api_example startReload 202 queued http %}
 
-Poll [`GET /api/v1/operations/{id}`](operations.html) for completion.
+Poll [`GET /api/v1/operations/{operation_id}`](operations.html) for completion.
 
 ### Completed result
 

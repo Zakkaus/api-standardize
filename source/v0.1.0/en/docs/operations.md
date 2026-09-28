@@ -2,7 +2,7 @@
 title: Operations
 ---
 
-# GET /api/v1/operations/{id}
+# GET /api/v1/operations/{operation_id}
 
 > Draft endpoint. Reload, suspend, resume, probes, asynchronous group updates,
 > and provider refreshes use one operation envelope.

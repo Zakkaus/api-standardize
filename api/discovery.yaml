@@ -674,7 +674,7 @@ schemas:
                 type: boolean
               can_manage:
                 type: boolean
-                description: POST /nodes and DELETE /nodes/{id} are implemented for inline nodes; the backend owns a writable main source.
+                description: POST /nodes and DELETE /nodes/{node_id} are implemented for inline nodes; the backend owns a writable main source.
           providers:
             type: object
             required: [ available ]

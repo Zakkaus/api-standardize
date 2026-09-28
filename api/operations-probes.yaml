@@ -299,7 +299,7 @@ paths:
           $ref: ./openapi.yaml#/components/responses/RateLimited
         "503":
           $ref: ./openapi.yaml#/components/responses/Unavailable
-  /api/v1/operations/{id}:
+  /api/v1/operations/{operation_id}:
     get:
       operationId: getOperation
       summary: Read an asynchronous operation

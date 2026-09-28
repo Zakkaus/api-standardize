@@ -97,7 +97,7 @@ curl "http://localhost:9527/api/v1/nodes?group_id=group-proxy"
 
 ## Read one node
 
-`GET /api/v1/nodes/{id}` requires `observe` and returns the same projection as
+`GET /api/v1/nodes/{node_id}` requires `observe` and returns the same projection as
 one entry of the list. An unknown id returns `404 resource_not_found`.
 
 {% api_request getNode %}
@@ -114,7 +114,7 @@ and delete return `404 capability_not_supported`.
 
 {% api_example createNode 201 created http %}
 
-`Location` names the new node; read it back with `GET /api/v1/nodes/{id}`.
+`Location` names the new node; read it back with `GET /api/v1/nodes/{node_id}`.
 
 The backend parses the share link with the engine's own support, writes it
 into the `node` section of its managed main source under the given name,
@@ -128,7 +128,7 @@ until a probe or the engine's own checks observe it.
 
 ## Delete an inline node
 
-`DELETE /api/v1/nodes/{id}` requires `resources.nodes.can_manage`. A node
+`DELETE /api/v1/nodes/{node_id}` requires `resources.nodes.can_manage`. A node
 from a subscription or file provider returns `404 capability_not_supported`:
 refresh or delete its [provider](providers.html) instead.
 

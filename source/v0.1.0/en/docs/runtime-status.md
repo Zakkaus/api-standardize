@@ -215,7 +215,7 @@ the log level and replay ring, the DNS log ring, and flow retention.
 
 A client is attached while an admitted GET SSE stream on `/events` or `/logs`
 is open, or for 60 seconds after the last stream closed or a successful GET on
-`/flows`, `/flows/{id}` or `/dns/log`. Settings reads, HEAD and rejected
+`/flows`, `/flows/{flow_id}` or `/dns/log`. Settings reads, HEAD and rejected
 requests do not renew attachment. In `auto` mode the log and DNS-log recorders
 capture only while a client is attached.
 
@@ -224,7 +224,7 @@ panel does not record full flow traces for every connection. An admitted GET
 `/events` stream creates flow demand when its `kinds` include `flow.updated` or
 `flow.gap`, or when it sets a nonblank `flow_id` and its effective kinds include
 a flow kind. Demand lasts while such a stream is open, and for 60 seconds after
-the last one closed or after a successful GET on `/flows` or `/flows/{id}`.
+the last one closed or after a successful GET on `/flows` or `/flows/{flow_id}`.
 Event streams without `kinds`, `/logs` streams and `/dns/log` reads do not
 create demand, and general attachment does not extend the flow grace. Recording
 starts on attachment or demand, so the first history a panel reads may be empty.

@@ -62,7 +62,7 @@ parameters:
       type: string
       minLength: 1
   GroupId:
-    name: groupId
+    name: group_id
     in: path
     required: true
     schema:
@@ -94,7 +94,7 @@ parameters:
       minLength: 1
     example: dns-entry-01HZX4K8W5
   OperationId:
-    name: id
+    name: operation_id
     in: path
     required: true
     schema:
@@ -130,7 +130,7 @@ parameters:
       minLength: 1
     example: instance-7:123
   ProviderId:
-    name: id
+    name: provider_id
     in: path
     required: true
     schema:
@@ -138,7 +138,7 @@ parameters:
       minLength: 1
     example: provider-a
   NodeId:
-    name: id
+    name: node_id
     in: path
     required: true
     schema:

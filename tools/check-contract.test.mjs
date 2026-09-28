@@ -1272,10 +1272,10 @@ test("observability resources expose discovery, permissions and examples for eve
   const methods = {
     "/api/v1/logs": ["get"],
     "/api/v1/providers": ["get", "post"],
-    "/api/v1/providers/{id}": ["get", "delete"],
-    "/api/v1/providers/{id}/refresh": ["post"],
+    "/api/v1/providers/{provider_id}": ["get", "delete"],
+    "/api/v1/providers/{provider_id}/refresh": ["post"],
     "/api/v1/nodes": ["get", "post"],
-    "/api/v1/nodes/{id}": ["get", "delete"],
+    "/api/v1/nodes/{node_id}": ["get", "delete"],
     "/api/v1/rules": ["get"],
     "/api/v1/geodata": ["get"],
     "/api/v1/geodata/update": ["post"],
@@ -1284,12 +1284,12 @@ test("observability resources expose discovery, permissions and examples for eve
     ["/api/v1/logs", "get", "observe"],
     ["/api/v1/providers", "get", "observe"],
     ["/api/v1/providers", "post", "control"],
-    ["/api/v1/providers/{id}", "get", "observe"],
-    ["/api/v1/providers/{id}", "delete", "control"],
-    ["/api/v1/providers/{id}/refresh", "post", "control"],
+    ["/api/v1/providers/{provider_id}", "get", "observe"],
+    ["/api/v1/providers/{provider_id}", "delete", "control"],
+    ["/api/v1/providers/{provider_id}/refresh", "post", "control"],
     ["/api/v1/nodes", "post", "control"],
-    ["/api/v1/nodes/{id}", "get", "observe"],
-    ["/api/v1/nodes/{id}", "delete", "control"],
+    ["/api/v1/nodes/{node_id}", "get", "observe"],
+    ["/api/v1/nodes/{node_id}", "delete", "control"],
     ["/api/v1/rules", "get", "observe"],
     ["/api/v1/geodata", "get", "observe"],
     ["/api/v1/geodata/update", "post", "control"],
@@ -1775,5 +1775,5 @@ test("only operations with replay semantics take Idempotency-Key", () => {
   assert.equal(replays(spec.paths["/api/v1/connections/{connection_id}"].delete), false);
   assert.equal(replays(spec.paths["/api/v1/runtime/settings"].patch), false);
   assert.equal(replays(spec.paths["/api/v1/operations/reload"].post), true);
-  assert.equal(replays(spec.paths["/api/v1/groups/{groupId}"].patch), true);
+  assert.equal(replays(spec.paths["/api/v1/groups/{group_id}"].patch), true);
 });

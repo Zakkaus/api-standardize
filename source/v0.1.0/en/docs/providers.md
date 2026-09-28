@@ -56,7 +56,7 @@ is configured in the source, not through this API.
 
 ## Refresh a provider
 
-`POST /api/v1/providers/{id}/refresh` takes no body and requires
+`POST /api/v1/providers/{provider_id}/refresh` takes no body and requires
 `resources.providers.can_refresh`. An unsupported action or provider kind
 returns `404 capability_not_supported`.
 
@@ -118,7 +118,7 @@ value an omitted field takes. Sending one it does not name returns
 
 ## Delete a provider
 
-`DELETE /api/v1/providers/{id}` requires `resources.providers.can_manage`. An
+`DELETE /api/v1/providers/{provider_id}` requires `resources.providers.can_manage`. An
 inline provider returns `404 capability_not_supported`: it is the `node`
 section itself and is edited through [nodes](node-latency.html) or the
 configuration sources.
