@@ -110,6 +110,13 @@ parameters:
     schema:
       $ref: ./openapi.yaml#/components/schemas/EntityTagList
     example: '"17"'
+  IfMatchOptional:
+    name: If-Match
+    in: header
+    description: Evaluated as RFC 9110 §13.1.1 defines; see Conditional requests in the error contract. A server that requires it returns 428 precondition_required when it is missing, except for a retained idempotent replay.
+    schema:
+      $ref: ./openapi.yaml#/components/schemas/EntityTagList
+    example: '"17"'
   IdempotencyKey:
     name: Idempotency-Key
     in: header

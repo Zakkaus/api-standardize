@@ -467,6 +467,10 @@ paths:
     get:
       operationId: getGroup
       summary: Read a complete group resource
+      description: |
+        Returns the group with its configuration, runtime selection and health.
+        The response has no ETag: selection and health change without a
+        configuration change. Conditional writes use GET /groups/{group_id}/config.
       x-permission: observe
       security:
         - bearerAuth: []
@@ -475,8 +479,6 @@ paths:
         "200":
           description: Current group
           headers:
-            ETag:
-              $ref: ./openapi.yaml#/components/headers/ETag
             Cache-Control:
               $ref: ./openapi.yaml#/components/headers/NoStore
             X-Content-Type-Options:
@@ -547,6 +549,64 @@ paths:
                       probe_transports: [ tcp, udp ]
                   x-headers:
                     Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
+        "401":
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
+        "404":
+          $ref: ./openapi.yaml#/components/responses/NotFound
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
+  /api/v1/groups/{group_id}/config:
+    parameters:
+      - $ref: ./openapi.yaml#/components/parameters/GroupId
+    get:
+      operationId: getGroupConfig
+      summary: Read the group's policy and configured options
+      description: |
+        Returns the group's policy and config, the same values GET
+        /groups/{group_id} embeds, as the target document of PATCH. The ETag is
+        the configuration-wide revision in double quotes; it changes only with
+        an accepted configuration change.
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        "200":
+          description: Current group configuration
+          headers:
+            ETag:
+              $ref: ./openapi.yaml#/components/headers/ETag
+              description: The configuration-wide revision in double quotes, the value PATCH compares in If-Match.
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/GroupConfigDocument
+              examples:
+                current:
+                  value:
+                    policy:
+                      kind: urltest
+                      native: urltest
+                    config:
+                      default_member_id: null
+                      final_outbound: direct
+                      check_url: null
+                      check_interval: 30
+                      tolerance: 50
+                      idle_timeout: null
+                      interrupt_connections: false
+                  x-headers:
+                    Content-Type: application/json
                     ETag: '"17"'
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
@@ -561,12 +621,12 @@ paths:
         "413":
           $ref: ./openapi.yaml#/components/responses/TooLarge
     patch:
-      operationId: patchGroup
+      operationId: patchGroupConfig
       summary: Patch mutable group configuration
       description: |
-        RFC 6902 JSON Patch whose target document is the group's policy and
-        config as GET returns them. Operations apply in order to that document;
-        see groups, Patch semantics, for remove, null, copy, move and test.
+        RFC 6902 JSON Patch whose target document is GroupConfigDocument, the
+        body GET /groups/{group_id}/config returns. Operations apply in order to
+        that document; see groups, Patch semantics, for remove, null, copy, move and test.
         Only fields in capabilities.mutable_config may change, judged by the
         effective write against the policy after the patch: one patch may set
         policy to urltest and add tolerance. When the resulting policy is not
@@ -574,14 +634,14 @@ paths:
         A change to a field absent from mutable_config, such as
         interrupt_connections on an engine without that option, returns 422
         unsupported_value. Requires resources.groups.config_patch. If-Match carries the
-        configuration-wide revision, so an accepted change anywhere in the
-        configuration makes an older revision fail with 412.
+        configuration-wide revision from the ETag of GET, so an accepted change
+        anywhere in the configuration makes an older revision fail with 412.
       x-permission: control
       security:
         - bearerAuth: []
         - {}
       parameters:
-        - $ref: ./openapi.yaml#/components/parameters/IfMatch
+        - $ref: ./openapi.yaml#/components/parameters/IfMatchOptional
         - $ref: ./openapi.yaml#/components/parameters/IdempotencyKey
       requestBody:
         required: true
@@ -600,10 +660,11 @@ paths:
                     value: true
       responses:
         "200":
-          description: Updated group
+          description: Updated group configuration
           headers:
             ETag:
               $ref: ./openapi.yaml#/components/headers/ETag
+              description: The new configuration revision in double quotes.
             Cache-Control:
               $ref: ./openapi.yaml#/components/headers/NoStore
             X-Content-Type-Options:
@@ -611,7 +672,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: ./openapi.yaml#/components/schemas/Group
+                $ref: ./openapi.yaml#/components/schemas/GroupConfigDocument
         "202":
           description: Operation accepted
           headers:
@@ -989,7 +1050,7 @@ schemas:
         enum: [ node, group ]
   GroupConfig:
     type: object
-    description: The group's own configured options, the target of PATCH. For an option the engine supports, null means the group sets no value of its own and the engine's inheritance and defaults apply. Engine-only options go in a nested x-<engine> member, for example config["x-dae"].check_addresses; GET reports these members and they are not patch targets. Other unlisted keys are not allowed.
+    description: The group's own configured options, patched through PATCH /groups/{group_id}/config. For an option the engine supports, null means the group sets no value of its own and the engine's inheritance and defaults apply. Engine-only options go in a nested x-<engine> member, for example config["x-dae"].check_addresses; GET reports these members and they are not patch targets. Other unlisted keys are not allowed.
     required: [ default_member_id, final_outbound, check_url, check_interval, tolerance, idle_timeout, interrupt_connections ]
     additionalProperties: false
     patternProperties:
@@ -1021,6 +1082,15 @@ schemas:
       interrupt_connections:
         type: [ boolean, "null" ]
         description: Whether changing the selection closes connections through the previous member. Null means the group sets no value of its own, or the engine has no such option.
+  GroupConfigDocument:
+    type: object
+    description: The group's policy and configured options, the target document of PATCH /groups/{group_id}/config.
+    required: [ policy, config ]
+    properties:
+      policy:
+        $ref: ./openapi.yaml#/components/schemas/GroupPolicy
+      config:
+        $ref: ./openapi.yaml#/components/schemas/GroupConfig
   SafeHttpUrl:
     type: string
     format: uri

@@ -63,6 +63,8 @@ paths:
     $ref: ./nodes-groups.yaml#/paths/~1api~1v1~1groups
   /api/v1/groups/{group_id}:
     $ref: ./nodes-groups.yaml#/paths/~1api~1v1~1groups~1{group_id}
+  /api/v1/groups/{group_id}/config:
+    $ref: ./nodes-groups.yaml#/paths/~1api~1v1~1groups~1{group_id}~1config
   /api/v1/groups/{group_id}/selection:
     $ref: ./nodes-groups.yaml#/paths/~1api~1v1~1groups~1{group_id}~1selection
   /api/v1/probes:
@@ -135,6 +137,8 @@ components:
       $ref: ./common.yaml#/parameters/OperationId
     IfMatch:
       $ref: ./common.yaml#/parameters/IfMatch
+    IfMatchOptional:
+      $ref: ./common.yaml#/parameters/IfMatchOptional
     IdempotencyKey:
       $ref: ./common.yaml#/parameters/IdempotencyKey
     LastEventId:
@@ -357,6 +361,8 @@ components:
       $ref: ./nodes-groups.yaml#/schemas/GroupPolicyRequest
     GroupMember:
       $ref: ./nodes-groups.yaml#/schemas/GroupMember
+    GroupConfigDocument:
+      $ref: ./nodes-groups.yaml#/schemas/GroupConfigDocument
     GroupConfig:
       $ref: ./nodes-groups.yaml#/schemas/GroupConfig
     SafeHttpUrl:

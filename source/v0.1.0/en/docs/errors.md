@@ -6,7 +6,7 @@ title: Errors
 
 All native API errors use one JSON envelope:
 
-{% api_example patchGroup 412 stale_revision %}
+{% api_example patchGroupConfig 412 stale_revision %}
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -78,7 +78,7 @@ A rate limit (`429`) or full shared capacity (`503`) is reported when the
 request is admitted, after the checks it passed. Three exceptions: source
 creation returns `409` for a `path` already in use before it validates the
 content; a configuration write decides the listener-settings `403` during
-validation; and a group patch checks `Content-Type` (`415`) first and reports a
+validation; and a group configuration patch checks `Content-Type` (`415`) first and reports a
 missing (`428`) or malformed (`400`) `If-Match` after the replay lookup, so a
 retained replay returns the original response without `If-Match`. The table below defines each status. Endpoint pages link here
 instead of repeating the order; an endpoint page names only which of its own
@@ -113,7 +113,7 @@ Two resources carry a strong `ETag` that a write compares in `If-Match`:
 | Read | `ETag` | Conditional write |
 |------|--------|-------------------|
 | `GET /config/sources/{source_id}` | the source's `content_sha256` | `PUT /config/sources/{source_id}` |
-| `GET /groups/{group_id}` | the configuration-wide `revision` | `PATCH /groups/{group_id}` |
+| `GET /groups/{group_id}/config` | the configuration-wide `revision` | `PATCH /groups/{group_id}/config` |
 
 The server evaluates `If-Match` as
 [RFC 9110 §13.1.1](https://www.rfc-editor.org/rfc/rfc9110#section-13.1.1)

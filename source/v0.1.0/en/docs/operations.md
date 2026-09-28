@@ -50,7 +50,7 @@ too soon may return `429` with a fresh `Retry-After`.
 | error | object or null | Safe machine-readable error after failure. |
 
 A successful `group_update` result contains `group_id` and the applied
-`config_revision`; fetch the group for its current full representation.
+`config_revision`; fetch the group or its configuration for the current representation.
 The operation's revision records that mutation's result even if another
 update has already advanced the live resource.
 
@@ -103,7 +103,7 @@ Without a key, a retried request may start another operation.
 | `POST /api/v1/providers/{provider_id}/refresh` | Original `202` |
 | `POST /api/v1/geodata/update` | Original `202` |
 | `POST /api/v1/config/sources`, `PUT /api/v1/config/sources/{source_id}` | Original `202` |
-| `PATCH /api/v1/groups/{group_id}` | Original `200` or `202` |
+| `PATCH /api/v1/groups/{group_id}/config` | Original `200` or `202` |
 
 Every other write, including `PATCH /api/v1/runtime/settings` and both
 connection `DELETE` endpoints, has no replay semantics: each call is evaluated

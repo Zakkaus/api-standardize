@@ -872,11 +872,11 @@ test("unsupported parameter serialization is rejected explicitly", () => {
 });
 
 test("required request headers are checked case-insensitively", () => {
-  const missing = example("patchGroup:request:tolerance");
+  const missing = example("replaceConfigSource:request:replacement");
   delete missing.headers["If-Match"];
   assertInvalid(validateExample(contract, missing));
 
-  const lowerCase = example("patchGroup:request:tolerance");
+  const lowerCase = example("replaceConfigSource:request:replacement");
   lowerCase.headers["if-match"] = lowerCase.headers["If-Match"];
   delete lowerCase.headers["If-Match"];
   assertValid(validateExample(contract, lowerCase));
@@ -1804,7 +1804,7 @@ test("group tolerance is whole milliseconds", () => {
   const group = example("getGroup:200:current");
   group.body.config.tolerance = 0.5;
   assertInvalid(validateExample(contract, group), "fractional tolerance passed");
-  const patch = example("patchGroup:request:tolerance");
+  const patch = example("patchGroupConfig:request:tolerance");
   const operation = patch.body.find((candidate) => candidate.path === "/config/tolerance");
   operation.value = 0.5;
   assertInvalid(validateExample(contract, patch), "fractional tolerance patch passed");
@@ -1893,7 +1893,7 @@ test("only operations with replay semantics take Idempotency-Key", () => {
   assert.equal(replays(spec.paths["/api/v1/connections/{connection_id}"].delete), false);
   assert.equal(replays(spec.paths["/api/v1/runtime/settings"].patch), false);
   assert.equal(replays(spec.paths["/api/v1/operations/reload"].post), true);
-  assert.equal(replays(spec.paths["/api/v1/groups/{group_id}"].patch), true);
+  assert.equal(replays(spec.paths["/api/v1/groups/{group_id}/config"].patch), true);
 });
 
 test("log filters are advertised and always include level", () => {
@@ -2015,4 +2015,20 @@ test("flow summaries name the generation of their rule for the rules join", () =
       if (route && row.rule_generation_id !== null) assert.equal(row.rule_generation_id, route.generation_id);
     }
   }
+});
+
+test("group conditional writes use the configuration document, not the group", () => {
+  const group = spec.paths["/api/v1/groups/{group_id}"];
+  const config = spec.paths["/api/v1/groups/{group_id}/config"];
+  assert.equal(group.patch, undefined, "PATCH moved to /config");
+  assert.equal(group.get.responses["200"].headers.ETag, undefined, "the group carries runtime state, so no strong ETag");
+  assert.ok(config.get.responses["200"].headers.ETag, "the configuration document carries the revision");
+  assert.ok(config.patch.responses["200"].headers.ETag);
+  const ifMatch = config.patch.parameters.map(resolveRef).find((parameter) => parameter.name === "If-Match");
+  assert.equal(ifMatch.required ?? false, false, "a retained replay may omit If-Match");
+  const request = example("patchGroupConfig:request:tolerance");
+  delete request.headers["If-Match"];
+  assertValid(validateExample(contract, request));
+  const document = example("getGroupConfig:200:current");
+  assert.deepEqual(document.body.config, example("getGroup:200:current").body.config);
 });
