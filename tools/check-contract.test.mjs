@@ -1761,3 +1761,19 @@ test("every paged list shares the cursor rule and returns 410 for an expired cur
       `${path} returns snapshot_expired`);
   }
 });
+
+test("capabilities require only the runtime resource key", () => {
+  const response = example("getCapabilities:200:available");
+  delete response.body.resources.runtime;
+  assertInvalid(validateExample(contract, response), "runtime declaration was optional");
+});
+
+test("only operations with replay semantics take Idempotency-Key", () => {
+  const replays = (operation) => (operation.parameters ?? []).map(resolveRef)
+    .some((parameter) => parameter.name === "Idempotency-Key");
+  assert.equal(replays(spec.paths["/api/v1/connections"].delete), false);
+  assert.equal(replays(spec.paths["/api/v1/connections/{connection_id}"].delete), false);
+  assert.equal(replays(spec.paths["/api/v1/runtime/settings"].patch), false);
+  assert.equal(replays(spec.paths["/api/v1/operations/reload"].post), true);
+  assert.equal(replays(spec.paths["/api/v1/groups/{groupId}"].patch), true);
+});

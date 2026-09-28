@@ -119,8 +119,6 @@ paths:
       security:
         - bearerAuth: []
         - {}
-      parameters:
-        - $ref: ./openapi.yaml#/components/parameters/IdempotencyKey
       requestBody:
         required: true
         content:

@@ -626,6 +626,7 @@ schemas:
         type: [ string, "null" ]
   OperationAccepted:
     type: object
+    description: A replayed Idempotency-Key returns this original body unchanged, including status queued, whatever the operation's current status.
     required: [ operation_id, kind, status, href ]
     properties:
       operation_id:

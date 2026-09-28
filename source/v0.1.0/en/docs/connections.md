@@ -139,11 +139,11 @@ An observed connection that is not closable returns `409 state_conflict`:
 
 {% api_example closeConnection 409 not_closable %}
 
-Both DELETE endpoints accept `Idempotency-Key`, as other control calls do.
-These synchronous calls evaluate current live state even with a repeated key;
-they do not replay an earlier result or return a retained operation.
-Closing the same ID twice therefore returns `404 resource_not_found` on
-the second call, including when the key is repeated.
+Neither DELETE endpoint has replay semantics, and neither takes
+`Idempotency-Key`. Each call evaluates current live state: closing the same ID
+twice returns `404 resource_not_found` on the second call, and repeating a
+filtered bulk close after an uncertain result can close connections that
+opened in the meantime. Read `/connections` before retrying a bulk close.
 
 If cancellation or retirement cannot be confirmed, the call returns
 `503 temporarily_unavailable` with `Retry-After`; the connection may already

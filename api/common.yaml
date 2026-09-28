@@ -113,6 +113,11 @@ parameters:
     name: Idempotency-Key
     in: header
     required: false
+    description: |
+      Replay key for this operation, scoped to the running instance, caller,
+      method and path. A byte-identical body returns the original response; a
+      different body returns 409 idempotency_conflict. Only operations that list
+      this header replay.
     schema:
       type: string
       minLength: 1

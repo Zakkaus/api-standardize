@@ -3787,8 +3787,9 @@ paths:
         ownership. Kernel-direct and kernel-bypassed flows, including ebpf-only
         observations, are not closable.
 
-        Idempotency-Key is accepted, but every call evaluates current live state;
-        repeated keys do not replay results or return an operation.
+        The call has no replay semantics and takes no Idempotency-Key: every call
+        evaluates current live state, so retrying after an uncertain result can
+        close connections that opened in the meantime.
 
         For recorded flows, closing advances terminal state and emits flow.updated
         when advertised. Fetch the event's href and refresh /connections. Changed
@@ -3808,7 +3809,6 @@ paths:
           schema:
             type: boolean
             default: false
-        - $ref: '#/components/parameters/IdempotencyKey'
       responses:
         '200':
           description: Bulk-close counts; entries that disappeared before cancellation are excluded.
@@ -3944,9 +3944,8 @@ paths:
         returns 409 state_conflict.
 
         Return 204 with no body only after cancellation or retirement. Unknown or
-        already-gone IDs return 404 resource_not_found. Idempotency-Key is accepted,
-        but each call evaluates current live state; a repeated close returns 404
-        rather than replaying 204 or returning an operation.
+        already-gone IDs return 404 resource_not_found. The call has no replay
+        semantics and takes no Idempotency-Key; a repeated close returns 404.
 
         For recorded flows, closing advances terminal state and emits flow.updated
         when advertised. Fetch the event's href and refresh /connections. Changed
@@ -3959,7 +3958,6 @@ paths:
         - {}
       parameters:
         - $ref: '#/components/parameters/ConnectionId'
-        - $ref: '#/components/parameters/IdempotencyKey'
       responses:
         '204':
           description: Connection closed; no response body or Content-Type.
@@ -5139,8 +5137,6 @@ paths:
       security:
         - bearerAuth: []
         - {}
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -6437,6 +6433,11 @@ components:
       name: Idempotency-Key
       in: header
       required: false
+      description: |
+        Replay key for this operation, scoped to the running instance, caller,
+        method and path. A byte-identical body returns the original response; a
+        different body returns 409 idempotency_conflict. Only operations that list
+        this header replay.
       schema:
         type: string
         minLength: 1
@@ -12504,6 +12505,7 @@ components:
         - geodata_update
     OperationAccepted:
       type: object
+      description: A replayed Idempotency-Key returns this original body unchanged, including status queued, whatever the operation's current status.
       required:
         - operation_id
         - kind
