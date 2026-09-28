@@ -839,8 +839,8 @@ test("required path, query, and header parameters need native examples", () => {
   const mutations = [
     (changed) => delete changed.components.parameters.FlowId.example,
     (changed) => {
-      const parameter = changed.paths["/api/v1/dns/query"].get.parameters.find(
-        (candidate) => candidate.name === "domain",
+      const parameter = changed.paths["/api/v1/dns/cache"].delete.parameters.find(
+        (candidate) => candidate.name === "name",
       );
       assert.ok(parameter);
       delete parameter.example;
@@ -857,8 +857,8 @@ test("required path, query, and header parameters need native examples", () => {
 
 test("unsupported parameter serialization is rejected explicitly", () => {
   const changed = structuredClone(spec);
-  const parameter = changed.paths["/api/v1/dns/query"].get.parameters.find(
-    (candidate) => candidate.name === "domain",
+  const parameter = changed.paths["/api/v1/dns/cache"].delete.parameters.find(
+    (candidate) => candidate.name === "name",
   );
   assert.ok(parameter);
   parameter.style = "deepObject";
@@ -1014,10 +1014,14 @@ test("JSON and HTTP renderers expose the canonical wire values", () => {
   const body = example("createProbe:request:dns_udp");
   assert.deepEqual(JSON.parse(renderExample(body)), body.body);
 
-  const query = renderExample(example("queryDns:request"), "http");
-  assert.match(query, /^GET \/api\/v1\/dns\/query\?/u);
-  assert.match(query, /(?:\?|&)domain=example\.com(?:&| )/u);
+  const query = renderExample(example("deleteDnsCacheByName:request"), "http");
+  assert.match(query, /^DELETE \/api\/v1\/dns\/cache\?/u);
+  assert.match(query, /(?:\?|&)name=example\.com\.(?:&| )/u);
   assert.match(query, /(?:\?|&)type=A&type=AAAA(?:&| )/u);
+
+  const dns = renderExample(example("queryDns:request:dual_stack"), "http");
+  assert.match(dns, /^POST \/api\/v1\/dns\/query(?:\?detail=[a-z]+)? HTTP\/1\.1(?:\r?\n)/u);
+  assert.doesNotMatch(dns.split(/\r?\n/u)[0], /example\.com/u, "the queried name stays out of the URL");
 
   const pathRequest = renderExample(example("getFlow:request"), "http");
   assert.match(pathRequest, /^GET \/api\/v1\/flows\/flow-23 HTTP\/1\.1(?:\r?\n|$)/u);
@@ -1982,4 +1986,17 @@ test("group config admits dae's fixed policy, a missing interrupt option and eng
   assertInvalid(contract.validate(patch, [{ op: "replace", path: "/config/interrupt_connections", value: null }]), "null only where the schema allows it");
   assertInvalid(contract.validate(patch, [{ op: "remove", path: "/config/check_url", value: null }]), "remove carries no value");
   assertInvalid(contract.validate(patch, [{ op: "replace", path: "/config/x-dae", value: {} }]), "extension members are not patch targets");
+});
+
+test("flow summaries name the generation of their rule for the rules join", () => {
+  for (const response of contract.examples.values()) {
+    if (response.kind !== "response" || response.status !== 200) continue;
+    const rows = response.operationId === "listFlows" ? response.body.flows : response.operationId === "getFlow" ? [response.body] : [];
+    for (const row of rows) {
+      assert.ok(Object.hasOwn(row, "rule_generation_id"), `${response.operationId}: rule_generation_id is required`);
+      if (row.rule_id === null) assert.equal(row.rule_generation_id, null);
+      const route = row.trace?.steps?.find((step) => step.stage === "route" && step.data.rule_id === row.rule_id);
+      if (route && row.rule_generation_id !== null) assert.equal(row.rule_generation_id, route.generation_id);
+    }
+  }
 });

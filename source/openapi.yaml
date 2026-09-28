@@ -4351,6 +4351,7 @@ paths:
                           - node-hk-01
                         chain_source: evaluation
                         rule_id: null
+                        rule_generation_id: null
                         rule_expression: null
                         rule_source: unknown
                         ingress: wan
@@ -4442,6 +4443,7 @@ paths:
                       - node-hk-01
                     chain_source: evaluation
                     rule_id: null
+                    rule_generation_id: null
                     rule_expression: null
                     rule_source: unknown
                     ingress: wan
@@ -4575,6 +4577,7 @@ paths:
                       - node-hk-01
                     chain_source: evaluation
                     rule_id: rule-traffic
+                    rule_generation_id: generation-42
                     rule_expression: null
                     rule_source: kernel
                     ingress: wan
@@ -4962,16 +4965,14 @@ paths:
         it neither evaluates traffic nor reads back raw configuration. rule_id is identical
         to the ID used by POST /api/v1/routing/trace and FlowSummary.rule_id for the same
         generation. Join rules by generation_id and rule_id, never by expression or
-        index alone. FlowSummary does not carry the rule's generation; obtain it from
-        the corresponding traffic-route step in the retained flow detail. If that
-        context is unavailable, do not join the summary to the current rule dictionary.
+        index alone. FlowSummary.rule_generation_id names the rule's generation; join
+        a summary only when it equals generation_id, never when it is null.
         generation_id identifies the dictionary's routing generation. Refetch after
         generation.changed; do not join old flow evidence to a new generation.
         There is no paginated snapshot and no 410 snapshot_expired response. If a coherent
-        generation cannot be pinned, return 503 snapshot_unavailable. If the complete
-        dictionary exceeds resources.rules.max_rules, return 503 temporarily_unavailable
-        rather than silently truncate it. Mask listener secrets in expression values without
-        changing rule identities or order; other values follow the visibility table in api-config.
+        generation cannot be pinned, return 503 snapshot_unavailable. resources.rules.max_rules
+        is never below the running dictionary's size, so the complete dictionary is always
+        returned and never truncated. expression follows the display rule in rules.
       x-permission: observe
       security:
         - bearerAuth: []
@@ -5040,7 +5041,7 @@ paths:
         '413':
           $ref: '#/components/responses/TooLarge'
         '503':
-          description: The dictionary exceeds max_rules (temporarily_unavailable), or a coherent generation could not be pinned (snapshot_unavailable)
+          description: A coherent generation could not be pinned (snapshot_unavailable)
           headers:
             Retry-After:
               description: Retry delay in seconds.
@@ -5057,18 +5058,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
               examples:
-                temporarily_unavailable:
-                  value:
-                    error:
-                      code: temporarily_unavailable
-                      message: The rule dictionary exceeds resources.rules.max_rules.
-                      details: null
-                    request_id: request-01HZX4K8W6
-                  x-headers:
-                    Content-Type: application/json
-                    Retry-After: 1
-                    Cache-Control: no-store
-                    X-Content-Type-Options: nosniff
                 snapshot_unavailable:
                   value:
                     error:
@@ -5609,51 +5598,28 @@ paths:
           $ref: '#/components/responses/Unavailable'
           description: A setting could not be stored (temporarily_unavailable). Read the settings back before retrying after Retry-After.
   /api/v1/dns/query:
-    get:
+    post:
       operationId: queryDns
       summary: Execute a routed diagnostic DNS query
+      description: 'POST because the query has side effects: it sends live DNS traffic and, with cache_mode normal, writes the runtime cache. The name, types and upstream travel in the JSON body, not in the URL. Requires resources.dns_query.available.'
       x-permission: control
       security:
         - bearerAuth: []
         - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DnsQueryRequest'
+            examples:
+              dual_stack:
+                value:
+                  domain: example.com
+                  type:
+                    - A
+                    - AAAA
       parameters:
-        - name: domain
-          in: query
-          required: true
-          description: DNS name within the 255-wire-octet and 63-octet-label limits.
-          schema:
-            type: string
-            minLength: 1
-          example: example.com
-        - name: type
-          in: query
-          description: Unique record types; repeated query parameter.
-          style: form
-          explode: true
-          schema:
-            type: array
-            minItems: 1
-            uniqueItems: true
-            items:
-              $ref: '#/components/schemas/DnsRecordType'
-            default:
-              - A
-          example:
-            - A
-            - AAAA
-        - name: upstream
-          in: query
-          schema:
-            type: string
-            minLength: 1
-        - name: cache_mode
-          in: query
-          schema:
-            type: string
-            enum:
-              - normal
-              - bypass
-            default: normal
         - $ref: '#/components/parameters/Detail'
       responses:
         '200':
@@ -5719,6 +5685,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '413':
           $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/Unprocessable'
         '429':
@@ -6118,13 +6086,13 @@ paths:
         This resource is read-only. Rules are edited by replacing the source that holds
         them with PUT /api/v1/config/sources/{source_id}, the same as traffic rules;
         there is no rule-level write endpoint. rule_id is stable within a generation
-        and addresses the rule; it is unique across both lists. expression is the
-        source text as written; upstream is the name as the engine resolved it and may
+        and addresses the rule; it is unique across both lists. expression follows
+        the display rule in rules; upstream is the name as the engine resolved it and may
         differ in case from the source text. generation_id identifies the rules'
         routing generation; refetch after generation.changed. There is no paginated snapshot. If a coherent
-        generation cannot be pinned, return 503 snapshot_unavailable. If either list
-        exceeds resources.dns_rules.max_rules, return 503 temporarily_unavailable
-        rather than silently truncate it.
+        generation cannot be pinned, return 503 snapshot_unavailable.
+        resources.dns_rules.max_rules is never below either running list's size, so
+        both lists are always returned complete and never truncated.
       x-permission: observe
       security:
         - bearerAuth: []
@@ -6213,7 +6181,7 @@ paths:
         '413':
           $ref: '#/components/responses/TooLarge'
         '503':
-          description: A list exceeds max_rules (temporarily_unavailable), or a coherent generation could not be pinned (snapshot_unavailable)
+          description: A coherent generation could not be pinned (snapshot_unavailable)
           headers:
             Retry-After:
               description: Retry delay in seconds.
@@ -6230,18 +6198,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
               examples:
-                temporarily_unavailable:
-                  value:
-                    error:
-                      code: temporarily_unavailable
-                      message: A DNS rule list exceeds resources.dns_rules.max_rules.
-                      details: null
-                    request_id: request-01HZX4K8W6
-                  x-headers:
-                    Content-Type: application/json
-                    Retry-After: 1
-                    Cache-Control: no-store
-                    X-Content-Type-Options: nosniff
                 snapshot_unavailable:
                   value:
                     error:
@@ -8007,7 +7963,7 @@ components:
                 max_rules:
                   $ref: '#/components/schemas/SafeUInt'
                   minimum: 1
-                  description: Maximum complete rule dictionary size, including the fallback entry; never a truncation limit.
+                  description: Maximum complete rule dictionary size, including the fallback entry; never below the running generation's size and never a truncation limit.
             events:
               type: object
               required:
@@ -8189,7 +8145,7 @@ components:
                 max_rules:
                   $ref: '#/components/schemas/SafeUInt'
                   minimum: 1
-                  description: Maximum size of each DNS rule list, including its fallback entry; never a truncation limit.
+                  description: Maximum size of each DNS rule list, including its fallback entry; never below either running list's size and never a truncation limit.
             runtime_settings:
               type: object
               required:
@@ -11272,6 +11228,7 @@ components:
         - chain
         - chain_source
         - rule_id
+        - rule_generation_id
         - rule_expression
         - rule_source
         - ingress
@@ -11324,6 +11281,11 @@ components:
             - string
             - 'null'
           description: Generation-scoped traffic rule ID, or null when unavailable.
+        rule_generation_id:
+          type:
+            - string
+            - 'null'
+          description: Generation that rule_id belongs to, the generation_id of GET /rules to join against; null when rule_id is null or the generation is unavailable.
         rule_expression:
           type:
             - string
@@ -12521,7 +12483,7 @@ components:
         expression:
           type: string
           minLength: 1
-          description: Safe display expression, not raw configuration or an editable source representation.
+          description: Display text for the rule; see rules, Rule expressions. Not an editable source representation.
         outbound:
           type: string
           minLength: 1
@@ -12666,6 +12628,35 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DnsAnswer'
+    DnsQueryRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - domain
+      properties:
+        domain:
+          type: string
+          minLength: 1
+          description: DNS name within the 255-wire-octet and 63-octet-label limits.
+        type:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/DnsRecordType'
+          default:
+            - A
+          description: Unique record types.
+        upstream:
+          type: string
+          minLength: 1
+          description: Force this upstream from dns.upstream instead of dns.routing.
+        cache_mode:
+          type: string
+          enum:
+            - normal
+            - bypass
+          default: normal
     DnsQueryResponse:
       type: object
       required:
@@ -12866,7 +12857,7 @@ components:
         expression:
           type: string
           minLength: 1
-          description: The rule's source text as written, for display; not an editable source representation.
+          description: Display text for the rule; see rules, Rule expressions. Not an editable source representation.
         action:
           type: string
           enum:

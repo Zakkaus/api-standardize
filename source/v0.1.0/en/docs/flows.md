@@ -72,6 +72,7 @@ columns. Nullable fields remain present when unavailable.
 | chain | array of strings | Application outbound `selection_path` group IDs followed by the leaf node ID, in order; empty for direct/block or an unknown path. |
 | chain_source | string | `evaluation`: captured at selection; `reconstructed`: recovered from retained evidence; `unknown`: unavailable. |
 | rule_id | string or null | Generation-scoped traffic rule ID, or null when unavailable. |
+| rule_generation_id | string or null | Generation `rule_id` belongs to, for the join with [GET /rules](rules.html); null when `rule_id` is null or the generation is unavailable. Appears on flow summaries only. |
 | rule_expression | string or null | Display expression for that rule, or null when unavailable. |
 | rule_source | string | `kernel`: the rule the kernel datapath decided with; `userspace`: the rule a userspace router decided with; `recomputed`: a userspace re-evaluation after the kernel decided, which need not be the deciding rule; `unknown`: unavailable provenance. |
 | ingress | string or null | `lan` or `wan` when captured; null when unavailable. |

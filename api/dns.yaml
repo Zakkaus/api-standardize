@@ -1,45 +1,29 @@
 paths:
   /api/v1/dns/query:
-    get:
+    post:
       operationId: queryDns
       summary: Execute a routed diagnostic DNS query
+      description: >-
+        POST because the query has side effects: it sends live DNS traffic and,
+        with cache_mode normal, writes the runtime cache. The name, types and
+        upstream travel in the JSON body, not in the URL. Requires
+        resources.dns_query.available.
       x-permission: control
       security:
         - bearerAuth: []
         - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ./openapi.yaml#/components/schemas/DnsQueryRequest
+            examples:
+              dual_stack:
+                value:
+                  domain: example.com
+                  type: [ A, AAAA ]
       parameters:
-        - name: domain
-          in: query
-          required: true
-          description: DNS name within the 255-wire-octet and 63-octet-label limits.
-          schema:
-            type: string
-            minLength: 1
-          example: example.com
-        - name: type
-          in: query
-          description: Unique record types; repeated query parameter.
-          style: form
-          explode: true
-          schema:
-            type: array
-            minItems: 1
-            uniqueItems: true
-            items:
-              $ref: ./openapi.yaml#/components/schemas/DnsRecordType
-            default: [ A ]
-          example: [ A, AAAA ]
-        - name: upstream
-          in: query
-          schema:
-            type: string
-            minLength: 1
-        - name: cache_mode
-          in: query
-          schema:
-            type: string
-            enum: [ normal, bypass ]
-            default: normal
         - $ref: ./openapi.yaml#/components/parameters/Detail
       responses:
         "200":
@@ -105,6 +89,8 @@ paths:
           $ref: ./openapi.yaml#/components/responses/NotFound
         "413":
           $ref: ./openapi.yaml#/components/responses/TooLarge
+        "415":
+          $ref: ./openapi.yaml#/components/responses/UnsupportedMediaType
         "422":
           $ref: ./openapi.yaml#/components/responses/Unprocessable
         "429":
@@ -490,13 +476,13 @@ paths:
         This resource is read-only. Rules are edited by replacing the source that holds
         them with PUT /api/v1/config/sources/{source_id}, the same as traffic rules;
         there is no rule-level write endpoint. rule_id is stable within a generation
-        and addresses the rule; it is unique across both lists. expression is the
-        source text as written; upstream is the name as the engine resolved it and may
+        and addresses the rule; it is unique across both lists. expression follows
+        the display rule in rules; upstream is the name as the engine resolved it and may
         differ in case from the source text. generation_id identifies the rules'
         routing generation; refetch after generation.changed. There is no paginated snapshot. If a coherent
-        generation cannot be pinned, return 503 snapshot_unavailable. If either list
-        exceeds resources.dns_rules.max_rules, return 503 temporarily_unavailable
-        rather than silently truncate it.
+        generation cannot be pinned, return 503 snapshot_unavailable.
+        resources.dns_rules.max_rules is never below either running list's size, so
+        both lists are always returned complete and never truncated.
       x-permission: observe
       security:
         - bearerAuth: []
@@ -585,7 +571,7 @@ paths:
         "413":
           $ref: ./openapi.yaml#/components/responses/TooLarge
         "503":
-          description: A list exceeds max_rules (temporarily_unavailable), or a coherent generation could not be pinned (snapshot_unavailable)
+          description: A coherent generation could not be pinned (snapshot_unavailable)
           headers:
             Retry-After:
               description: Retry delay in seconds.
@@ -602,18 +588,6 @@ paths:
               schema:
                 $ref: ./openapi.yaml#/components/schemas/ErrorResponse
               examples:
-                temporarily_unavailable:
-                  value:
-                    error:
-                      code: temporarily_unavailable
-                      message: A DNS rule list exceeds resources.dns_rules.max_rules.
-                      details: null
-                    request_id: request-01HZX4K8W6
-                  x-headers:
-                    Content-Type: application/json
-                    Retry-After: 1
-                    Cache-Control: no-store
-                    X-Content-Type-Options: nosniff
                 snapshot_unavailable:
                   value:
                     error:
@@ -627,6 +601,31 @@ paths:
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
 schemas:
+  DnsQueryRequest:
+    type: object
+    additionalProperties: false
+    required: [ domain ]
+    properties:
+      domain:
+        type: string
+        minLength: 1
+        description: DNS name within the 255-wire-octet and 63-octet-label limits.
+      type:
+        type: array
+        minItems: 1
+        uniqueItems: true
+        items:
+          $ref: ./openapi.yaml#/components/schemas/DnsRecordType
+        default: [ A ]
+        description: Unique record types.
+      upstream:
+        type: string
+        minLength: 1
+        description: Force this upstream from dns.upstream instead of dns.routing.
+      cache_mode:
+        type: string
+        enum: [ normal, bypass ]
+        default: normal
   DnsQueryLimits:
     type: object
     required: [ max_types_per_request, query_timeout_ms, max_response_bytes, per_principal_requests_per_minute, global_requests_per_minute ]
@@ -863,7 +862,7 @@ schemas:
       expression:
         type: string
         minLength: 1
-        description: The rule's source text as written, for display; not an editable source representation.
+        description: Display text for the rule; see rules, Rule expressions. Not an editable source representation.
       action:
         type: string
         enum: [ upstream, asis, reject, accept, requery ]

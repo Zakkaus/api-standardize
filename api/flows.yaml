@@ -450,6 +450,7 @@ paths:
                         chain: [ group-proxy, node-hk-01 ]
                         chain_source: evaluation
                         rule_id: null
+                        rule_generation_id: null
                         rule_expression: null
                         rule_source: unknown
                         ingress: wan
@@ -539,6 +540,7 @@ paths:
                     chain: [ group-proxy, node-hk-01 ]
                     chain_source: evaluation
                     rule_id: null
+                    rule_generation_id: null
                     rule_expression: null
                     rule_source: unknown
                     ingress: wan
@@ -670,6 +672,7 @@ paths:
                     chain: [ node-hk-01 ]
                     chain_source: evaluation
                     rule_id: rule-traffic
+                    rule_generation_id: generation-42
                     rule_expression: null
                     rule_source: kernel
                     ingress: wan
@@ -1056,7 +1059,7 @@ schemas:
     enum: [ tls_sni, http_host, quic_sni, dns_mapping, explicit, unknown ]
   FlowSummary:
     type: object
-    required: [ id, instance_id, revision, network, state, pname, connection_id, outbound, chain, chain_source, rule_id, rule_expression, rule_source, ingress, domain_source, observed_by, started_at, ended_at, trace_status ]
+    required: [ id, instance_id, revision, network, state, pname, connection_id, outbound, chain, chain_source, rule_id, rule_generation_id, rule_expression, rule_source, ingress, domain_source, observed_by, started_at, ended_at, trace_status ]
     properties:
       id:
         type: string
@@ -1090,6 +1093,9 @@ schemas:
       rule_id:
         type: [ string, "null" ]
         description: Generation-scoped traffic rule ID, or null when unavailable.
+      rule_generation_id:
+        type: [ string, "null" ]
+        description: Generation that rule_id belongs to, the generation_id of GET /rules to join against; null when rule_id is null or the generation is unavailable.
       rule_expression:
         type: [ string, "null" ]
         description: Display expression for that rule, or null when unavailable.

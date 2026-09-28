@@ -908,7 +908,7 @@ schemas:
               max_rules:
                 $ref: ./openapi.yaml#/components/schemas/SafeUInt
                 minimum: 1
-                description: Maximum complete rule dictionary size, including the fallback entry; never a truncation limit.
+                description: Maximum complete rule dictionary size, including the fallback entry; never below the running generation's size and never a truncation limit.
           events:
             type: object
             required: [ available ]
@@ -1061,7 +1061,7 @@ schemas:
               max_rules:
                 $ref: ./openapi.yaml#/components/schemas/SafeUInt
                 minimum: 1
-                description: Maximum size of each DNS rule list, including its fallback entry; never a truncation limit.
+                description: Maximum size of each DNS rule list, including its fallback entry; never below either running list's size and never a truncation limit.
           runtime_settings:
             type: object
             required: [ available ]
