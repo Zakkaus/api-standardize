@@ -64,7 +64,7 @@ below. Other fields are withheld, not null.
 | auth.anonymous_loopback | boolean | Whether loopback peers may enter without a credential in token mode. |
 
 Clients use `links.version` for engine identity and `links.capabilities` to
-discover which optional resources and actions the running adapter implements.
+discover which optional resources and actions the running engine implements.
 The discovery response must not copy the engine version or the
 Clash-compatible `/version` payload.
 

@@ -48,17 +48,17 @@ carries the update status, and each asset reports where its file came from:
 
 | Field | Meaning |
 |-------|---------|
-| assets[].fetched_url_redacted | Display-only URL the loaded file was downloaded from, in the display form above. Null when the backend did not download it, for example a file installed by a package. |
-| assets[].verified | The file was downloaded and matched the checksum found by `resources.geodata.checksum`. False when no checksum was found for its URL, `checksum` is null, `verify_checksum` was false, or the backend did not download the file. |
-| assets[].download_route | The route the file was downloaded through: `route` as `download` was set for that download, and `group_id` the group the request went through, including the group the routing rules chose. Null when the backend did not download the file. |
+| assets[].fetched_url_redacted | Display-only URL the loaded file was downloaded from, in the display form above. Null when the engine did not download it, for example a file installed by a package. |
+| assets[].verified | The file was downloaded and matched the checksum found by `resources.geodata.checksum`. False when no checksum was found for its URL, `checksum` is null, `verify_checksum` was false, or the engine did not download the file. |
+| assets[].download_route | The route the file was downloaded through: `route` as `download` was set for that download, and `group_id` the group the request went through, including the group the routing rules chose. Null when the engine did not download the file. |
 | last_checked_at | When the last update attempt, manual or automatic, finished, whatever its outcome. |
 | last_updated_at | When an update last replaced a loaded file. |
 | next_check_at | When the next automatic update is due, including its random delay and any backoff. Null while automatic updates are off. |
-| last_error | A [SafeError](errors.html) with an adapter-defined code when the last attempt failed on every URL; null otherwise. |
+| last_error | A [SafeError](errors.html) with an engine-defined code when the last attempt failed on every URL; null otherwise. |
 | required_codes | Per asset kind, the lowercase category names the active configuration references, sorted and without attribute suffixes. |
 
 `last_checked_at` and `last_updated_at` are null before the first attempt;
-`next_check_at` is set from startup while automatic updates are on. A backend
+`next_check_at` is set from startup while automatic updates are on. An engine
 without the capability omits all of these fields.
 
 {% api_example getGeoData 200 packaged %}
@@ -77,21 +77,21 @@ about the missing categories up front instead.
 {% api_example updateGeoData 202 queued http %}
 
 Poll `Location` using the [operation contract](operations.html), obeying
-`Retry-After`. The kind is `geodata_update`. The backend downloads every asset
+`Retry-After`. The kind is `geodata_update`. The engine downloads every asset
 from its source into a temporary file, verifies it parses, replaces the loaded
 file and reloads the datapath once, emitting `generation.changed`. An asset
 that fails to download or parse leaves the loaded file in place and fails the
 operation with a SafeError. Success returns the new GeoData in `result`.
 Identical bytes leave the loaded file and the generation unchanged.
 
-With several URLs for an asset, the backend tries them in order and moves to
+With several URLs for an asset, the engine tries them in order and moves to
 the next only when one fails:
 
 - a connection error or the per-URL deadline;
 - any status other than `200`. Redirects are not followed, so a link that
   redirects, such as a GitHub `/releases/download/` URL, never works; use a
   raw or CDN URL that serves the file directly;
-- a failed checksum. `resources.geodata.checksum` names how the backend finds
+- a failed checksum. `resources.geodata.checksum` names how the engine finds
   the checksum:
   - `sha256sum`: it appends `.sha256sum` to the URL path, keeping any query,
     fetches that URL and compares the first field of the response with the
@@ -101,19 +101,19 @@ the next only when one fails:
   - `pinned`: it compares the file with a SHA-256 it holds for that URL, for
     example one shipped with its built-in sources. A mismatch fails the URL; a
     URL without a pinned digest is accepted unverified.
-  - null: the backend cannot verify downloads and accepts every file
+  - null: the engine cannot verify downloads and accepts every file
     unverified.
 
-  With `verify_checksum` false, the backend requests no checksum and accepts
+  With `verify_checksum` false, the engine requests no checksum and accepts
   the file unverified.
 
 Every request, the checksum included, leaves through the route in
 `download` (see below). A URL the route cannot reach, because the group has no
 usable member or the routing rules send it to `block`, counts as a connection
-error, and the backend tries the next URL. It never falls back to direct.
+error, and the engine tries the next URL. It never falls back to direct.
 
 The update also fails, keeping the loaded file, when the new file lacks a
-category the active configuration uses. The backend writes updated files to its
+category the active configuration uses. The engine writes updated files to its
 own data directory and never overwrites files a package manager installed.
 
 Downloads follow the [outbound-request policy](api-config.html#Outbound-requests).
@@ -142,7 +142,7 @@ automatic updates are the `geodata` section of
 | source | Read-only: where the effective URL lists came from, `config`, `override` or `default`. |
 | download.route | How downloads leave the device: `routing` (default), `group` or `direct`. |
 | download.group_id | The group for `route: group`, as in `GET /groups`; null otherwise. |
-| verify_checksum | Verify each download by the advertised `checksum` method and reject a file that does not match it. True when nothing is set; a backend that omits the field behaves as true. |
+| verify_checksum | Verify each download by the advertised `checksum` method and reject a file that does not match it. True when nothing is set; an engine that omits the field behaves as true. |
 
 Every admitted caller reads the URLs as written, with only listener-secret
 values masked; see the [visibility table](api-config.html#Visibility).
@@ -150,14 +150,14 @@ values masked; see the [visibility table](api-config.html#Visibility).
 ### Effective value and lifetime
 
 The following rules determine each field's effective value. A field has a file
-value, an override set by `PATCH`, or neither, in which case the backend's
+value, an override set by `PATCH`, or neither, in which case the engine's
 built-in value applies. honk's configuration file can name the URL lists and the
 download route, but not `auto_update` or `verify_checksum`.
 
-`resources.geodata.lifecycle` advertises when the backend takes file values
+`resources.geodata.lifecycle` advertises when the engine takes file values
 and how long overrides last:
 
-- `file_values: start`: the backend takes file values at process start only,
+- `file_values: start`: the engine takes file values at process start only,
   so activations never change geodata settings and a changed file value takes
   effect at the next start. `activation`: it also takes them at each
   configuration activation.
@@ -184,7 +184,7 @@ also activation under `file_values: activation`.
   the next start.
 - `override`: a patch set at least one list that is still in force, even to the
   URLs the file names.
-- `default`: both assets use the backend's built-in URLs.
+- `default`: both assets use the engine's built-in URLs.
 
 An asset with neither a file value nor an override uses its built-in URLs under
 any `source`. The download route does not affect `source`.
@@ -208,7 +208,7 @@ never downloads anything; queue an update to fetch from the new URLs.
 
 Some mirrors answer the checksum URL with an error page, or a status such as
 `403` or `429`, instead of `404`, so every update from them fails. Setting
-`verify_checksum` to false lets such a mirror work: the backend sends no
+`verify_checksum` to false lets such a mirror work: the engine sends no
 checksum request and accepts each file unverified, with `verified` false.
 Prefer a mirror that publishes checksums.
 
@@ -226,7 +226,7 @@ Prefer a mirror that publishes checksums.
 
 - `routing`, the default: the routing rules decide, as for user traffic, so a
   rule can send the download to a node, a group, direct or `block`. Every
-  download the backend makes itself follows the routing rules unless configured
+  download the engine makes itself follows the routing rules unless configured
   otherwise.
 - `group`: always through the group in `group_id`, whatever the rules say.
 - `direct`: straight to the host, outside the routing rules.
@@ -243,7 +243,7 @@ changed.
 The route must be able to carry the request when the update runs. Just after
 startup the routing rules may not be loaded yet, or a group's health checks may
 not have finished; a request the route cannot carry fails that URL like a
-connection error, the backend tries the next URL, and when all fail it reports
+connection error, the engine tries the next URL, and when all fail it reports
 `last_error`. It never switches to direct on its own, so a download meant for a
 proxy is not sent in the clear.
 
@@ -255,8 +255,8 @@ The next automatic attempt is due a wait plus a random delay after the last
 attempt, manual or automatic, finished. Until this process finishes its first
 attempt, the wait counts from process start or from the latest change to
 `auto_update`, whichever is later, so a start never downloads at once. The wait
-is the interval; after a failed attempt the backend may wait less, never more,
-and a success restores the interval. The backend bounds the random delay, which
+is the interval; after a failed attempt the engine may wait less, never more,
+and a success restores the interval. The engine bounds the random delay, which
 spreads downloads from many devices, and adds it to every wait, retries
 included. `next_check_at` reports the due time with the delay, so a retry is due
 no later than the interval plus the delay. Changing `auto_update` recomputes the

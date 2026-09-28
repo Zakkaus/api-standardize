@@ -40,7 +40,7 @@ usable. `programs: loaded` alone does not mean that traffic is being handled.
 | ebpf.attachments | array | The attachments the engine checks. The list may be partial, and it may be empty when details are unavailable. |
 | ebpf.attachments[].kind | string | `interface` (with `interface` and `direction`), `cgroup` (with `cgroup`, the cgroup v2 path relative to the mount), or `other` (with `hook`, the engine's description of the attach point, such as a sockmap verdict or a tracing hook). |
 | ebpf.maps.state | string | `ready`, `partial`, `error`, or `unknown`. |
-| ebpf.maps.conn_state | object or null | Conntrack occupancy when the backend exposes it. |
+| ebpf.maps.conn_state | object or null | Conntrack occupancy when the engine exposes it. |
 | ebpf.health | string | `healthy`, `degraded`, `failed`, or `unknown`. |
 | ebpf.last_error | string or null | Latest safe machine-readable error code. |
 | ebpf.checked_at | string | Time at which eBPF state was checked. |
@@ -64,7 +64,7 @@ compare their observation times before diagnosing a mismatch.
 - For `kind: ebpf`, `degraded` means the datapath can operate only partially,
   or an important map/counter cannot be read.
 - `failed` means initialization or a required runtime operation failed.
-- `unknown` means the adapter cannot verify the state; it must not infer
+- `unknown` means the engine cannot verify the state; it must not infer
   `active` from configuration alone.
 
 For `kind: userspace`, `active` means the required listeners and forwarding

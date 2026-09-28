@@ -51,7 +51,7 @@ generation changes.
 is never below the running generation's size: an engine with a fixed bound
 either refuses a configuration whose list would exceed it or advertises the
 larger size. The list is therefore always returned complete, never truncated.
-Return `503 snapshot_unavailable` if the adapter cannot pin one coherent
+Return `503 snapshot_unavailable` if the engine cannot pin one coherent
 generation. A generation change alone is not an expired snapshot.
 
 ## Rule expressions

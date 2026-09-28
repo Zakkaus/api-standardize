@@ -52,7 +52,7 @@ leaves no usable data. `last_error` is a [SafeError](errors.html) or null.
 like user traffic, `group` always goes through the group in `group_id`, and
 `direct` connects straight to the host. `group_id` is null for `routing`,
 `direct`, and a group that no longer exists. File and inline providers report
-null; backends that fetch subscriptions only directly omit the field. The route
+null; engines that fetch subscriptions only directly omit the field. The route
 is configured in the source, not through this API.
 
 ## Refresh a provider
@@ -92,20 +92,20 @@ created: file and inline providers are authored in the configuration sources.
 
 {% api_example createProvider 201 created http %}
 
-The backend writes the provider into the managed main source, advances the
+The engine writes the provider into the managed main source, advances the
 configuration revision, and emits `generation.changed`. A subsequent write to
 that changed source using its old `content_sha256` receives `412 stale_revision`;
 a generation change alone does not invalidate an unchanged source's hash.
-A backend that advertises `resources.providers.create_unfetched` creates the
+An engine that advertises `resources.providers.create_unfetched` creates the
 provider unfetched (`node_count` 0, `updated_at` null, `status` stale); call
-refresh to load it. Otherwise the backend may fetch the provider while it
+refresh to load it. Otherwise the engine may fetch the provider while it
 activates the change, and the created provider reports its actual state. The
 response returns the URL in `url_redacted` as written, apart from listener
 secrets. A name already in use
 returns `409 state_conflict`; a URL that is not http(s) returns
 `422 unsupported_value`.
 
-A backend returns ``201`` once the change is active, or `202 Accepted` with
+A server returns ``201`` once the change is active, or `202 Accepted` with
 a ``provider_create`` [operation](operations.html) when it activates the change
 asynchronously; the operation's result is the created provider.
 For failed activations, see [activation outcomes](errors.html#Activation-outcomes).
@@ -122,8 +122,8 @@ value an omitted field takes. Sending one it does not name returns
 - `user_agent`: the User-Agent header for fetching the URL, 1 to 256 printable
   ASCII characters.
 - `cache`: whether the last fetched body is kept so the provider loads without
-  the network at startup. `false` keeps none and removes one already kept. A
-  backend with caching turned off globally does not list it.
+  the network at startup. `false` keeps none and removes one already kept. An
+  engine with caching turned off globally does not list it.
 
 ## Delete a provider
 
@@ -141,7 +141,7 @@ nodes from the running groups, advances the configuration revision and emits
 `generation.changed`. It is idempotent: an unknown id returns `deleted` 0. A
 group whose only member source was the provider is left empty.
 
-A backend returns ``200`` once the change is active, or `202 Accepted` with
+A server returns ``200`` once the change is active, or `202 Accepted` with
 a ``provider_delete`` [operation](operations.html) when it activates the change
 asynchronously; the operation's result is the same `deleted` count.
 For failed activations, see [activation outcomes](errors.html#Activation-outcomes).

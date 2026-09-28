@@ -4,14 +4,13 @@ title: dae/honk Native API Documentation
 
 # dae/honk Native API Documentation
 
-Welcome to the dae/honk API documentation. This site defines a proposed native
-HTTP JSON control plane for Linux transparent-proxy engines and documents the
-existing Clash-compatible surface separately.
+This site defines the native HTTP JSON control plane of dae and honk, the Linux
+eBPF transparent-proxy engines. It is a draft: each engine implements it
+separately, and neither is required to support every resource.
 
 ## Overview
 
-dae and honk are Linux eBPF transparent-proxy engines. The native API allows a
-client to:
+The native API allows a client to:
 
 - Monitor real-time traffic statistics
 - Discover engine capabilities and datapath visibility
@@ -35,77 +34,67 @@ precision integers (`BigInt`), never `Number`; bounded counts and limits, flow
 revisions, and step `seq` values remain JSON numbers. Configuration and selection
 revision identifiers remain opaque strings and must not be parsed.
 
-## Quick Start
+## Implementing an engine
 
-### Configuration
+Read the pages in this order. Steps 1 to 3 make up the `base`
+[conformance profile](docs/capabilities.html#Conformance-profiles); every
+resource in step 4 is optional and advertised in the capabilities.
 
-The draft native listener uses `/api/v1`, with unversioned `/api` discovery. honk currently
-configures its Clash-compatible listener with `experimental.clash_api`; the
-referenced dae/kdae branch currently has no general REST listener and exposes
-reload/suspend through CLI and signals. See [API Configuration](docs/api-config.html)
-for the proposed shared listener contract. The block below is hypothetical
-syntax for that proposal; neither honk nor dae reads it today.
+1. Discovery and authentication: [Discovery](docs/discovery.html),
+   [Authentication](docs/auth.html), and the listener, authentication-mode and
+   permission rules in [API Configuration](docs/api-config.html).
+2. The base resources: [Version](docs/version.html),
+   [Capabilities](docs/capabilities.html) and [Runtime](docs/runtime-status.html).
+3. The shared rules every endpoint follows: [Errors](docs/errors.html), the
+   [visibility table](docs/api-config.html#Visibility), and
+   [Operations](docs/operations.html), which are required once any advertised
+   action is asynchronous.
+4. Optional resources, in any order: [Runtime Memory](docs/runtime-memory.html),
+   [Datapath](docs/datapath.html), [Nodes](docs/node-latency.html),
+   [Probes](docs/check-nodes.html), [Groups](docs/groups.html),
+   [Connections](docs/connections.html), [Recorded Flows](docs/flows.html),
+   [Routing Simulation](docs/routing-trace.html), [Events](docs/events.html),
+   [Logs](docs/logs.html), [DNS Query](docs/dns-query.html),
+   [DNS Cache](docs/dns-cache.html), [DNS Rules](docs/dns-rules.html),
+   [Providers](docs/providers.html),
+   [Geodata](docs/geodata.html), [Rules](docs/rules.html),
+   [Configuration](docs/configuration.html), [Reload](docs/reload.html) and
+   [Suspend](docs/suspend.html).
 
-```dae
-api {
-    listen: '127.0.0.1:9527'
-    secret: 'replace-with-a-random-secret'
-    allow_origins: ['http://127.0.0.1:3000']
-}
-```
+The [OpenAPI contract](/openapi.yaml) is the generated bundle of every request,
+response and event. The pages explain the rules a schema cannot state; engine
+routes, capabilities and fields outside the shared contract use the
+[`x-<engine>` namespace](docs/capabilities.html#Engine-extensions). The
+[honk notes](docs/honk-notes.html) record choices honk makes where the contract
+leaves them to the engine; they are not part of the contract. To change the
+contract or build this site, see the repository README.
 
-The native listener is loopback-only by default. See [API Configuration](docs/api-config.html)
-for the shared listener, authentication, and CORS contract.
+## Terms
 
-### Base URL
-
-```
-http://localhost:9527/api/v1  # native API draft, wire major 1
-http://localhost:9090         # honk Clash compatibility API
-```
-
-### Authentication
-
-If a bearer secret is configured, include it in requests:
-
-```
-Authorization: Bearer <your-token>
-```
+| Term | Meaning |
+|------|---------|
+| engine | The proxy product that implements the API, such as dae or honk. `engine.name` in [Version](docs/version.html) names it. |
+| server | The engine's API listener in its HTTP role: it answers requests. |
+| instance | One engine process. `instance_id` changes on restart, and IDs, cursors, operations and idempotency keys are valid only within one instance. |
+| runtime generation | One published runtime configuration, `generation.active_id` in [Runtime](docs/runtime-status.html). |
+| datapath generation | One kernel policy publication, `ebpf.routing.generation_id` in [Datapath](docs/datapath.html). A reload can publish a new runtime generation and keep the datapath generation. |
+| configuration revision | The opaque `revision` of the accepted configuration, used by runtime and group responses. It is not the source-write precondition. |
+| source hash | `content_sha256` of one source's accepted bytes. A source replacement sends it in `If-Match`. |
+| accepted snapshot | The configuration sources the active generation was built from, as `GET /config` returns them. It can differ from the configuration store. |
+| configuration store | The authoritative copy of every configuration source: files for a file-backed engine, records for a database-backed one. |
+| admitted caller | A caller the listener accepts under its [authentication mode](docs/api-config.html#Authentication-modes). Every admitted caller has the same visibility. |
+| principal | The identity an admitted caller acts as. Operation ownership and per-principal rate limits are scoped to it; the engine decides how credentials map to principals. |
+| flow ID | The opaque `id` of a [recorded flow](docs/flows.html#Identity-and-lifetime), never reused within an instance. |
+| connection ID | The opaque ID of a live connection in [Connections](docs/connections.html). A flow's `connection_id` is null when the flow never had a userspace tracker entry. |
 
 ## API Version
 
 Native API status: **draft**. `/api/v1` identifies the wire major, not a claim
-that honk 1.0 or this API is released. The `v0.1.0` site directory is the
-document revision. Breaking wire changes require a new major path; additive
-features are negotiated through capabilities, never inferred from engine
-versions. Unversioned resource routes are not aliases. Engine-only routes,
-capabilities and fields use the [`x-<engine>` namespace](docs/capabilities.html#Engine-extensions).
-
-The [OpenAPI contract](/openapi.yaml) is the generated public bundle. Its
-authoring sources live under `api/`, grouped by resource, with native named
-examples owned by their operations. Edit those sources and run `npm run build`;
-do not edit the bundle or copy example payloads into this prose.
-
-`npm run check:contract` bundles and lints the specification, validates its
-structured examples, headers and flow invariants, and runs independent
-regressions. Markdown references stable example names through project-owned
-Hexo tags; it is rendered from the contract, not parsed back into one.
-The human explanations of permissions, visibility and lifecycle remain
-hand-authored. Generated clients and an embedded UI remain outside this spec.
-
-Builds clear Hexo's rendered-page cache so changed contract examples cannot
-leave stale documentation behind. Restart `npm run server` after changing
-`api/` sources; ordinary prose edits still use Hexo's normal development loop.
-
-The [honk notes](docs/honk-notes.html) record choices honk makes where the
-contract leaves them to the engine; they are not part of the contract. Native JSON
-and the existing Clash API stay side by side. A separate panel or LuCI
-client can use the native API; whether its assets ship embedded or as an
-external UI does not change this contract.
+that honk 1.0 or this API is released; discovery at `/api` is unversioned. The
+`v0.1.0` site directory is the document revision. Breaking wire changes require
+a new major path; additive features are negotiated through capabilities, never
+inferred from engine versions. Unversioned resource routes are not aliases.
 
 ## Endpoints
 
 {% api_endpoints %}
-
-The separate honk Clash-compatible surface remains at `/version`, `/configs`,
-`/proxies`, and its other compatibility routes; it is not part of this native table.

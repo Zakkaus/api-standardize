@@ -35,7 +35,7 @@ network speeds where the observation plane provides them.
 | Field | Type | Description |
 |-------|------|-------------|
 | observed_at | string | Snapshot timestamp (RFC3339). |
-| instance_id | string | Running adapter instance; resets on process restart. |
+| instance_id | string | Running engine instance; resets on process restart. |
 | visibility | string | `full`, `partial`, or `none`. |
 | truncated | bool | Whether `limit` omitted visible entries matching `type` and `src`. |
 | tcp | array | Active TCP connections |
@@ -59,14 +59,14 @@ network speeds where the observation plane provides them.
 | observed_by | string | `userspace`, `ebpf`, or `mixed` |
 | upload_bytes | decimal uint64 string or null | Visible uploaded bytes |
 | download_bytes | decimal uint64 string or null | Visible downloaded bytes |
-| upload_bytes_per_second | decimal uint64 string or null | Visible upload rate, or null when the adapter does not sample per connection |
-| download_bytes_per_second | decimal uint64 string or null | Visible download rate, or null when the adapter does not sample per connection |
+| upload_bytes_per_second | decimal uint64 string or null | Visible upload rate, or null when the engine does not sample per connection |
+| download_bytes_per_second | decimal uint64 string or null | Visible download rate, or null when the engine does not sample per connection |
 
 > **Note:** Visible network speed and connection totals are available
 > from [`GET /api/v1/runtime`](runtime-status.html). The datapath may observe only a
 > subset of host traffic.
 
-The per-connection rates are null when the adapter does not sample each
+The per-connection rates are null when the engine does not sample each
 connection. A client may then derive a rate from two list responses with the
 same top-level `instance_id` that both contain the same connection `id`:
 the change in `upload_bytes` or `download_bytes` divided by the change in the

@@ -8,7 +8,7 @@ Honk configures its native API under `experimental.native_api`, separately from
 `experimental.clash_api`. This page describes native listener security and
 permissions; configuration syntax remains engine-specific.
 
-The shared adapter should use a single listen address, an opaque bearer secret,
+A server uses a single listen address, an opaque bearer secret,
 and explicit CORS origins. Interface-name wildcards and regexes are not part of
 the native contract because they make binding and authorization ambiguous.
 
@@ -156,11 +156,11 @@ server-side request forgery (SSRF).
   any nonzero port is allowed. A DNS check target may use port 53 or a port in
   the allowlist. Port 0 is never allowed.
 - The rules apply after the final route is selected and before each dial,
-  including each retry. When the backend resolves the name itself, whether the
+  including each retry. When the engine resolves the name itself, whether the
   route is direct or through a node, it rejects loopback, link-local,
   multicast, unspecified, private and cloud-metadata addresses unless the
   destination allowlist names them, and dials the validated address it pinned.
-  When a node resolves the name, the backend checks only a destination written
+  When a node resolves the name, the engine checks only a destination written
   as a literal address. A literal address is always checked. The HTTP `Host`
   header and TLS SNI keep the name from the URL.
 - A group health check dialled through the group's own members validates a
@@ -171,6 +171,6 @@ server-side request forgery (SSRF).
   names for that asset is exempt from the address and port rules, for both the
   file download and its checksum request. The same URL set by a geodata source
   PATCH is exempt too; any other URL follows every rule.
-- The backend bounds response size and time. Where a feature follows
+- The engine bounds response size and time. Where a feature follows
   redirects, it bounds their number and repeats these checks for each one;
   geodata downloads follow none.

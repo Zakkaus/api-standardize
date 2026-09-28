@@ -43,7 +43,7 @@ Requires `observe`. Returns active **and retained terminal** flows.
 |-----------|---------|---------|
 | network | all | `tcp`, `udp`, or `all`. |
 | state | all | One lifecycle state below, or `all`. |
-| connection_id | absent | Exact opaque connection ID within the current adapter instance; includes retained terminal flows, never tuple matching. |
+| connection_id | absent | Exact opaque connection ID within the current engine instance; includes retained terminal flows, never tuple matching. |
 | limit | 100 | 1–1000, additionally bounded by the advertised limit. |
 | cursor | absent | Opaque cursor from `next_cursor`. |
 | detail | summary | `full` adds source/destination/domain inputs; not the trace. |

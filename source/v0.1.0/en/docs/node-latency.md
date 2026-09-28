@@ -34,7 +34,7 @@ Cursors follow the [paging rule](errors.html#Page-cursors). If the server cannot
 | Field | Type | Description |
 |-------|------|-------------|
 | observed_at | string | Snapshot timestamp (RFC3339). |
-| nodes | array | Nodes visible to the adapter. |
+| nodes | array | Nodes visible to the engine. |
 | nodes[].id | string | Opaque stable node identifier. |
 | nodes[].name | string | Engine-visible node name. |
 | nodes[].protocol | string or null | Protocol label when safely available. |
@@ -115,12 +115,12 @@ and delete return `404 capability_not_supported`.
 {% api_example createNode 201 created http %}
 
 `Location` names the new node; read it back with `GET /api/v1/nodes/{node_id}`.
-A backend returns ``201`` once the change is active, or `202 Accepted` with
+A server returns ``201`` once the change is active, or `202 Accepted` with
 a ``node_create`` [operation](operations.html) when it activates the change
 asynchronously; the operation's result is the created node.
 For failed activations, see [activation outcomes](errors.html#Activation-outcomes).
 
-The backend parses the share link with the engine's own support, writes it
+The engine parses the share link with its own support, writes it
 into the `node` section of its managed main source under the given name,
 advances the configuration revision and emits `generation.changed`. The link
 is not echoed; the source text returns it as written. A link the engine cannot parse returns
@@ -143,7 +143,7 @@ refresh or delete its [provider](providers.html) instead.
 Deletion removes the node's line from the managed main source and the node
 from the running groups, advances the configuration revision and emits
 `generation.changed`. It is idempotent: an unknown id returns `deleted` 0.
-A backend returns ``200`` once the change is active, or `202 Accepted` with
+A server returns ``200`` once the change is active, or `202 Accepted` with
 a ``node_delete`` [operation](operations.html) when it activates the change
 asynchronously; the operation's result is the same `deleted` count.
 For failed activations, see [activation outcomes](errors.html#Activation-outcomes).

@@ -47,11 +47,11 @@ administrator-configured check destinations under the
 [outbound-request policy](api-config.html#Outbound-requests). `tcp_connect` and `http` run over
 `tcp`. The request schema does not restrict kind and transport
 combinations: a request that parses but pairs them otherwise, or asks for a
-target capability the backend lacks, returns `422 unsupported_value` before
+target capability the engine lacks, returns `422 unsupported_value` before
 work. `400 invalid_request` is for a request that does not parse or has the
 wrong shape, such as a missing field or an empty or repeated transport.
 
-Probes may update native health and automatic selections. The adapter must
+Probes may update native health and automatic selections. The engine must
 preserve native side-effect semantics and report `health_updated` per result
 and `selection_changed` per transport. A reachability measurement MUST NOT be
 injected into an application-latency collection as an equivalent sample.

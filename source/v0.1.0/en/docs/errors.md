@@ -20,7 +20,7 @@ All native API errors use one JSON envelope:
 The `ErrorCode` schema in the OpenAPI document enumerates exactly the codes below
 for HTTP error bodies (`ApiError`); adding one is a contract change. Errors embedded
 in resources (`operation.error`, `datapath.errors`, `last_reload.error`,
-`provider.last_error`) carry an adapter-defined code, except the shared codes
+`provider.last_error`) carry an engine-defined code, except the shared codes
 for a failed configuration change listed under
 [activation outcomes](#Activation-outcomes).
 
@@ -31,7 +31,7 @@ for a failed configuration change listed under
 | 401 | `invalid_credentials` | Username or password is incorrect during password login. |
 | 403 | `permission_denied` | The caller lacks the required permission, or listener security policy rejects the request. |
 | 404 | `resource_not_found` | The requested resource does not exist. |
-| 404 | `capability_not_supported` | The running adapter does not expose the resource or action. |
+| 404 | `capability_not_supported` | The running engine does not expose the resource or action. |
 | 405 | `method_not_allowed` | The path exists, but not with this method ([RFC 9110 §15.5.6](https://www.rfc-editor.org/rfc/rfc9110#section-15.5.6)); the response lists the supported methods in `Allow`. An unknown path is `404`. |
 | 409 | `state_conflict` | The request is supported, but the current state prevents it: a name already in use, a referenced object that is not current, a transition the current state does not allow, or a configuration change while a write without `If-Match` was being admitted. The same request can succeed after the state changes. |
 | 409 | `idempotency_conflict` | An idempotency key was reused with a different request body. |
@@ -160,7 +160,7 @@ outcome in `error.details`:
 | `written` | boolean | The store holds the change after the failure. A plain reload stores nothing and omits it. |
 | `committed` | boolean or null | Whether the new generation is active. Present on every activation failure. |
 | `active_generation_id` | string or null | Present when `committed` is `true`: the active generation, or `null` when the server cannot name it. |
-| `stage` | string | Synchronous responses only: the outcome code, or an adapter-defined code for a failure before activation starts. |
+| `stage` | string | Synchronous responses only: the outcome code, or an engine-defined code for a failure before activation starts. |
 | `durability_confirmed` | boolean | Optional. `false` when the store holds the change but could not confirm that it survives a crash. |
 
 - `committed: false`: the change never became active, and the previous
@@ -177,7 +177,7 @@ recovery, see [creating a source](configuration.html#Creating-a-source).
 
 A failed operation carries the outcome code in `error.code`. A synchronous
 request returns an HTTP error, usually `503 temporarily_unavailable`, and
-carries the outcome code in `error.details.stage`. An adapter uses each code
+carries the outcome code in `error.details.stage`. An engine uses each code
 below when its case applies. `supervisor_reconciliation_failed` and
 `store_unavailable` apply only to an engine with a separate worker supervisor
 or a store it records after activation; other engines never report them.
@@ -191,7 +191,7 @@ or a store it records after activation; other engines never report them.
 | `store_unavailable` | `true` | The new generation is active, but the store could not record it. `written` is `false`, and a restart loads the previously stored configuration. |
 
 A failure before activation starts, such as an unavailable engine, has
-`committed: false` and may use another adapter-defined code.
+`committed: false` and may use another engine-defined code.
 
 These outcomes are reported only by an instance that survives the failure. If
 the engine process stops or restarts, queued and running operations and their
