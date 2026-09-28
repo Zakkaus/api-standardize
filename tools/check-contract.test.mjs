@@ -297,6 +297,9 @@ test("recorder state is allowed, mode and active, and flow recording may be on d
   }
   flows.recording = "auto";
   assertInvalid(validateExample(contract, capabilities), "recording comes from the enum");
+  flows.recording = "on_demand";
+  flows.retention_seconds = 0;
+  assertInvalid(validateExample(contract, capabilities), "flow retention is at least 1 second");
 });
 
 test("runtime setting bounds are advertised, with an absent minimum meaning 1", () => {
@@ -1484,6 +1487,7 @@ test("log payloads and filters preserve typed records and the shared cursor erro
   const expired = example("streamLogs:409:event_cursor_expired");
   assert.deepEqual(expired.body, example("streamEvents:409:event_cursor_expired").body);
   assert.equal(expired.mediaType, "application/json");
+  assert.ok(spec.paths["/api/v1/logs"].get.responses["422"], "an unadvertised level or filter is declared");
 });
 
 test("native EventSource receives log readiness, record IDs and heartbeat framing", { timeout: 3_000 }, async () => {
@@ -1901,13 +1905,13 @@ test("DNS cache capacity may be unbounded and is not capped by the contract", ()
   assertInvalid(contract.validate(usage, { entries: "5" }), "capacity may be null but not absent");
 });
 
-test("eBPF attachments are interface or cgroup attachments", () => {
+test("eBPF attachments are interface, cgroup or other attachments", () => {
   const response = example("getDatapath:200:active");
   const attachments = response.body.ebpf.attachments;
-  assert.deepEqual(attachments.map((attachment) => attachment.kind), ["interface", "cgroup"]);
+  assert.deepEqual(attachments.map((attachment) => attachment.kind), ["interface", "cgroup", "other"]);
   assertValid(validateExample(contract, response));
   const schema = { $ref: "#/components/schemas/EbpfAttachment" };
-  const [iface, cgroup] = attachments;
+  const [iface, cgroup, other] = attachments;
   for (const [label, value] of [
     ["kind is required", (({ kind, ...rest }) => rest)(iface)],
     ["an interface attachment needs its direction", (({ direction, ...rest }) => rest)(iface)],
@@ -1917,6 +1921,11 @@ test("eBPF attachments are interface or cgroup attachments", () => {
     ["a cgroup attachment has no interface", { ...cgroup, interface: "eth0" }],
     ["a cgroup attachment has no direction", { ...cgroup, direction: "egress" }],
     ["kind comes from the enum", { ...cgroup, kind: "xdp" }],
+    ["an interface attachment has no hook", { ...iface, hook: "tc" }],
+    ["a cgroup attachment has no hook", { ...cgroup, hook: "connect4" }],
+    ["an other attachment needs its hook", (({ hook, ...rest }) => rest)(other)],
+    ["an other attachment has no interface", { ...other, interface: "eth0" }],
+    ["an other attachment has no cgroup", { ...other, cgroup: "/" }],
   ]) {
     assertInvalid(contract.validate(schema, value), label);
   }

@@ -253,9 +253,10 @@ This section is not part of the contract. It records honk-specific detail
 behind the [flow record](flows.html) rules.
 
 - honk hands UDP decisions between the kernel and userspace through NFQUEUE.
-  Its `datapath` steps record the hold, arm, verdict and publication order,
-  and may use the engine-defined actions `arm_direct`, `activate_direct` and
-  `activate_proxy` alongside the core values.
+  Its `datapath` steps currently use the core action `drop` and the
+  engine-defined actions `activate_direct` and `activate_proxy`
+  (`control/connection/udp.rs`). They record the NFQUEUE activation, not each
+  hold, arm, verdict and publication step.
 - honk's UDP decision token is not a flow ID, and the persisted UDP token
   allocator is not changed to produce flow IDs.
 - `mode_override` reports honk's Clash-mode override (`direct` or `global`).

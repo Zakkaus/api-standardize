@@ -327,8 +327,8 @@ userspace list. Kernel bypasses (multicast, own traffic, local services, closed
 admission) must be declared even where no connection exists.
 
 Capabilities advertise `recording` (`off`, `on`, `sampled`, `on_demand`),
-`scopes`, `max_flows`, `max_steps_per_flow`, `retention_seconds`,
-`snapshot_ttl_seconds`, and `max_page_size`. `on_demand` records only while
+`scopes`, the optional `min_flows`, `max_flows`, `max_steps_per_flow`,
+`retention_seconds`, `snapshot_ttl_seconds`, and `max_page_size`. `on_demand` records only while
 clients read or follow flows (see
 [runtime settings](runtime-status.html#GET-api-v1-runtime-settings)).
 `max_flows` and `retention_seconds` are the engine's limits, the most a

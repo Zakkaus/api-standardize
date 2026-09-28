@@ -37,8 +37,8 @@ usable. `programs: loaded` alone does not mean that traffic is being handled.
 | ebpf.routing.state | string | `published`, `not_published`, `error`, or `unknown`. |
 | ebpf.routing.generation_id | string or null | Generation currently published to eBPF. |
 | ebpf.routing.epoch | string or null | Engine routing epoch when exposed. |
-| ebpf.attachments | array | Engine-visible hook attachments. It may be empty when details are unavailable. |
-| ebpf.attachments[].kind | string | `interface` (with `interface` and `direction`) or `cgroup` (with `cgroup`, the cgroup v2 path relative to the mount). |
+| ebpf.attachments | array | The attachments the engine checks. The list may be partial, and it may be empty when details are unavailable. |
+| ebpf.attachments[].kind | string | `interface` (with `interface` and `direction`), `cgroup` (with `cgroup`, the cgroup v2 path relative to the mount), or `other` (with `hook`, the engine's description of the attach point, such as a sockmap verdict or a tracing hook). |
 | ebpf.maps.state | string | `ready`, `partial`, `error`, or `unknown`. |
 | ebpf.maps.conn_state | object or null | Conntrack occupancy when the backend exposes it. |
 | ebpf.health | string | `healthy`, `degraded`, `failed`, or `unknown`. |

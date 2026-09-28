@@ -2096,6 +2096,10 @@ paths:
                           kind: cgroup
                           cgroup: /
                           state: attached
+                        - name: sk_msg_verdict
+                          kind: other
+                          hook: sk_msg verdict on the socket map
+                          state: attached
                       maps:
                         state: ready
                         conn_state:
@@ -5221,6 +5225,29 @@ paths:
           $ref: '#/components/responses/EventCursorExpired'
         '413':
           $ref: '#/components/responses/TooLarge'
+        '422':
+          description: level is a LogLevel member not in resources.logs.levels, or target is set while resources.logs.filters omits target (unsupported_value).
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/NoStore'
+            X-Content-Type-Options:
+              $ref: '#/components/headers/NoSniff'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                unadvertised_filter:
+                  value:
+                    error:
+                      code: unsupported_value
+                      message: target is not an advertised log filter.
+                      details: null
+                    request_id: request-5
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
         '429':
           $ref: '#/components/responses/RateLimited'
         '503':
@@ -7869,7 +7896,7 @@ components:
                     - 'on'
                     - sampled
                     - on_demand
-                  description: How the engine records flows right now. off records none; on records every flow in scopes; sampled records a subset; on_demand records only while clients read or follow flows, which is recording.flows.mode auto in GET /runtime/settings.
+                  description: The engine's flow recording policy, not whether the recorder is capturing now. off records none, because the configuration does not permit the flow recorder or its mode is off; on records every flow in scopes (mode on); sampled records a subset; on_demand is mode auto, recording while clients create demand, whether or not any client does now. recording.flows.active in GET /runtime/settings reports whether the recorder is capturing.
                 scopes:
                   type: array
                   uniqueItems: true
@@ -7888,8 +7915,8 @@ components:
                   minimum: 1
                 retention_seconds:
                   type: integer
-                  minimum: 0
-                  description: The longest terminal-flow retention the engine supports, which is the most a runtime-settings PATCH may set, not the current value. The current value is flows.retention_seconds in GET /runtime/settings.
+                  minimum: 1
+                  description: The longest terminal-flow retention the engine supports, which is the most a runtime-settings PATCH may set, not the current value. The smallest a PATCH may set is always 1. The current value is flows.retention_seconds in GET /runtime/settings.
                 snapshot_ttl_seconds:
                   type: integer
                   minimum: 1
@@ -9179,6 +9206,7 @@ components:
           properties:
             attachments:
               type: array
+              description: The attachments the engine checks. The list may be partial; an engine need not report every program it attached.
               items:
                 $ref: '#/components/schemas/EbpfAttachment'
             maps:
@@ -9189,7 +9217,7 @@ components:
         - name
         - kind
         - state
-      description: One program attachment. An interface attachment names the interface and direction; a cgroup attachment names the cgroup instead and has neither.
+      description: One program attachment. An interface attachment names the interface and direction, a cgroup attachment names the cgroup, and any other attachment, such as a sockmap verdict or a tracing program, describes its hook in `hook`.
       properties:
         name:
           type: string
@@ -9200,6 +9228,7 @@ components:
           enum:
             - interface
             - cgroup
+            - other
         interface:
           type: string
           minLength: 1
@@ -9212,6 +9241,10 @@ components:
           type: string
           minLength: 1
           description: cgroup v2 path relative to the cgroup2 mount; / is the root cgroup.
+        hook:
+          type: string
+          minLength: 1
+          description: Where an `other` attachment is attached, in the engine's words, such as the sockmap a verdict program serves or the kernel function a tracing program hooks.
         state:
           type: string
           enum:
@@ -9219,22 +9252,40 @@ components:
             - detached
             - error
             - unknown
-      if:
-        properties:
-          kind:
-            const: interface
-      then:
-        required:
-          - interface
-          - direction
-        properties:
-          cgroup: false
-      else:
-        required:
-          - cgroup
-        properties:
-          interface: false
-          direction: false
+      allOf:
+        - if:
+            properties:
+              kind:
+                const: interface
+          then:
+            required:
+              - interface
+              - direction
+            properties:
+              cgroup: false
+              hook: false
+        - if:
+            properties:
+              kind:
+                const: cgroup
+          then:
+            required:
+              - cgroup
+            properties:
+              interface: false
+              direction: false
+              hook: false
+        - if:
+            properties:
+              kind:
+                const: other
+          then:
+            required:
+              - hook
+            properties:
+              interface: false
+              direction: false
+              cgroup: false
     EbpfMaps:
       type: object
       required:
@@ -11930,7 +11981,7 @@ components:
             - direct
             - global
             - unknown
-          description: Engine mode override observed for this outbound attempt, such as honk's Clash mode, separate from the configured dial mode. This field does not expose a native runtime-mode setting. none means no override was applied; unknown means the recorder could not determine it.
+          description: Engine mode override observed for this outbound attempt, separate from the configured dial mode. This field does not expose a native runtime-mode setting. none means no override was applied; unknown means the recorder could not determine it.
         selection_path:
           type: array
           items:
@@ -13241,7 +13292,7 @@ components:
                   description: Event capture is running.
             grace_remaining_seconds:
               $ref: '#/components/schemas/SafeUInt'
-              description: Seconds left before automatic recorders stop after the last client left, 0 while a client is attached or nothing is recording. Absent when the engine keeps no such grace.
+              description: Seconds left in the engine's attachment grace after the last client left, 0 while a client is attached or once the grace has run out. Which recorders follow this grace is engine-defined, and a recorder may keep its own demand timer that this value does not count. Absent when the engine keeps no attachment grace.
         geodata:
           $ref: '#/components/schemas/GeoDataSettings'
           description: Geodata download sources and automatic updates. Present when resources.geodata.configurable_sources is true. URLs are returned as written, with only listener-secret values masked, to every admitted caller.
@@ -13288,7 +13339,7 @@ components:
         geodata:
           $ref: '#/components/schemas/GeoDataSettingsPatch'
     RecorderMode:
-      description: true pins a permitted recorder on, false forces it off, and auto (the startup default) lets the engine record on demand, while clients read or follow what the recorder captures. What counts as demand, and how long it lasts, is engine-defined.
+      description: The value a PATCH sets for a recorder. true pins a permitted recorder on, false forces it off, and "auto" (the startup default) lets the engine record on demand. What counts as demand, and how long it lasts, is engine-defined. GET reports the result as the string RecorderState.mode, not as this value.
       oneOf:
         - type: boolean
         - type: string
@@ -13310,6 +13361,7 @@ components:
             - auto
             - 'on'
             - 'off'
+          description: The recorder's mode as reported by GET, always a string. "on" follows a PATCH of true, "off" a PATCH of false, and auto a PATCH of "auto" or no PATCH at all.
         active:
           type: boolean
           description: The recorder is capturing right now.

@@ -54,8 +54,8 @@ entire selected set, including non-closable entries. See
 [Closing connections](connections.html#Closing) for permissions, ownership,
 filters, and errors.
 
-`logs` advertises supported `levels`, `retention_seconds` and
-`max_buffered_records`. Its bounded SSE feed carries sanitized log records,
+`logs` advertises supported `levels`, the query `filters`, `retention_seconds`,
+`max_buffered_records` and the optional `min_buffered_records`. Its bounded SSE feed carries sanitized log records,
 separately from invalidation events.
 `providers` advertises `can_refresh`, `can_manage` and `max_page_size`
 (1–1000); refresh requires `control` and the operation resource, and
@@ -78,7 +78,9 @@ are positive safe integers. See [Logs](logs.html), [Providers](providers.html),
 when true, `fields` lists which settings the PATCH accepts on this backend.
 
 `dns_log.available` declares the ring of recent client resolutions; when
-true, `max_records` and `max_page_size` are required positive safe integers.
+true, `max_records` and `max_page_size` are required positive safe integers,
+and the optional `min_records` is the smallest ring a runtime-settings PATCH
+may set.
 
 `dns_rules.available` declares `GET /api/v1/dns/rules`; when true, `max_rules`
 bounds each of its two lists, including the fallback entry. See

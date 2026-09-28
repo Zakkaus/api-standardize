@@ -220,17 +220,22 @@ setting is the log level reports `log.level` alone:
 | flows.retention_seconds | 1 to `flows.retention_seconds` | Maximum age after termination; capacity pressure may evict a flow sooner. |
 | source | | `config` while every value comes from the activated configuration, `runtime` once a PATCH overrode one. |
 | geodata | | Geodata download URLs, download route, automatic updates and checksum verification, with their own read-only `source` for the URLs; URLs are returned as written, with only listener-secret values masked. Present when `resources.geodata.configurable_sources` is true. See [Geodata](geodata.html#Configure-the-sources). |
-| recording | | Read-only recorder state. `flows`, `logs` and `dns_log` each report `allowed`, `mode` (`auto`, `on`, `off`) and `active`, and appear when `record_flows`, `record_logs` and `record_dns_log` are listed in `fields`. `events.active` reports event capture. `grace_remaining_seconds`, when present, counts down before automatic recorders stop after the last client left. |
+| recording | | Read-only recorder state. `flows`, `logs` and `dns_log` each report `allowed`, `mode` (`auto`, `on`, `off`) and `active`, and appear when `record_flows`, `record_logs` and `record_dns_log` are listed in `fields`. `events.active` reports event capture. `grace_remaining_seconds`, when present, counts the engine's attachment grace after the last client left; which recorders follow it is engine-defined, and an engine without such a grace omits it. |
 
 The capability bounds are the engine's own limits, not the current values.
 An absent minimum means 1.
 
-In `auto` mode a recorder captures on demand: while clients read or follow
-what it records. What counts as demand and how long it lasts after the last
-client left is engine-defined; `resources.flows.recording` reports
-`on_demand` while the flow recorder is in `auto` mode. Recording starts on
-demand, so the first history a panel reads may be empty. honk's rules are in
-the [honk notes](honk-mapping.html#Runtime-settings-in-honk).
+In `auto` mode, a recorder captures according to client demand. The requests
+and streams that create demand, and any grace period after clients leave, are
+engine-defined. Recording starts on demand, so the first history a panel reads
+may be empty. honk's rules are in the
+[honk notes](honk-mapping.html#Runtime-settings-in-honk).
+
+`resources.flows.recording` reports the flow recorder's policy, and
+`recording.flows.active` reports whether it is capturing now. The policy is
+`off` when the configuration does not permit the recorder or its mode is `off`,
+`on` when its mode is `on`, and `on_demand` when its mode is `auto`, whether or
+not a client creates demand at the moment.
 
 ## PATCH /api/v1/runtime/settings
 
@@ -238,7 +243,8 @@ Requires `control`. Only the fields listed in `resources.runtime_settings.fields
 may appear; the body merges, an absent field keeps its value. `record_flows`,
 `record_logs` and `record_dns_log` take `true` (keep the recorder on without
 clients), `false` (force it off) or `"auto"` (the startup default: record on
-demand); pinning a recorder the configuration forbids rejects the whole patch.
+demand). GET reports the result in `recording.*.mode` as the string `on`, `off`
+or `auto`, never as a boolean. Pinning a recorder the configuration forbids rejects the whole patch.
 `{"log": {"level": "info"}}` is a complete request.
 
 {% api_request patchRuntimeSettings debug %}

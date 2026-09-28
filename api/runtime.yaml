@@ -466,6 +466,10 @@ paths:
                           kind: cgroup
                           cgroup: /
                           state: attached
+                        - name: sk_msg_verdict
+                          kind: other
+                          hook: sk_msg verdict on the socket map
+                          state: attached
                       maps:
                         state: ready
                         conn_state:
@@ -873,6 +877,7 @@ schemas:
         properties:
           attachments:
             type: array
+            description: The attachments the engine checks. The list may be partial; an engine need not report every program it attached.
             items:
               $ref: ./openapi.yaml#/components/schemas/EbpfAttachment
           maps:
@@ -880,7 +885,7 @@ schemas:
   EbpfAttachment:
     type: object
     required: [ name, kind, state ]
-    description: One program attachment. An interface attachment names the interface and direction; a cgroup attachment names the cgroup instead and has neither.
+    description: One program attachment. An interface attachment names the interface and direction, a cgroup attachment names the cgroup, and any other attachment, such as a sockmap verdict or a tracing program, describes its hook in `hook`.
     properties:
       name:
         type: string
@@ -888,7 +893,7 @@ schemas:
         description: Program or hook name.
       kind:
         type: string
-        enum: [ interface, cgroup ]
+        enum: [ interface, cgroup, other ]
       interface:
         type: string
         minLength: 1
@@ -899,22 +904,43 @@ schemas:
         type: string
         minLength: 1
         description: cgroup v2 path relative to the cgroup2 mount; / is the root cgroup.
+      hook:
+        type: string
+        minLength: 1
+        description: Where an `other` attachment is attached, in the engine's words, such as the sockmap a verdict program serves or the kernel function a tracing program hooks.
       state:
         type: string
         enum: [ attached, detached, error, unknown ]
-    if:
-      properties:
-        kind:
-          const: interface
-    then:
-      required: [ interface, direction ]
-      properties:
-        cgroup: false
-    else:
-      required: [ cgroup ]
-      properties:
-        interface: false
-        direction: false
+    allOf:
+      - if:
+          properties:
+            kind:
+              const: interface
+        then:
+          required: [ interface, direction ]
+          properties:
+            cgroup: false
+            hook: false
+      - if:
+          properties:
+            kind:
+              const: cgroup
+        then:
+          required: [ cgroup ]
+          properties:
+            interface: false
+            direction: false
+            hook: false
+      - if:
+          properties:
+            kind:
+              const: other
+        then:
+          required: [ hook ]
+          properties:
+            interface: false
+            direction: false
+            cgroup: false
   EbpfMaps:
     type: object
     required: [ state, conn_state ]

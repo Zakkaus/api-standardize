@@ -22,7 +22,8 @@ A level outside the five above returns `400 invalid_request`; one of them that
 `filters` lists the query filters the engine applies; `level` is always
 listed, and `target` on an engine that does not list it returns
 `422 unsupported_value`. Capabilities advertise `levels`, `filters`,
-`retention_seconds` and `max_buffered_records`; clients must not infer them
+`retention_seconds`, `max_buffered_records` and the optional
+`min_buffered_records`; clients must not infer them
 from the engine version.
 
 ## Response

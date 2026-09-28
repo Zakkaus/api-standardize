@@ -814,7 +814,7 @@ schemas:
               recording:
                 type: string
                 enum: [ off, on, sampled, on_demand ]
-                description: How the engine records flows right now. off records none; on records every flow in scopes; sampled records a subset; on_demand records only while clients read or follow flows, which is recording.flows.mode auto in GET /runtime/settings.
+                description: The engine's flow recording policy, not whether the recorder is capturing now. off records none, because the configuration does not permit the flow recorder or its mode is off; on records every flow in scopes (mode on); sampled records a subset; on_demand is mode auto, recording while clients create demand, whether or not any client does now. recording.flows.active in GET /runtime/settings reports whether the recorder is capturing.
               scopes:
                 type: array
                 uniqueItems: true
@@ -833,8 +833,8 @@ schemas:
                 minimum: 1
               retention_seconds:
                 type: integer
-                minimum: 0
-                description: The longest terminal-flow retention the engine supports, which is the most a runtime-settings PATCH may set, not the current value. The current value is flows.retention_seconds in GET /runtime/settings.
+                minimum: 1
+                description: The longest terminal-flow retention the engine supports, which is the most a runtime-settings PATCH may set, not the current value. The smallest a PATCH may set is always 1. The current value is flows.retention_seconds in GET /runtime/settings.
               snapshot_ttl_seconds:
                 type: integer
                 minimum: 1
