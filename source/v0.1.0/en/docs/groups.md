@@ -110,8 +110,8 @@ Updates group configuration only. It does not change runtime selection.
 
 Use RFC 6902 JSON Patch and send the `ETag` of `GET /groups/{group_id}/config`
 in `If-Match`, evaluated as [conditional requests](errors.html#Conditional-requests)
-defines. A new group-configuration PATCH without `If-Match` returns `428`; a
-retained idempotent replay may omit it.
+defines; a retained replay may omit it, as
+[choosing the status](errors.html#Choosing-the-status) describes.
 Requires `resources.groups.config_patch`; without it the request
 returns `404 capability_not_supported`. A group patch is a configuration
 write, so `config_patch` is true only when `resources.config.writable` is.
