@@ -60,7 +60,8 @@ separately from invalidation events.
 `providers` advertises `can_refresh`, `can_manage` and `max_page_size`
 (1–1000); refresh requires `control` and the operation resource, and
 `can_manage` means the backend owns a writable main source and implements
-provider create and delete. `nodes` advertises `can_manage` on the same terms
+provider create and delete. `create_unfetched: true` means a created provider
+is not fetched until refresh. `nodes` advertises `can_manage` on the same terms
 for inline nodes. `geodata` advertises `can_update` and the `assets` it reports
 (`geosite`, `geoip`); update requires `control` and the operation resource.
 `geodata.configurable_sources: true` means the download URLs and automatic

@@ -112,17 +112,19 @@ that already holds.
 
 ## Activation outcomes
 
-A configuration change is stored and then activated as a new runtime
-generation. This applies to a reload, a source replacement or creation, a node
-or provider create or delete, and a group patch that edits the configuration.
-Storing and activating are separate steps, so every activation failure reports
-both in `error.details`:
+Activation publishes a new runtime generation. A configuration write may be
+stored before or after activation; a plain reload stores nothing. For a reload,
+a source replacement or creation, a node or provider create or delete, or a
+group patch that edits the configuration, an activation failure reports its
+outcome in `error.details`:
 
 | Detail | Type | Meaning |
 |--------|------|---------|
 | `written` | boolean | The store holds the change after the failure. A plain reload stores nothing and omits it. |
 | `committed` | boolean or null | Whether the new generation is active. Present on every activation failure. |
 | `active_generation_id` | string or null | Present when `committed` is `true`: the active generation, or `null` when the server cannot name it. |
+| `stage` | string | Synchronous responses only: the outcome code, or an adapter-defined code for a failure before activation starts. |
+| `durability_confirmed` | boolean | Optional. `false` when the store holds the change but could not confirm that it survives a crash. |
 
 - `committed: false`: the change never became active, and the previous
   generation is still active.
@@ -132,16 +134,16 @@ both in `error.details`:
 - `committed: null`: the server cannot tell. Read `GET /runtime` back and
   compare `generation.active_id` before retrying.
 
-`written` and `committed` are independent: a change can be stored without being
-active, or active without being stored. Source creation is the exception: with
-`committed: false` the server removes the created source and reports
-`written: false`, or `written: true` when the removal failed. See
-[creating a source](configuration.html#Creating-a-source).
+`written` and `committed` are independent: storage can succeed without
+activation, or activation without storage. For source-creation rollback and
+recovery, see [creating a source](configuration.html#Creating-a-source).
 
-A failed operation carries the outcome in `error.code`. A synchronous response,
-such as a node or provider write that would have returned `201` or `200`, keeps
-its HTTP code, usually `503 temporarily_unavailable`, and carries the outcome in
-`error.details.stage`. Every adapter uses these outcome codes:
+A failed operation carries the outcome code in `error.code`. A synchronous
+request returns an HTTP error, usually `503 temporarily_unavailable`, and
+carries the outcome code in `error.details.stage`. An adapter uses each code
+below when its case applies. `supervisor_reconciliation_failed` and
+`store_unavailable` apply only to an engine with a separate worker supervisor
+or a store it records after activation; other engines never report them.
 
 | Code | `committed` | Meaning |
 |------|-------------|---------|
@@ -153,6 +155,11 @@ its HTTP code, usually `503 temporarily_unavailable`, and carries the outcome in
 
 A failure before activation starts, such as an unavailable engine, has
 `committed: false` and may use another adapter-defined code.
+
+These outcomes are reported only by an instance that survives the failure. If
+the engine process stops or restarts, queued and running operations and their
+outcomes can be lost, and a new instance returns `404` for their IDs. Read
+`GET /runtime` and `GET /config` from the new instance before retrying.
 
 ## Endpoint-specific recovery
 

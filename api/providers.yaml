@@ -75,8 +75,10 @@ paths:
         the provider into the subscription section of its managed main source,
         advances the configuration revision, and emits generation.changed. A later
         replacement of that main source using its previous content_sha256 returns
-        412 stale_revision. The provider is created unfetched: node_count 0, updated_at null and
-        status stale; call POST /providers/{provider_id}/refresh to load it. The URL is stored,
+        412 stale_revision. When resources.providers.create_unfetched is true, the provider is
+        created unfetched: node_count 0, updated_at null and status stale; call
+        POST /providers/{provider_id}/refresh to load it. Otherwise the backend may fetch the
+        provider during activation and returns its actual state. The URL is stored,
         never returned; the response carries url_redacted. A name already in use
         returns 409 state_conflict. A URL that is not HTTP(S) returns 422 unsupported_value.
         update_interval, user_agent and cache are accepted only when named in
@@ -84,9 +86,8 @@ paths:
         and one the backend does not list returns 422 unsupported_value.
         Returns 201 with the provider once the change is active, or 202 with a
         provider_create operation whose result is the created provider. A
-        failure after the change is stored reports written, committed and
-        active_generation_id as defined under activation outcomes in the error
-        contract.
+        failed activation reports its outcome as defined under activation
+        outcomes in the error contract.
       x-permission: control
       security:
         - bearerAuth: []
@@ -351,9 +352,8 @@ paths:
         provider that is the only member source of a group is still removed; the
         group is then empty. Returns 200 once the change is active, or 202 with
         a provider_delete operation whose result is the same deletion count. A
-        failure after the change is stored reports written, committed and
-        active_generation_id as defined under activation outcomes in the error
-        contract.
+        failed activation reports its outcome as defined under activation
+        outcomes in the error contract.
       x-permission: control
       security:
         - bearerAuth: []

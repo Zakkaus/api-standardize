@@ -194,6 +194,7 @@ paths:
                         available: true
                         can_refresh: true
                         can_manage: true
+                        create_unfetched: true
                         create_options:
                           update_interval: 86400
                           user_agent: honk/0.0.1-alpha
@@ -689,6 +690,9 @@ schemas:
               can_manage:
                 type: boolean
                 description: Supports creating subscription providers and deleting subscription or file providers from a writable managed main source.
+              create_unfetched:
+                type: boolean
+                description: A created provider is not fetched until POST /providers/{provider_id}/refresh; it starts with node_count 0, updated_at null and status stale. False or absent means the backend may fetch it during activation and reports its actual state.
               create_options:
                 type: object
                 additionalProperties: false

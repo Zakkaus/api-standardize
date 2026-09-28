@@ -127,37 +127,40 @@ reload. It returns `422 unsupported_value` in the shared `{error, request_id}`
 envelope, with `ConfigDiagnostic` entries in `error.details.diagnostics`.
 Warnings and info alone do not prevent a write.
 
-Two changes that a reload would reject are refused the same way, before
-anything is stored:
+The server refuses the following changes before storing anything:
 
 - A replacement that sets or changes API listener settings or secrets returns
   `403 permission_denied`.
-- A change to a setting the running engine applies only at startup returns
-  `422 unsupported_value` with one `restart-required` error diagnostic per
-  setting. Dry-run validation reports the same settings as `restart-required`
-  warnings, because the candidate itself is valid.
+- A requested change that cannot take effect through a reload, compared with
+  the active configuration, returns `422 unsupported_value` with one
+  `restart-required` error diagnostic per setting. Dry-run validation reports
+  the same settings as `restart-required` warnings, because the candidate
+  itself is valid.
 
-Otherwise the server commits the replacement to the store as one transaction:
-a reader of the store sees the old bytes or the new bytes, never a mix.
-Concurrent API writes serialize the hash check, validation, and commit. The
-server checks the stored hash again at commit and rejects a changed hash with
-`412`. It then starts a reload operation with `kind: reload`. A store may
-instead record the replacement only after the new generation is active; the
-operation's `written` detail then says whether it did.
+After validation, the server commits the replacement atomically, either before
+activation or after the new generation becomes active: store readers see the
+old bytes or the new bytes, never a mix. Concurrent API writes serialize the
+hash check, validation, and commit. At commit, a changed stored hash causes
+`412`. The server starts a reload operation with `kind: reload`; on failure,
+`written` reports whether the store holds the replacement. The operation
+succeeds only after both the commit and the activation finish; a `202` means
+the server accepted the replacement, not that it is stored.
 
 A file store commits by writing a temporary file in the source's directory and
 renaming it over the source, preserving the file mode.
 
+Each write activates the candidate it validated. The next configuration write
+waits until the previous activation finishes; a server that does not queue
+writes returns `409 state_conflict` instead. An edit made to the store outside
+the API before the commit makes the commit fail with `412`. An edit made after
+the commit is not part of this activation; it takes effect at a later reload.
+
 {% api_example replaceConfigSource 202 queued http %}
 
-A failed reload does not undo the stored replacement. The failed operation
-reports `written` and `committed` as described in
-[activation outcomes](errors.html#Activation-outcomes). With
-`committed: false` the previous generation stays active, and readback still
-describes the previously accepted bytes. With `committed: true` the new
-generation is active although the operation failed. With `committed: null`,
-read `GET /runtime` back before acting. Reconcile the stored source before
-retrying.
+On reload failure, use `written` and `committed` as defined in
+[activation outcomes](errors.html#Activation-outcomes). If `committed: false`,
+readback still describes the previously accepted bytes. Reconcile any stored
+replacement before retrying.
 
 ### Errors
 
@@ -165,6 +168,7 @@ retrying.
 |-----------------|--------------------|
 | `403 permission_denied` | Missing `control`, disabled server-wide editing, a read-only source, a replacement that sets or changes API listener settings or secrets, or, in a file store, a source path that is no longer a regular file. Do not offer writes for that source. |
 | `404 resource_not_found` | Unknown source ID. Refetch the accepted source set. |
+| `409 state_conflict` | Another configuration write is still activating and this server does not queue writes; nothing is stored. Retry after it finishes. |
 | `412 stale_revision` | The stored content hash differs from `If-Match`; the server stores nothing. Reconcile the changed source before retrying. Refetching the accepted snapshot alone may still return the old hash. |
 | `422 unsupported_value` | Full validation found error diagnostics, including `restart-required`; the server stores nothing and starts no reload. Display diagnostics and correct the candidate. |
 | `428 precondition_required` | `If-Match` is missing; the server writes nothing. Supply the retained source hash. |
@@ -223,7 +227,8 @@ Otherwise the server commits the new source to the store without replacing
 anything that appeared at `path` meanwhile, and starts a reload operation with
 `kind: reload`. A file store writes a temporary file in the target directory
 and renames it into place with a rename that fails if `path` exists, using the
-main source's file mode.
+main source's file mode. Storing, activation and serialization follow the
+[replacement](#Validation-and-commit) rules.
 
 {% api_example createConfigSource 202 queued http %}
 
@@ -231,12 +236,15 @@ A failure before the source is stored creates nothing. After it is stored, the
 [activation outcome](errors.html#Activation-outcomes) decides whether it stays:
 
 - `committed: false`: the reload could not start or the engine rejected the new
-  configuration, and the previous generation is still active. The server removes
-  the created source, so the store again matches the active configuration, and
-  reports `written: false`. If the removal fails, it reports `written: true`:
-  the source is still in the store and the next reload loads it, but it is not
-  an accepted source, so the API cannot address it. Remove it from the
-  configuration store outside the API before retrying.
+  configuration, and the previous generation is still active. If the store
+  still holds the source this operation created, the server removes it, so the
+  store again matches the active configuration, and reports `written: false`.
+  A file store compares file identity, so a file that replaced the created one
+  at `path` is never removed. If the source was replaced, or the removal fails,
+  the server keeps it and reports `written: true`: the source is in the store
+  and the next reload loads it, but it is not an accepted source, so the API
+  cannot address it. Reconcile it in the configuration store outside the API
+  before retrying.
 - `committed: true`: the new generation is active but degraded. The source
   stays and is an accepted source.
 - `committed: null`: the source stays. Read `GET /config` and `GET /runtime`

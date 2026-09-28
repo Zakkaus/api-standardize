@@ -34,11 +34,8 @@ datapath policy; they need not be equal when the engine reuses an unchanged poli
 datapath state is active. Reload may reuse an unchanged policy, and an unchanged
 configuration need not advance the generation.
 
-A failed reload reports in `error.details.committed` whether the new generation
-became active. The previous generation remains active only when it is `false`;
-when it is `true`, `active_generation_id` names the new generation, and when it
-is `null`, read `GET /runtime` back before retrying. The codes and details are
-listed under [activation outcomes](errors.html#Activation-outcomes).
+On failure, use [activation outcomes](errors.html#Activation-outcomes) to
+determine whether a new generation became active before retrying.
 
 ## Example
 

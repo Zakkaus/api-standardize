@@ -211,6 +211,7 @@ paths:
                         available: true
                         can_refresh: true
                         can_manage: true
+                        create_unfetched: true
                         create_options:
                           update_interval: 86400
                           user_agent: honk/0.0.1-alpha
@@ -1004,8 +1005,9 @@ paths:
         by an include pattern of that source set; if no pattern matches, return
         422 unsupported_value with a source-not-included error diagnostic.
         Content that sets or changes API listener settings or secrets returns
-        403 permission_denied. A change to a setting the engine applies only at
-        startup is a restart-required error diagnostic. If any diagnostic has
+        403 permission_denied. A requested change that cannot take effect through
+        reload, compared with the active configuration, is a restart-required
+        error diagnostic. If any diagnostic has
         level error, return 422 unsupported_value with error.details.diagnostics;
         never store the source or start a reload. Diagnostics about the new file use the source ID it has
         in the validated set; source-not-included names the main source with a
@@ -1013,15 +1015,17 @@ paths:
         Otherwise commit the source to the configuration store without replacing
         anything that appeared at path meanwhile; a file store uses a temporary
         file in the target directory and a rename that fails if path exists,
-        with the main source's file mode. Serialize validation and creation
-        against concurrent API writes. Then start a reload operation and return
-        202 OperationAccepted with kind reload, Location, and Retry-After. This
-        is not reload completion. A failure before the source is stored creates
-        nothing. A failed operation reports error.details.written and
-        error.details.committed as defined under activation outcomes in the
-        error contract. With committed false, remove the created source and
-        report written false, or written true if the removal failed. With
-        committed true or null, keep the source.
+        with the main source's file mode. Storing, activation and serialization
+        follow PUT /config/sources/{source_id}. Start a reload operation and
+        return 202 OperationAccepted with kind reload, Location, and
+        Retry-After. This is not reload completion. A failure before the source
+        is stored creates nothing. A failed operation reports
+        error.details.written and error.details.committed as defined under
+        activation outcomes in the error contract. With committed false, remove
+        the created source only if the store still holds the source this
+        operation created (a file store compares file identity) and report
+        written false; if it was replaced or the removal fails, keep it and
+        report written true. With committed true or null, keep the source.
         After successful reload, GET /config lists the new source with path as
         given. Idempotency-Key follows the same rules as for PUT.
       x-permission: control
@@ -1057,7 +1061,7 @@ paths:
                   Content-Type: application/json
       responses:
         '202':
-          description: Source stored and reload accepted
+          description: Creation accepted and reload queued; the operation reports whether the source was stored and activated
           headers:
             Location:
               description: Operation status URL; equal to body href.
@@ -1360,7 +1364,7 @@ paths:
         patches, caller-supplied file paths, or multi-source writes are accepted.
         Enforce resources.config.max_bytes on replacement UTF-8 bytes and the
         shared limits.max_json_body_bytes independently; excess returns 413.
-        Require If-Match before validating or writing: missing returns 428
+        Check If-Match before validating or writing: missing returns 428
         precondition_required; a hash different from the source's current bytes
         in the configuration store returns 412 stale_revision, even if it
         matches the accepted snapshot.
@@ -1371,25 +1375,31 @@ paths:
         Missing or inaccessible required local dependencies produce error diagnostics.
         An unfetched subscription produces a subscription-not-fetched warning and
         does not by itself invalidate the candidate; validation does not fetch it.
-        A change to a setting the engine applies only at startup is a
-        restart-required error diagnostic. If any diagnostic has level error,
+        A requested change that cannot take effect through reload, compared
+        with the active configuration, is a restart-required error diagnostic. If any diagnostic has level error,
         return 422 unsupported_value with error.details.diagnostics using
         ConfigDiagnostic; never store the replacement or start a reload. Warnings
         and info alone do not prevent a write.
-        Otherwise commit the replacement to the configuration store as one
-        transaction; a file store writes a temporary file in the same directory
-        and renames it, preserving the mode. Serialize the hash check,
-        validation, and commit against concurrent API writes; recheck the stored
-        hash at commit and return 412 if it changed. Then start a reload
-        operation and return 202 OperationAccepted with kind reload, Location,
-        and Retry-After. This is not reload completion.
+        Otherwise commit the replacement to the configuration store atomically,
+        either before activation or after the new generation becomes active;
+        readers of the store see the old or the new bytes, never a mix. A file
+        store writes a temporary file in the same directory and renames it,
+        preserving the mode. Serialize the hash check, validation, and commit
+        against concurrent API writes; recheck the stored hash at commit and
+        return 412 if it changed. Start a reload operation and return 202
+        OperationAccepted with kind reload, Location, and Retry-After. 202
+        means accepted, not stored or active; the operation succeeds only after
+        both the commit and the activation finish. Activate the candidate that
+        was validated. The next configuration write waits until this activation
+        finishes, or returns 409 state_conflict if the server does not queue
+        writes. An edit to the store outside the API before the commit fails
+        the commit with 412; one made after the commit takes effect at a later
+        reload.
         If reload publishes a new generation and events are available, emit
         generation.changed. After successful reload, GET /config reports the accepted
-        content_sha256. A failed reload does not undo the stored replacement; the
-        failed operation reports error.details.written and
-        error.details.committed as defined under activation outcomes in the error
-        contract. The previous generation remains active only when committed is
-        false.
+        content_sha256. A failed operation reports error.details.written and
+        error.details.committed as defined under activation outcomes in the
+        error contract.
         Idempotency-Key follows the operation retention rules: scope it to caller,
         method, and path in this instance. A retained same-body replay returns the
         original operation without another write or hash check; a different body
@@ -1444,7 +1454,7 @@ paths:
                   If-Match: '"d1f62f00c6da9ec33956e66b8cc3b4670f164556fc12453193904af23451dec1"'
       responses:
         '202':
-          description: Source stored atomically and reload accepted
+          description: Replacement accepted and reload queued; the operation reports whether it was stored and activated
           headers:
             Location:
               description: Operation status URL; equal to body href.
@@ -2173,9 +2183,9 @@ paths:
         error.message. A name already in use returns 409 state_conflict. The node belongs to the
         inline provider and to every group whose filter matches it after reload.
         Returns 201 with the node once the change is active, or 202 with a
-        node_create operation whose result is the created node. A failure after
-        the change is stored reports written, committed and active_generation_id
-        as defined under activation outcomes in the error contract.
+        node_create operation whose result is the created node. A failed
+        activation reports its outcome as defined under activation outcomes in
+        the error contract.
       x-permission: control
       security:
         - bearerAuth: []
@@ -2441,8 +2451,10 @@ paths:
         the provider into the subscription section of its managed main source,
         advances the configuration revision, and emits generation.changed. A later
         replacement of that main source using its previous content_sha256 returns
-        412 stale_revision. The provider is created unfetched: node_count 0, updated_at null and
-        status stale; call POST /providers/{provider_id}/refresh to load it. The URL is stored,
+        412 stale_revision. When resources.providers.create_unfetched is true, the provider is
+        created unfetched: node_count 0, updated_at null and status stale; call
+        POST /providers/{provider_id}/refresh to load it. Otherwise the backend may fetch the
+        provider during activation and returns its actual state. The URL is stored,
         never returned; the response carries url_redacted. A name already in use
         returns 409 state_conflict. A URL that is not HTTP(S) returns 422 unsupported_value.
         update_interval, user_agent and cache are accepted only when named in
@@ -2450,9 +2462,8 @@ paths:
         and one the backend does not list returns 422 unsupported_value.
         Returns 201 with the provider once the change is active, or 202 with a
         provider_create operation whose result is the created provider. A
-        failure after the change is stored reports written, committed and
-        active_generation_id as defined under activation outcomes in the error
-        contract.
+        failed activation reports its outcome as defined under activation
+        outcomes in the error contract.
       x-permission: control
       security:
         - bearerAuth: []
@@ -2721,9 +2732,8 @@ paths:
         provider that is the only member source of a group is still removed; the
         group is then empty. Returns 200 once the change is active, or 202 with
         a provider_delete operation whose result is the same deletion count. A
-        failure after the change is stored reports written, committed and
-        active_generation_id as defined under activation outcomes in the error
-        contract.
+        failed activation reports its outcome as defined under activation
+        outcomes in the error contract.
       x-permission: control
       security:
         - bearerAuth: []
@@ -3002,9 +3012,9 @@ paths:
         the node from the running groups, advances the configuration revision and
         emits generation.changed. Idempotent: an unknown id returns deleted 0.
         Returns 200 once the change is active, or 202 with a node_delete
-        operation whose result is the same deletion count. A failure after the
-        change is stored reports written, committed and active_generation_id as
-        defined under activation outcomes in the error contract.
+        operation whose result is the same deletion count. A failed
+        activation reports its outcome as defined under activation outcomes in
+        the error contract.
       x-permission: control
       security:
         - bearerAuth: []
@@ -7079,7 +7089,7 @@ components:
       format: date-time
     ErrorCode:
       type: string
-      description: 'Closed catalogue of HTTP error codes. Adding a code changes the contract. Embedded errors such as operation.error, datapath.errors, last_reload.error, and provider.last_error use SafeError with adapter-defined codes, except the activation outcome codes every adapter uses for a failed configuration change: reload_rejected, reload_degraded, supervisor_reconciliation_failed, activation_unconfirmed and store_unavailable.'
+      description: 'Closed catalogue of HTTP error codes. Adding a code changes the contract. Embedded errors such as operation.error, datapath.errors, last_reload.error, and provider.last_error use SafeError with adapter-defined codes, except the shared activation outcome codes an adapter uses for a failed configuration change when the case applies: reload_rejected, reload_degraded, supervisor_reconciliation_failed, activation_unconfirmed and store_unavailable.'
       enum:
         - invalid_request
         - authentication_required
@@ -7667,6 +7677,9 @@ components:
                 can_manage:
                   type: boolean
                   description: Supports creating subscription providers and deleting subscription or file providers from a writable managed main source.
+                create_unfetched:
+                  type: boolean
+                  description: A created provider is not fetched until POST /providers/{provider_id}/refresh; it starts with node_count 0, updated_at null and status stale. False or absent means the backend may fetch it during activation and reports its actual state.
                 create_options:
                   type: object
                   additionalProperties: false
