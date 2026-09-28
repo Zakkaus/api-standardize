@@ -542,7 +542,7 @@ schemas:
               max_bytes:
                 $ref: ./openapi.yaml#/components/schemas/SafeUInt
                 minimum: 1
-                description: Maximum UTF-8 bytes in replacement or new source content. At most limits.max_json_body_bytes minus the request envelope, which is the compact UTF-8 JSON overhead of the request body, including for POST a path of the longest allowed length (1024 bytes). Content that JSON escaping expands can still exceed limits.max_json_body_bytes, and that limit then applies.
+                description: Maximum UTF-8 bytes in replacement or new source content. At most limits.max_json_body_bytes minus the request envelope, which is the largest compact UTF-8 JSON encoding of the request body without its content, taking for POST the permitted path whose encoding is longest (each quotation mark or backslash in the path encodes to two bytes, so this exceeds the path's 1024-byte limit). Content that JSON escaping expands can still exceed limits.max_json_body_bytes, and that limit then applies.
               max_sources:
                 $ref: ./openapi.yaml#/components/schemas/SafeUInt
                 minimum: 1

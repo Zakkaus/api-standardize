@@ -73,10 +73,12 @@ check that fails:
 6. Current state: `409`.
 
 A rate limit (`429`) or full shared capacity (`503`) is reported when the
-request is admitted, after the checks it passed. Two exceptions: source
+request is admitted, after the checks it passed. Three exceptions: source
 creation returns `409` for a `path` already in use before it validates the
-content, and a configuration write decides the listener-settings `403` during
-validation. The table below defines each status. Endpoint pages link here
+content; a configuration write decides the listener-settings `403` during
+validation; and a group patch checks `Content-Type` (`415`) first and reports a
+missing (`428`) or malformed (`400`) `If-Match` after the replay lookup, so a
+retained replay returns the original response without `If-Match`. The table below defines each status. Endpoint pages link here
 instead of repeating the order; an endpoint page names only which of its own
 cases fall in which row.
 

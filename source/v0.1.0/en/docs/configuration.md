@@ -239,14 +239,16 @@ A failure before the source is stored creates nothing. After it is stored, the
 
 - `committed: false`: the reload could not start or the engine rejected the new
   configuration, and the previous generation is still active. If the store
-  still holds the source this operation created, the server removes it, so the
-  store again matches the active configuration, and reports `written: false`.
-  A file store compares file identity, so a file that replaced the created one
-  at `path` is never removed. If the source was replaced, or the removal fails,
-  the server keeps it and reports `written: true`: the source is in the store
-  and the next reload loads it, but it is not an accepted source, so the API
-  cannot address it. Reconcile it in the configuration store outside the API
-  before retrying.
+  still holds the source this operation created, with the same identity and
+  the same content, the server removes it, so the store again matches the
+  active configuration, and reports `written: false`. A file store compares
+  both file identity and file content, so a file that replaced the created one
+  at `path`, or an edit made to it in place, is never removed. If the source
+  was replaced or modified, or the removal fails, the server keeps it and
+  reports the cleanup conflict as `written: true` with `committed: false`: the
+  source is in the store and the next reload loads it, but it is not an
+  accepted source, so the API cannot address it. Reconcile it in the
+  configuration store outside the API before retrying.
 - `committed: true`: the new generation is active but degraded. The source
   stays and is an accepted source.
 - `committed: null`: the source stays. Read `GET /config` and `GET /runtime`

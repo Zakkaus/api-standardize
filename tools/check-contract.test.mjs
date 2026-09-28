@@ -550,7 +550,7 @@ test("configuration examples obey visibility, runtime identity, and advertised l
   assert.equal(config.revision, runtime.generation.config_revision);
   assert.ok(config.sources.length <= resources.config.max_sources);
   const limits = example("getCapabilities:200:available").body.limits;
-  const envelope = Buffer.byteLength(JSON.stringify({ path: "p".repeat(1024), content: "" }), "utf8");
+  const envelope = Buffer.byteLength(JSON.stringify({ path: '"'.repeat(1020) + ".dae", content: "" }), "utf8");
   assert.ok(resources.config.max_bytes + envelope <= limits.max_json_body_bytes,
     "config.max_bytes leaves room for the request envelope");
   for (const source of config.sources) {

@@ -210,9 +210,11 @@ paths:
         error.details.written and error.details.committed as defined under
         activation outcomes in the error contract. With committed false, remove
         the created source only if the store still holds the source this
-        operation created (a file store compares file identity) and report
-        written false; if it was replaced or the removal fails, keep it and
-        report written true. With committed true or null, keep the source.
+        operation created, with the same identity and content (a file store
+        compares file identity and file content), and report written false; if
+        it was replaced or modified, or the removal fails, keep it and report
+        the cleanup conflict as written true with committed false. With
+        committed true or null, keep the source.
         After successful reload, GET /config lists the new source with path as
         given. Idempotency-Key follows the same rules as for PUT.
       x-permission: control

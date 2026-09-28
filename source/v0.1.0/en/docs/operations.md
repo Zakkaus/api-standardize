@@ -90,8 +90,8 @@ is scoped to the running instance, caller, method, and path. Reusing it with a b
 original `202` body unchanged (its `status` stays `queued` whatever the
 operation's current status), or the original synchronous `200`. Reusing it with
 a body that differs in any byte returns `409 idempotency_conflict`. The key of
-an unfinished operation is never evicted; when the store holds only unfinished
-operations, a new one is refused with `503 temporarily_unavailable`. A finished
+an unfinished operation is never evicted; when the store is full and holds only
+unfinished operations, a new one is refused with `503 temporarily_unavailable`. A finished
 key is retained for the advertised retention window from completion: from the
 terminal state of an operation, or from the reply of a synchronous `200`.
 Without a key, a retried request may start another operation.
