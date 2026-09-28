@@ -89,13 +89,9 @@ bounds each of its two lists, including the fallback entry. See
 `resources.config.available` gates accepted-source readback. When available, it
 requires `writable`, `max_bytes`, and `max_sources`.
 
-Every returned source carries its `content`: an admitted caller receives source
-text with only listener-secret values (`native_api.secret`, `clash_api.secret`)
-masked. `max_sources` bounds the complete source set; it does not permit
-truncation. `max_bytes` bounds the content of one replacement or new source. It
-is less than `limits.max_json_body_bytes` minus the request envelope, so content
-at the limit fits in a request; the body limit still applies to the encoded
-body, which escaping can enlarge.
+`max_sources` bounds the complete source set; it does not permit truncation.
+See [visibility](configuration.html#Visibility) for returned content and
+[editing](configuration.html#Editing) for `max_bytes`.
 
 Writing requires `control`, the server-wide switch, and a writable source.
 Advertising writes also requires full validation, reload, and operation support.

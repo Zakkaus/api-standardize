@@ -89,10 +89,12 @@ Only the requests below accept `Idempotency-Key` and support replay. The key
 is scoped to the running instance, caller, method, and path. Reusing it with a byte-identical body returns the original response: the
 original `202` body unchanged (its `status` stays `queued` whatever the
 operation's current status), or the original synchronous `200`. Reusing it with
-a body that differs in any byte returns `409 idempotency_conflict`. The key is
-retained while its operation is queued or running and for the advertised
-retention window after the operation reaches a terminal state. Without a key,
-a retried request may start another operation.
+a body that differs in any byte returns `409 idempotency_conflict`. The key of
+an unfinished operation is never evicted; when the store holds only unfinished
+operations, a new one is refused with `503 temporarily_unavailable`. A finished
+key is retained for the advertised retention window from completion: from the
+terminal state of an operation, or from the reply of a synchronous `200`.
+Without a key, a retried request may start another operation.
 
 | Request | Replay |
 |-----------|--------|
@@ -109,9 +111,10 @@ against current state. After an uncertain result, read the resource back
 before retrying.
 
 A key outlives its operation's early eviction: a replay can return an operation
-whose `GET` is already `404`. Retained keys are bounded too; past 1024, the
-oldest can be lost before the window ends, and replaying it may start a new
-operation.
+whose `GET` is already `404`. A server that advertises
+`resources.operations.max_replay_keys` may evict finished keys beyond that
+count before the window ends, oldest-finished first; replaying an evicted key
+may start a new operation.
 
 Operation idempotency is scoped to the running instance; it is not a durable
 retry guarantee across process restart. A client with an uncertain result

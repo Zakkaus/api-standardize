@@ -291,6 +291,7 @@ paths:
                       operations:
                         available: true
                         retention_seconds: 300
+                        max_replay_keys: 1024
                       reload:
                         available: true
                       suspend:
@@ -541,7 +542,7 @@ schemas:
               max_bytes:
                 $ref: ./openapi.yaml#/components/schemas/SafeUInt
                 minimum: 1
-                description: Maximum UTF-8 bytes in replacement or new source content. Must be less than limits.max_json_body_bytes minus the request envelope, so that content at this limit fits in a request body; the JSON body ceiling still applies independently, and escaping can make a body exceed it.
+                description: Maximum UTF-8 bytes in replacement or new source content. At most limits.max_json_body_bytes minus the request envelope, which is the compact UTF-8 JSON overhead of the request body, including for POST a path of the longest allowed length (1024 bytes). Content that JSON escaping expands can still exceed limits.max_json_body_bytes, and that limit then applies.
               max_sources:
                 $ref: ./openapi.yaml#/components/schemas/SafeUInt
                 minimum: 1
@@ -1068,6 +1069,10 @@ schemas:
               retention_seconds:
                 type: integer
                 minimum: 0
+              max_replay_keys:
+                type: integer
+                minimum: 1
+                description: Finished Idempotency-Key records the server keeps before the retention window ends. Beyond this count it may evict the oldest-finished first. Absent means none are evicted before the window ends. Keys of unfinished operations are never evicted.
           reload:
             $ref: ./openapi.yaml#/components/schemas/AvailableResource
           suspend:

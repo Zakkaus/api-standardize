@@ -52,10 +52,11 @@ parameters:
     in: query
     description: |
       Opaque cursor from the previous page's next_cursor, bound to the running
-      instance, the retained snapshot or record, the filters and limit. A cursor
-      the server no longer recognises (snapshot expired or evicted, record left
-      the ring, process restarted, never issued) returns 410 snapshot_expired;
-      discard it and restart the walk without a cursor. A recognised cursor sent
+      instance, the endpoint and resource it pages, the retained snapshot or
+      record, the filters and limit. A cursor the server no longer recognises
+      (snapshot expired or evicted, record left the ring, process restarted,
+      never issued, or issued for another endpoint or resource) returns
+      410 snapshot_expired; discard it and restart the walk without a cursor. A recognised cursor sent
       with different filters or a different limit returns 400 invalid_request.
       The server never continues a walk against a different snapshot.
     schema:

@@ -54,18 +54,39 @@ every request, and a `GET` with a body is malformed.
 
 ## Choosing the status
 
-After the request boundary, authentication and routing checks (`401`, `403`,
-`404`, `415`), a failed request gets the status of the first row below that
-describes the failure. Endpoint pages link here instead of repeating the rule;
-an endpoint page names only which of its own cases fall in which row.
+A server checks a request in this order and returns the status of the first
+check that fails:
+
+1. Authentication, authorization and routing: `401`, `403`, and `404` for an
+   unknown route or an unadvertised capability.
+2. Request boundary: a missing required `If-Match` (`428`) or a malformed one
+   (`400`), then `Content-Type` (`415`), body size (`413`), and parameter and
+   body schema (`400`).
+3. Idempotent replay, when the request carries `Idempotency-Key`: a retained
+   key with the same body returns the original response and no later check
+   runs, the same key with a different body returns `409 idempotency_conflict`,
+   and a replay store full of unfinished operations returns `503`. See
+   [replay](operations.html#Replay).
+4. Precondition: `412` when `If-Match` no longer matches.
+5. Semantic validation: `422`, including error diagnostics from full
+   validation of a configuration candidate.
+6. Current state: `409`.
+
+A rate limit (`429`) or full shared capacity (`503`) is reported when the
+request is admitted, after the checks it passed. Two exceptions: source
+creation returns `409` for a `path` already in use before it validates the
+content, and a configuration write decides the listener-settings `403` during
+validation. The table below defines each status. Endpoint pages link here
+instead of repeating the order; an endpoint page names only which of its own
+cases fall in which row.
 
 | Status | Code | The request fails because |
 |--------|------|---------------------------|
 | 400 | `invalid_request` | It cannot be parsed, or a parameter or field is outside its schema: wrong type, a missing field, a field the schema does not define, a value outside the schema's enum, range or length, or a scalar value above a bound the capabilities advertise, such as a page `limit` above `max_page_size`. A page cursor sent with different filters or a different `limit` is also `400`. |
 | 413 | `request_too_large` | The payload, or the fan-out the request asks for, exceeds an advertised bound: the body size, the number of operations in a group patch (`max_patch_operations`), the matching live entries a bulk close selects, including non-closable ones (`max_bulk_close`), or the targets or results of a probe or trace. |
-| 422 | `unsupported_value` | It is well-formed and within every bound, but this engine does not support its meaning: an enum member or field the schema defines and the capabilities do not advertise, or a combination of fields or capabilities the engine does not implement. Error diagnostics from full validation of a configuration candidate are also `422`. |
 | 428 | `precondition_required` | A required `If-Match` header is missing. |
 | 412 | `stale_revision` | `If-Match` names a revision or content hash that is no longer current. |
+| 422 | `unsupported_value` | It is well-formed and within every bound, but this engine does not support its meaning: an enum member or field the schema defines and the capabilities do not advertise, or a combination of fields or capabilities the engine does not implement. Error diagnostics from full validation of a configuration candidate are also `422`. |
 | 409 | `state_conflict` | The request is supported, but the current state prevents it: a name already in use, a referenced object that is not current, or a transition the current state does not allow. The same request can succeed after the state changes. |
 | 429 | `rate_limited` | The caller exceeded a request-rate limit, or a limit on repeating the same work, such as a second probe of a target that already has one admitted. |
 | 503 | `temporarily_unavailable`, `snapshot_unavailable` | A shared capacity limit is full (a bounded queue, the stream subscriber slots, the snapshot memory budget), or a required runtime component is unavailable. |
@@ -85,12 +106,13 @@ stack traces, local file paths, or unredacted chained engine errors.
 
 Every paged list (`GET /nodes`, `/providers`, `/flows`, `/dns/cache`,
 `/dns/log`) takes an opaque `cursor` from the previous page's `next_cursor`. The
-cursor is bound to the running instance, the retained snapshot or record, the
-filters, and `limit`.
+cursor is bound to the running instance, the endpoint and resource it pages,
+the retained snapshot or record, the filters, and `limit`.
 
 - A cursor the server no longer recognises returns `410 snapshot_expired`: its
   snapshot expired or was evicted, its record left the ring, the process
-  restarted, or the server never issued it. Discard the cursor and restart the
+  restarted, the server never issued it, or it was issued for another endpoint
+  or resource. Discard the cursor and restart the
   walk without one.
 - A recognised cursor sent with different filters or a different `limit`
   returns `400 invalid_request`. To change either, restart the walk without a

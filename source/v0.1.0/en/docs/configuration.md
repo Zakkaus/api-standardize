@@ -101,8 +101,10 @@ The body accepts only `content`. It replaces the full file as UTF-8 text, includ
 its final newline if supplied. Empty text is a validation candidate, not a
 malformed request. `resources.config.max_bytes` limits replacement UTF-8 bytes;
 `limits.max_json_body_bytes` independently limits the encoded JSON body.
-`max_bytes` is less than the body limit minus the request envelope, but JSON
-escaping can still push a body at `max_bytes` over it. Exceeding either returns
+`max_bytes` is at most the body limit minus the request envelope: the compact
+UTF-8 JSON overhead of the body, including for creation a path of the longest
+allowed length. Content that JSON escaping expands can still exceed the body
+limit, and that limit then applies. Exceeding either returns
 `413 request_too_large`.
 
 `If-Match` accepts one quoted strong tag, not a wildcard, weak tag, or tag list.
