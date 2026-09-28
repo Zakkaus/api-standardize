@@ -18,17 +18,19 @@ publishes both.
 
 ## Build and check
 
-Node.js 24 is required.
+CI uses Node.js 24 and Yarn Classic from `yarn.lock`:
 
 ```sh
-npm install
-npm run check:contract
+corepack enable
+yarn install --frozen-lockfile
+yarn check:contract
 ```
 
 `check:contract` regenerates `source/openapi.yaml` from `api/`, lints it with
-Redocly, runs `tools/check-contract.mjs` over every named example, and runs the
-tests in `tools/check-contract.test.mjs`. `npm run build` generates the site
-into `public/`; `npm run server` serves it locally.
+Redocly, runs `tools/check-contract.mjs` (flow traces and configuration
+examples), and runs the tests in `tools/check-contract.test.mjs`, which validate
+every named example against its schema. `yarn build` generates the site into
+`public/`; `yarn server` serves it locally.
 
 CI runs the same check and then fails if `source/openapi.yaml` differs from the
 regenerated bundle, so commit the bundle together with the source change.
@@ -38,6 +40,6 @@ regenerated bundle, so commit the bundle together with the source change.
 1. Branch from `honk`.
 2. Change the schema in `api/` and the matching page in `source/v0.1.0/en/docs/`.
    Add or update a named example when the change affects a response shape.
-3. Run `npm run check:contract` and commit the regenerated `source/openapi.yaml`.
+3. Run `yarn check:contract` and commit the regenerated `source/openapi.yaml`.
 4. Open a pull request against `honk`. Say what changed on the wire and how
    dae and honk implement it.
