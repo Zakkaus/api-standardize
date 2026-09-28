@@ -38,7 +38,7 @@ paths:
                         path: api.dae
                         kind: main
                         content_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
-                        bytes: 90
+                        bytes: 60
                         writable: false
                         loaded_at: 2026-08-15T09:30:00Z
                         content: "global {\n  log_level: info\n}\napi {\n  secret: '<redacted>'\n}\n"
@@ -455,7 +455,7 @@ paths:
                     path: api.dae
                     kind: main
                     content_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
-                    bytes: 90
+                    bytes: 60
                     content: "global {\n  log_level: info\n}\napi {\n  secret: '<redacted>'\n}\n"
                     line_count: 6
                   x-headers:

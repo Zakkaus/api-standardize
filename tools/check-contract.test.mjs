@@ -842,6 +842,13 @@ test("configuration checker rejects duplicate source IDs and dangling diagnostic
   assert.ok(checkContract(changed).errors.some((error) => /duplicate source ID source-2/.test(error)));
 });
 
+test("configuration examples give bytes as the UTF-8 length of their content", () => {
+  const changed = structuredClone(spec);
+  changed.paths["/api/v1/config"].get.responses["200"].content["application/json"].examples.redacted.value
+    .sources[0].bytes += 1;
+  assert.ok(checkContract(changed).errors.some((error) => /sources\[0\]: bytes \d+ differs/.test(error)));
+});
+
 test("configuration checker preserves ordered spans and their point locations", () => {
   const changed = structuredClone(spec);
   const diagnostic = changed.paths["/api/v1/config/validate"].post.responses["200"]

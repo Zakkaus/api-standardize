@@ -608,7 +608,7 @@ paths:
                         path: api.dae
                         kind: main
                         content_sha256: '0000000000000000000000000000000000000000000000000000000000000000'
-                        bytes: 90
+                        bytes: 60
                         writable: false
                         loaded_at: '2026-08-15T09:30:00Z'
                         content: |
@@ -1329,7 +1329,7 @@ paths:
                     path: api.dae
                     kind: main
                     content_sha256: '0000000000000000000000000000000000000000000000000000000000000000'
-                    bytes: 90
+                    bytes: 60
                     content: |
                       global {
                         log_level: info

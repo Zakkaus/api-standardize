@@ -37,11 +37,29 @@ function validateConfigExample(example) {
   return errors;
 }
 
+// Examples show the source text they describe, so a `bytes` beside a `content`
+// is that text's UTF-8 length; a masked value stands in for one of equal length.
+function sourceSizeErrors(value, errors, where = "") {
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => sourceSizeErrors(item, errors, `${where}[${index}]`));
+    return;
+  }
+  if (value === null || typeof value !== "object") return;
+  if (typeof value.content === "string" && typeof value.bytes === "number" &&
+      value.bytes !== Buffer.byteLength(value.content, "utf8")) {
+    errors.push(`${where || "body"}: bytes ${value.bytes} differs from the ${Buffer.byteLength(value.content, "utf8")}-byte content`);
+  }
+  for (const [key, child] of Object.entries(value)) sourceSizeErrors(child, errors, where ? `${where}.${key}` : key);
+}
+
 export function checkContract(spec) {
   const context = createContract(spec);
   const errors = [...context.errors];
   let flowCount = 0;
   for (const example of context.examples.values()) {
+    const sizeErrors = [];
+    sourceSizeErrors(example.body, sizeErrors);
+    for (const error of sizeErrors) errors.push(`${example.id}: ${error}`);
     if (context.errors.length === 0 &&
         ((example.operationId === "getConfig" && example.status === 200) ||
          (example.operationId === "validateConfig" && (example.kind === "request" || example.status === 200)) ||
