@@ -210,8 +210,9 @@ the source's accepted hash becomes the latter.
 segment. It ends in `.dae`, has at most 1024 UTF-8 bytes, and contains no
 control characters. The server resolves it inside the configuration root and
 returns `400 invalid_request` for a malformed path or one whose parent resolves
-outside the root, including through a symlink. A path that already names a file
-or an accepted source returns `409 state_conflict`; creation never overwrites.
+outside the root, including through a symlink. Creation returns
+`409 state_conflict` for a `path` already in use, by a file or an accepted
+source, before it validates the content; it never overwrites.
 
 The same content limits as for [replacement](#Editing) apply, and so does the
 optional `Idempotency-Key`.

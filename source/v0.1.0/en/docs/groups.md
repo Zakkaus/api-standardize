@@ -40,8 +40,8 @@ The group API separates these responsibilities:
 | capabilities | object | Operations and fields supported by the current engine. |
 
 `resolved_leaf_node_id` is optional. It is present when a member resolves to an
-actual node, and is separate from `member_id` because a honk group can select a
-nested group tag while dialing its selected leaf node.
+actual node, and is separate from `member_id` because a group can select a
+nested group while dialing that group's selected leaf node.
 
 The API must not assume that every group has one current node:
 

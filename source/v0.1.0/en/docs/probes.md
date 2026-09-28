@@ -5,8 +5,8 @@ title: Probes
 # POST /api/v1/probes
 
 > Proposed bounded asynchronous probe resource. `/nodes` reads existing
-> observations; it never probes. There is no separate check-nodes or
-> node-latency action. A probe is not evidence that a client flow succeeded.
+> observations; it never probes. A probe is not evidence that a client flow
+> succeeded.
 
 ## Request
 
