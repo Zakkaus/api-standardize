@@ -177,6 +177,8 @@ paths:
           $ref: ./openapi.yaml#/components/responses/NotFound
         "409":
           $ref: ./openapi.yaml#/components/responses/Conflict
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
         "415":
           $ref: ./openapi.yaml#/components/responses/UnsupportedMediaType
         "429":
@@ -249,6 +251,8 @@ paths:
           $ref: ./openapi.yaml#/components/responses/NotFound
         "409":
           $ref: ./openapi.yaml#/components/responses/Conflict
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
         "415":
           $ref: ./openapi.yaml#/components/responses/UnsupportedMediaType
         "429":
@@ -287,6 +291,8 @@ paths:
           $ref: ./openapi.yaml#/components/responses/NotFound
         "409":
           $ref: ./openapi.yaml#/components/responses/Conflict
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
         "415":
           $ref: ./openapi.yaml#/components/responses/UnsupportedMediaType
         "429":
@@ -418,12 +424,16 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
         "401":
           $ref: ./openapi.yaml#/components/responses/Unauthorized
         "403":
           $ref: ./openapi.yaml#/components/responses/Forbidden
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
         "429":
           $ref: ./openapi.yaml#/components/responses/RateLimited
 schemas:
@@ -499,6 +509,10 @@ schemas:
           minLength: 1
   ProbeRequest:
     type: object
+    description: >-
+      The schema does not restrict kind, purpose and transport combinations.
+      tcp_connect and http take purpose data over tcp; dns takes purpose dns.
+      Any other combination parses and returns 422 unsupported_value.
     additionalProperties: false
     required: [ target, kind, purpose, transport, ip_version, warmth ]
     properties:
@@ -536,34 +550,6 @@ schemas:
         then:
           not:
             required: [ members ]
-      - oneOf:
-          - properties:
-              kind:
-                const: tcp_connect
-              purpose:
-                const: data
-              transport:
-                type: array
-                minItems: 1
-                maxItems: 1
-                items:
-                  const: tcp
-          - properties:
-              kind:
-                const: http
-              purpose:
-                const: data
-              transport:
-                type: array
-                minItems: 1
-                maxItems: 1
-                items:
-                  const: tcp
-          - properties:
-              kind:
-                const: dns
-              purpose:
-                const: dns
   ProbeResultItem:
     type: object
     required: [ member_id, resolved_leaf_node_id, kind, purpose, transport, ip_version, warmth, state, latency_ms, health_updated, error, observed_at ]

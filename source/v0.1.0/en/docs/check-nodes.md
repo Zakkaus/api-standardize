@@ -17,7 +17,7 @@ title: Probes
 | target | yes | Exactly `{type: node, node_id}` or `{type: group, group_id}`. |
 | kind | yes | `tcp_connect`, `http`, or `dns`; supported kinds are advertised. |
 | purpose | yes | `data` or `dns`; the health domain being tested, not inferred from UDP alone. |
-| transport | yes | Nonempty unique array of `tcp`/`udp`, restricted by kind. |
+| transport | yes | Nonempty unique array of `tcp`/`udp`; `tcp_connect` and `http` take `[tcp]`. |
 | ip_version | yes | `ipv4`, `ipv6`, or `any`. `any` expands to advertised families. |
 | members | no | Group-only: `direct` (default), `leaves`, or nonempty unique direct-member IDs. |
 | warmth | yes | `cold` or `warm`. An unimplementable reuse constraint returns 422, not mislabeled results. |
@@ -45,8 +45,12 @@ The request cannot specify arbitrary URLs, names, IPs or ports. Use
 administrator-configured check destinations, with the SSRF policy in
 [Groups](groups.html): validate and pin resolved addresses, revalidate every
 redirect, bound redirects/body/time, and do not let an API caller rewrite the
-administrator allowlist. Invalid kind/transport/purpose combinations and
-unsupported target capabilities return `422 unsupported_value` before work.
+administrator allowlist. `tcp_connect` and `http` take purpose `data` over
+`tcp`; `dns` takes purpose `dns`. The request schema does not restrict these
+combinations: a request that parses but pairs them otherwise, or asks for a
+target capability the backend lacks, returns `422 unsupported_value` before
+work. `400 invalid_request` is for a request that does not parse or has the
+wrong shape, such as a missing field or an empty or repeated transport.
 
 Probes may update native health and automatic selections. The adapter must
 preserve native side-effect semantics and report `health_updated` per result

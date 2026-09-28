@@ -106,6 +106,8 @@ paths:
           $ref: ./openapi.yaml#/components/responses/BadRequest
         "401":
           $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
         "409":
@@ -133,10 +135,16 @@ paths:
               $ref: ./openapi.yaml#/components/headers/NoStore
             X-Content-Type-Options:
               $ref: ./openapi.yaml#/components/headers/NoSniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
         "401":
           $ref: ./openapi.yaml#/components/responses/Unauthorized
+        "403":
+          $ref: ./openapi.yaml#/components/responses/Forbidden
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
         "429":
           $ref: ./openapi.yaml#/components/responses/RateLimited
         "503":

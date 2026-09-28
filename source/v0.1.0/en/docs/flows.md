@@ -45,15 +45,16 @@ Requires `observe`. Returns active **and retained terminal** flows.
 | state | all | One lifecycle state below, or `all`. |
 | connection_id | absent | Exact opaque connection ID within the current adapter instance; includes retained terminal flows, never tuple matching. |
 | limit | 100 | 1–1000, additionally bounded by the advertised limit. |
-| cursor | absent | Opaque snapshot cursor; includes the original filters. |
+| cursor | absent | Opaque snapshot cursor; includes the original filters and `limit`. |
 | detail | summary | `full` adds source/destination/domain inputs; not the trace. |
 
 {% api_example listFlows 200 visible %}
 
 `revision` increases whenever the retained flow changes. Cursors preserve a
 bounded point-in-time list, ordered newest-first with ID as tie-breaker. An
-expired snapshot returns `410 snapshot_expired`; do not silently restart a
-page walk. `pname` is the captured process name or `null`, including for LAN
+expired snapshot, or a cursor sent with a different `limit`, returns
+`410 snapshot_expired`; do not silently restart a page walk. To change the page
+size, start a new walk without a cursor. `pname` is the captured process name or `null`, including for LAN
 traffic without process context. It is available in summary; summary is a
 payload-size tier, **not an authorization or privacy boundary**.
 

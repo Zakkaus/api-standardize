@@ -37,7 +37,7 @@ in resources (`operation.error`, `datapath.errors`, `last_reload.error`,
 | 409 | `setup_already_completed` | Administrator setup was requested after an administrator was created. |
 | 410 | `snapshot_expired` | Paginated flow snapshot expired; restart the page walk. |
 | 410 | `flow_expired` | Flow evidence was evicted/expired and a tombstone still exists. |
-| 412 | `stale_revision` | `If-Match` does not match the current resource revision or on-disk source content hash. |
+| 412 | `stale_revision` | `If-Match` does not match the current resource revision or on-disk source content hash, or the configuration changed while a delete was being admitted. |
 | 413 | `request_too_large` | Request or requested fan-out exceeds an advertised limit. |
 | 415 | `unsupported_media_type` | Request `Content-Type` is unsupported. |
 | 422 | `unsupported_value` | Unsupported field, value, or transition, or error diagnostics from full validation of a source replacement. |
@@ -46,7 +46,16 @@ in resources (`operation.error`, `datapath.errors`, `last_reload.error`,
 | 503 | `temporarily_unavailable` | A bounded queue or required runtime component is unavailable. |
 | 503 | `snapshot_unavailable` | A coherent snapshot could not be pinned or held within its budget; retry the read. |
 
-Responses with `429` or retryable `503` include `Retry-After`. Errors must not
+Any operation can return `400` or `413` before its handler runs: request
+boundary checks (target and header length, `Content-Length`, body size) apply to
+every request, and a `GET` with a body is malformed. `400` means the request
+could not be parsed or has the wrong shape; `422` means it parsed but names an
+unsupported field, value, or combination. A `400`, `413`, or `422` does not
+succeed when retried unchanged.
+
+Responses with `429` or retryable `503` include `Retry-After`. A `503` from a
+write the server could not confirm, such as a group selection, may still have
+taken effect; read the resource back before retrying. Errors must not
 contain bearer secrets, proxy credentials, private keys, raw configuration,
 stack traces, local file paths, or unredacted chained engine errors.
 

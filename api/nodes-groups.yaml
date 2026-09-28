@@ -65,6 +65,8 @@ paths:
           $ref: ./openapi.yaml#/components/responses/Forbidden
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
         "503":
           $ref: ./openapi.yaml#/components/responses/SnapshotUnavailable
     post:
@@ -268,12 +270,16 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
         "401":
           $ref: ./openapi.yaml#/components/responses/Unauthorized
         "403":
           $ref: ./openapi.yaml#/components/responses/Forbidden
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
     delete:
       operationId: deleteNode
       summary: Remove an inline node from the managed configuration
@@ -308,12 +314,22 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
         "401":
           $ref: ./openapi.yaml#/components/responses/Unauthorized
         "403":
           $ref: ./openapi.yaml#/components/responses/Forbidden
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
+        "409":
+          $ref: ./openapi.yaml#/components/responses/Conflict
+          description: A group or the routing final outbound still names the node (state_conflict); nothing is removed. Filter-matched membership is not a reference.
+        "412":
+          $ref: ./openapi.yaml#/components/responses/PreconditionFailed
+          description: The configuration changed while the delete was being admitted (stale_revision); nothing is removed. Read the node back and retry.
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
         "503":
           $ref: ./openapi.yaml#/components/responses/Unavailable
   /api/v1/groups:
@@ -354,12 +370,16 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
         "401":
           $ref: ./openapi.yaml#/components/responses/Unauthorized
         "403":
           $ref: ./openapi.yaml#/components/responses/Forbidden
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
   /api/v1/groups/{groupId}:
     parameters:
       - $ref: ./openapi.yaml#/components/parameters/GroupId
@@ -449,15 +469,24 @@ paths:
                     ETag: '"17"'
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
         "401":
           $ref: ./openapi.yaml#/components/responses/Unauthorized
         "403":
           $ref: ./openapi.yaml#/components/responses/Forbidden
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
     patch:
       operationId: patchGroup
       summary: Patch mutable group configuration
+      description: |
+        Only fields in capabilities.mutable_config may change, judged by the
+        effective write against the policy after the patch: one patch may set
+        policy to urltest and add tolerance. When the resulting policy is not
+        URLTest, a tolerance left non-null and changed returns 422 unsupported_value.
       x-permission: control
       security:
         - bearerAuth: []
@@ -572,6 +601,9 @@ paths:
           $ref: ./openapi.yaml#/components/responses/Unprocessable
         "428":
           $ref: ./openapi.yaml#/components/responses/PreconditionRequired
+        "503":
+          $ref: ./openapi.yaml#/components/responses/Unavailable
+          description: The change could not be queued (temporarily_unavailable); nothing is written. Retry after Retry-After.
   /api/v1/groups/{groupId}/selection:
     parameters:
       - $ref: ./openapi.yaml#/components/parameters/GroupId
@@ -629,10 +661,15 @@ paths:
           $ref: ./openapi.yaml#/components/responses/NotFound
         "409":
           $ref: ./openapi.yaml#/components/responses/Conflict
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
         "415":
           $ref: ./openapi.yaml#/components/responses/UnsupportedMediaType
         "422":
           $ref: ./openapi.yaml#/components/responses/Unprocessable
+        "503":
+          $ref: ./openapi.yaml#/components/responses/Unavailable
+          description: The runtime control owner is unavailable or did not confirm the transition (temporarily_unavailable). The selection may have changed; read the group back before retrying after Retry-After.
     delete:
       operationId: clearGroupOverride
       summary: Clear a pinned member so the automatic policy chooses again
@@ -690,6 +727,11 @@ paths:
           $ref: ./openapi.yaml#/components/responses/NotFound
         "409":
           $ref: ./openapi.yaml#/components/responses/Conflict
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
+        "503":
+          $ref: ./openapi.yaml#/components/responses/Unavailable
+          description: The runtime control owner is unavailable or did not confirm the transition (temporarily_unavailable). The override may have been cleared; read the group back before retrying after Retry-After.
 schemas:
   HealthObservation:
     type: object

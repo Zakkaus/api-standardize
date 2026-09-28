@@ -84,6 +84,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '413':
+          $ref: '#/components/responses/TooLarge'
   /api/v1/version:
     get:
       operationId: getVersion
@@ -122,10 +124,14 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '413':
+          $ref: '#/components/responses/TooLarge'
   /api/v1/capabilities:
     get:
       operationId: getCapabilities
@@ -350,10 +356,14 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '413':
+          $ref: '#/components/responses/TooLarge'
   /api/v1/auth/setup:
     post:
       operationId: setupAdministrator
@@ -452,6 +462,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
@@ -479,10 +491,16 @@ paths:
               $ref: '#/components/headers/NoStore'
             X-Content-Type-Options:
               $ref: '#/components/headers/NoSniff'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/TooLarge'
         '429':
           $ref: '#/components/responses/RateLimited'
         '503':
@@ -566,6 +584,8 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           description: Credentials are missing or invalid
           headers:
@@ -632,6 +652,8 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        '413':
+          $ref: '#/components/responses/TooLarge'
         '429':
           description: Advertised request rate exceeded
           headers:
@@ -946,6 +968,9 @@ paths:
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
                     Retry-After: 1
+        '503':
+          $ref: '#/components/responses/Unavailable'
+          description: The validation worker is unavailable or its queue is full (temporarily_unavailable); nothing was validated. Retry after Retry-After.
   /api/v1/config/sources:
     post:
       operationId: createConfigSource
@@ -1260,6 +1285,8 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -1296,6 +1323,8 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        '413':
+          $ref: '#/components/responses/TooLarge'
         '429':
           $ref: '#/components/responses/RateLimited'
     put:
@@ -1622,10 +1651,14 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '413':
+          $ref: '#/components/responses/TooLarge'
         '429':
           $ref: '#/components/responses/RateLimited'
   /api/v1/runtime/memory:
@@ -1669,12 +1702,16 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/TooLarge'
         '429':
           $ref: '#/components/responses/RateLimited'
   /api/v1/runtime/outbounds:
@@ -1732,12 +1769,16 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/TooLarge'
         '429':
           $ref: '#/components/responses/RateLimited'
   /api/v1/runtime/traffic/history:
@@ -1842,6 +1883,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/TooLarge'
         '429':
           $ref: '#/components/responses/RateLimited'
   /api/v1/runtime/memory/history:
@@ -1946,6 +1989,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/TooLarge'
         '429':
           $ref: '#/components/responses/RateLimited'
   /api/v1/datapath:
@@ -2004,12 +2049,16 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/TooLarge'
   /api/v1/nodes:
     get:
       operationId: listNodes
@@ -2077,6 +2126,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/TooLarge'
         '503':
           $ref: '#/components/responses/SnapshotUnavailable'
     post:
@@ -2304,6 +2355,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/TooLarge'
         '503':
           $ref: '#/components/responses/SnapshotUnavailable'
     post:
@@ -2541,6 +2594,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/TooLarge'
     delete:
       operationId: deleteProvider
       summary: Remove a subscription or file provider from the managed configuration
@@ -2576,12 +2631,22 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: The configuration still names the provider in a reference the delete would break (state_conflict); nothing is removed. Filter-matched membership is not a reference.
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+          description: The configuration changed while the delete was being admitted (stale_revision); nothing is removed. Read the provider back and retry.
+        '413':
+          $ref: '#/components/responses/TooLarge'
         '503':
           $ref: '#/components/responses/Unavailable'
   /api/v1/providers/{id}/refresh:
@@ -2689,6 +2754,8 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        '413':
+          $ref: '#/components/responses/TooLarge'
         '429':
           $ref: '#/components/responses/RateLimited'
         '503':
@@ -2761,12 +2828,16 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/TooLarge'
     delete:
       operationId: deleteNode
       summary: Remove an inline node from the managed configuration
@@ -2801,12 +2872,22 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+          description: A group or the routing final outbound still names the node (state_conflict); nothing is removed. Filter-matched membership is not a reference.
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+          description: The configuration changed while the delete was being admitted (stale_revision); nothing is removed. Read the node back and retry.
+        '413':
+          $ref: '#/components/responses/TooLarge'
         '503':
           $ref: '#/components/responses/Unavailable'
   /api/v1/geodata:
@@ -2919,12 +3000,16 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/TooLarge'
   /api/v1/geodata/update:
     post:
       operationId: updateGeoData
@@ -2999,6 +3084,8 @@ paths:
                     Retry-After: 2
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3028,6 +3115,8 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        '413':
+          $ref: '#/components/responses/TooLarge'
         '429':
           $ref: '#/components/responses/RateLimited'
         '503':
@@ -3070,12 +3159,16 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/TooLarge'
   /api/v1/groups/{groupId}:
     parameters:
       - $ref: '#/components/parameters/GroupId'
@@ -3175,15 +3268,24 @@ paths:
                     ETag: '"17"'
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/TooLarge'
     patch:
       operationId: patchGroup
       summary: Patch mutable group configuration
+      description: |
+        Only fields in capabilities.mutable_config may change, judged by the
+        effective write against the policy after the patch: one patch may set
+        policy to urltest and add tolerance. When the resulting policy is not
+        URLTest, a tolerance left non-null and changed returns 422 unsupported_value.
       x-permission: control
       security:
         - bearerAuth: []
@@ -3298,6 +3400,9 @@ paths:
           $ref: '#/components/responses/Unprocessable'
         '428':
           $ref: '#/components/responses/PreconditionRequired'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+          description: The change could not be queued (temporarily_unavailable); nothing is written. Retry after Retry-After.
   /api/v1/groups/{groupId}/selection:
     parameters:
       - $ref: '#/components/parameters/GroupId'
@@ -3355,10 +3460,15 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
         '415':
           $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+          description: The runtime control owner is unavailable or did not confirm the transition (temporarily_unavailable). The selection may have changed; read the group back before retrying after Retry-After.
     delete:
       operationId: clearGroupOverride
       summary: Clear a pinned member so the automatic policy chooses again
@@ -3419,6 +3529,11 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+          description: The runtime control owner is unavailable or did not confirm the transition (temporarily_unavailable). The override may have been cleared; read the group back before retrying after Retry-After.
   /api/v1/probes:
     post:
       operationId: createProbe
@@ -3639,6 +3754,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/TooLarge'
     delete:
       operationId: closeConnections
       summary: Close matching userspace-owned connections
@@ -3915,6 +4032,8 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        '413':
+          $ref: '#/components/responses/TooLarge'
         '503':
           $ref: '#/components/responses/Unavailable'
           description: Cancellation or retirement could not be confirmed (temporarily_unavailable); the connection may already be closed.
@@ -3922,6 +4041,10 @@ paths:
     get:
       operationId: listFlows
       summary: List active and retained terminal flow decisions
+      description: |
+        The cursor binds the filters and limit. A cursor sent with a different
+        limit returns 410 snapshot_expired; to change the page size, restart
+        the walk without a cursor.
       x-permission: observe
       security:
         - bearerAuth: []
@@ -4015,6 +4138,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '410':
           $ref: '#/components/responses/Gone'
+        '413':
+          $ref: '#/components/responses/TooLarge'
         '503':
           description: Bounded recorder memory cannot admit a snapshot
           headers:
@@ -4437,6 +4562,8 @@ paths:
                             resolution_location: outbound_remote
                             status: succeeded
                             error: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4445,6 +4572,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '410':
           $ref: '#/components/responses/Gone'
+        '413':
+          $ref: '#/components/responses/TooLarge'
   /api/v1/routing/trace:
     post:
       operationId: traceRouting
@@ -4664,12 +4793,16 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/TooLarge'
         '503':
           description: The dictionary exceeds max_rules (temporarily_unavailable), or a coherent generation could not be pinned (snapshot_unavailable)
           headers:
@@ -4768,6 +4901,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/EventCursorExpired'
+        '413':
+          $ref: '#/components/responses/TooLarge'
         '429':
           $ref: '#/components/responses/RateLimited'
         '503':
@@ -4855,6 +4990,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/EventCursorExpired'
+        '413':
+          $ref: '#/components/responses/TooLarge'
         '429':
           $ref: '#/components/responses/RateLimited'
         '503':
@@ -4954,12 +5091,16 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/TooLarge'
     patch:
       operationId: patchRuntimeSettings
       summary: Change runtime-adjustable settings without a reload
@@ -5160,6 +5301,9 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        '503':
+          $ref: '#/components/responses/Unavailable'
+          description: A setting could not be stored (temporarily_unavailable). Read the settings back before retrying after Retry-After.
   /api/v1/dns/query:
     get:
       operationId: queryDns
@@ -5286,7 +5430,9 @@ paths:
         excluding diagnostic /dns/query calls, in a bounded in-memory ring.
         Results are newest first. The ring holds at most
         resources.dns_log.max_records and is cleared on restart.
-        A limit above resources.dns_log.max_page_size returns 400 invalid_request.
+        A limit above resources.dns_log.max_page_size returns 400 invalid_request,
+        as does a cursor whose record has left the ring; restart from the newest
+        page without a cursor.
         A page may hold fewer than limit records while next_cursor is
         non-null, for example when the server's response size limit ends it
         early. Only a null next_cursor ends the walk. A record whose answers
@@ -5392,6 +5538,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/TooLarge'
         '503':
           $ref: '#/components/responses/Unavailable'
   /api/v1/dns/cache:
@@ -5495,6 +5643,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/TooLarge'
         '503':
           $ref: '#/components/responses/Unavailable'
     delete:
@@ -5554,6 +5704,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/TooLarge'
         '503':
           $ref: '#/components/responses/Unavailable'
   /api/v1/dns/cache/{entry_id}:
@@ -5586,12 +5738,16 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/TooLarge'
         '503':
           $ref: '#/components/responses/Unavailable'
   /api/v1/dns/cache/flush:
@@ -5637,6 +5793,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/TooLarge'
         '415':
           $ref: '#/components/responses/UnsupportedMediaType'
         '503':
@@ -5740,12 +5898,16 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/TooLarge'
         '503':
           description: A list exceeds max_rules (temporarily_unavailable), or a coherent generation could not be pinned (snapshot_unavailable)
           headers:
@@ -5854,6 +6016,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
         '415':
           $ref: '#/components/responses/UnsupportedMediaType'
         '429':
@@ -5926,6 +6090,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
         '415':
           $ref: '#/components/responses/UnsupportedMediaType'
         '429':
@@ -5964,6 +6130,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
         '415':
           $ref: '#/components/responses/UnsupportedMediaType'
         '429':
@@ -6095,12 +6263,16 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/TooLarge'
         '429':
           $ref: '#/components/responses/RateLimited'
 components:
@@ -6424,17 +6596,77 @@ components:
                 Cache-Control: no-store
                 X-Content-Type-Options: nosniff
     Conflict:
-      $ref: '#/components/responses/ErrorResponseCommon'
       description: State, idempotency, or cursor conflict
+      headers:
+        Cache-Control:
+          $ref: '#/components/headers/NoStore'
+        X-Content-Type-Options:
+          $ref: '#/components/headers/NoSniff'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            state_conflict:
+              value:
+                error:
+                  code: state_conflict
+                  message: The current state prevents this change.
+                  details: null
+                request_id: request-01HZX4K8W6
+              x-headers:
+                Content-Type: application/json
+                Cache-Control: no-store
+                X-Content-Type-Options: nosniff
     Gone:
       $ref: '#/components/responses/ErrorResponseCommon'
       description: Flow or paginated snapshot retention expired
     PreconditionFailed:
-      $ref: '#/components/responses/ErrorResponseCommon'
       description: If-Match does not equal the current configuration revision or on-disk source content hash
+      headers:
+        Cache-Control:
+          $ref: '#/components/headers/NoStore'
+        X-Content-Type-Options:
+          $ref: '#/components/headers/NoSniff'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            stale_revision:
+              value:
+                error:
+                  code: stale_revision
+                  message: The resource changed; read it again.
+                  details: null
+                request_id: request-01HZX4K8W6
+              x-headers:
+                Content-Type: application/json
+                Cache-Control: no-store
+                X-Content-Type-Options: nosniff
     TooLarge:
-      $ref: '#/components/responses/ErrorResponseCommon'
       description: Request size or advertised fan-out limit exceeded
+      headers:
+        Cache-Control:
+          $ref: '#/components/headers/NoStore'
+        X-Content-Type-Options:
+          $ref: '#/components/headers/NoSniff'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            request_too_large:
+              value:
+                error:
+                  code: request_too_large
+                  message: The request exceeds a size limit.
+                  details: null
+                request_id: request-01HZX4K8W6
+              x-headers:
+                Content-Type: application/json
+                Cache-Control: no-store
+                X-Content-Type-Options: nosniff
     UnsupportedMediaType:
       $ref: '#/components/responses/ErrorResponseCommon'
       description: Unsupported request Content-Type
@@ -9938,6 +10170,7 @@ components:
             minLength: 1
     ProbeRequest:
       type: object
+      description: The schema does not restrict kind, purpose and transport combinations. tcp_connect and http take purpose data over tcp; dns takes purpose dns. Any other combination parses and returns 422 unsupported_value.
       additionalProperties: false
       required:
         - target
@@ -9990,34 +10223,6 @@ components:
             not:
               required:
                 - members
-        - oneOf:
-            - properties:
-                kind:
-                  const: tcp_connect
-                purpose:
-                  const: data
-                transport:
-                  type: array
-                  minItems: 1
-                  maxItems: 1
-                  items:
-                    const: tcp
-            - properties:
-                kind:
-                  const: http
-                purpose:
-                  const: data
-                transport:
-                  type: array
-                  minItems: 1
-                  maxItems: 1
-                  items:
-                    const: tcp
-            - properties:
-                kind:
-                  const: dns
-                purpose:
-                  const: dns
     ProbeResultItem:
       type: object
       required:

@@ -189,7 +189,7 @@ recorded. The ring is not durable and clears on restart.
 | type | One record type. |
 | src | Client source IP literal, IPv4 or IPv6. |
 | limit | Page size, at most `dns_log.max_page_size`; above it returns `400 invalid_request`. |
-| cursor | Opaque cursor from `next_cursor`; older records follow it. |
+| cursor | Opaque cursor from `next_cursor`; older records follow it. Once its record leaves the ring it returns `400 invalid_request`; restart from the newest page. |
 
 Pages follow the same rule as `/dns/cache`: a page may hold fewer than
 `limit` records while `next_cursor` is non-null, and a record whose answers

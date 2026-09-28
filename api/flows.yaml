@@ -99,6 +99,8 @@ paths:
           $ref: ./openapi.yaml#/components/responses/Forbidden
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
     delete:
       operationId: closeConnections
       summary: Close matching userspace-owned connections
@@ -374,6 +376,8 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
         "503":
           $ref: ./openapi.yaml#/components/responses/Unavailable
           description: Cancellation or retirement could not be confirmed (temporarily_unavailable); the connection may already be closed.
@@ -381,6 +385,10 @@ paths:
     get:
       operationId: listFlows
       summary: List active and retained terminal flow decisions
+      description: |
+        The cursor binds the filters and limit. A cursor sent with a different
+        limit returns 410 snapshot_expired; to change the page size, restart
+        the walk without a cursor.
       x-permission: observe
       security:
         - bearerAuth: []
@@ -469,6 +477,8 @@ paths:
           $ref: ./openapi.yaml#/components/responses/NotFound
         "410":
           $ref: ./openapi.yaml#/components/responses/Gone
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
         "503":
           description: Bounded recorder memory cannot admit a snapshot
           headers:
@@ -882,6 +892,8 @@ paths:
                             resolution_location: outbound_remote
                             status: succeeded
                             error: null
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
         "401":
           $ref: ./openapi.yaml#/components/responses/Unauthorized
         "403":
@@ -890,6 +902,8 @@ paths:
           $ref: ./openapi.yaml#/components/responses/NotFound
         "410":
           $ref: ./openapi.yaml#/components/responses/Gone
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
 schemas:
   BulkCloseResult:
     type: object
