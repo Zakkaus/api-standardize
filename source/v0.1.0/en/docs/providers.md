@@ -14,7 +14,7 @@ not change the configured source.
 
 {% api_request listProviders %}
 
-`limit` defaults to the smaller of 100 and `max_page_size`; a larger value
+`limit` defaults to the smaller of 100 and `max_page_size`; a value above `max_page_size`
 returns `400 invalid_request`. `next_cursor` is null at the end of the list, and
 cursors follow the [paging rule](errors.html#Page-cursors).
 If the server cannot retain the snapshot within its budget, it returns

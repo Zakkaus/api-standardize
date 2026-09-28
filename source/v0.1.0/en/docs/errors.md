@@ -35,7 +35,7 @@ in resources (`operation.error`, `datapath.errors`, `last_reload.error`,
 | 409 | `event_cursor_expired` | Event or log SSE cursor cannot be replayed; open a fresh stream and establish a new baseline. |
 | 409 | `setup_required` | Password login was requested before an administrator was created. |
 | 409 | `setup_already_completed` | Administrator setup was requested after an administrator was created. |
-| 410 | `snapshot_expired` | A page cursor no longer names a retained snapshot; restart the page walk. |
+| 410 | `snapshot_expired` | A page cursor is no longer usable; restart the page walk. |
 | 410 | `flow_expired` | Flow evidence was evicted/expired and a tombstone still exists. |
 | 412 | `stale_revision` | `If-Match` does not match the current resource revision or on-disk source content hash, or the configuration changed while a delete was being admitted. |
 | 413 | `request_too_large` | Request or requested fan-out exceeds an advertised limit. |
@@ -60,7 +60,7 @@ an endpoint page names only which of its own cases fall in which row.
 | Status | Code | The request fails because |
 |--------|------|---------------------------|
 | 400 | `invalid_request` | It cannot be parsed, or a parameter or field is outside its schema: wrong type, a missing field, a field the schema does not define, a value outside the schema's enum, range or length, or a scalar value above a bound the capabilities advertise, such as a page `limit` above `max_page_size`. A page cursor sent with different filters or a different `limit` is also `400`. |
-| 413 | `request_too_large` | The payload, or the fan-out the request asks for, exceeds an advertised bound: the body size, the number of operations in a group patch (`max_patch_operations`), the connections a bulk close would close, or the targets or results of a probe or trace. |
+| 413 | `request_too_large` | The payload, or the fan-out the request asks for, exceeds an advertised bound: the body size, the number of operations in a group patch (`max_patch_operations`), the matching live entries a bulk close selects, including non-closable ones (`max_bulk_close`), or the targets or results of a probe or trace. |
 | 422 | `unsupported_value` | It is well-formed and within every bound, but this engine does not support its meaning: an enum member or field the schema defines and the capabilities do not advertise, or a combination of fields or capabilities the engine does not implement. Error diagnostics from full validation of a configuration candidate are also `422`. |
 | 428 | `precondition_required` | A required `If-Match` header is missing. |
 | 412 | `stale_revision` | `If-Match` names a revision or content hash that is no longer current. |
@@ -69,9 +69,8 @@ an endpoint page names only which of its own cases fall in which row.
 | 503 | `temporarily_unavailable`, `snapshot_unavailable` | A shared capacity limit is full (a bounded queue, the stream subscriber slots, the snapshot memory budget), or a required runtime component is unavailable. |
 
 A rejection that depends on the current state is `409`, never `422`: `422`
-depends only on the request and on what the engine supports, so a `400`, `413`,
-or `422` does not succeed when retried unchanged against the same
-configuration. A `412` or `409` may succeed after the client reads the current
+depends only on the request and on what the engine supports, so a `400` or `422`
+does not succeed when retried unchanged against the same configuration. A `412` or `409` may succeed after the client reads the current
 state again, and a `429` or `503` may succeed after `Retry-After`.
 
 Responses with `429` or retryable `503` include `Retry-After`. A `503` from a

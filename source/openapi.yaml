@@ -52,7 +52,7 @@ paths:
                       providers: /api/v1/providers
                       rules: /api/v1/rules
                       geodata: /api/v1/geodata
-                      operations: /api/v1/operations/{id}
+                      operations: /api/v1/operations/{operation_id}
                       auth_setup: null
                       auth_login: null
                       auth_logout: null
@@ -2303,8 +2303,8 @@ paths:
         Read current subscription, file and inline provider metadata; never fetch a
         subscription while serving a GET. Use the shared snapshot cursor semantics.
         The effective default limit is min(100, resources.providers.max_page_size).
-        A limit above the advertised maximum returns 400 invalid_request, as does an
-        unknown, expired or invalidated cursor. Restart the page walk without it.
+        A limit above the advertised maximum returns 400 invalid_request. The
+        Cursor parameter defines how an unusable cursor is answered.
       x-permission: observe
       security:
         - bearerAuth: []
@@ -3886,8 +3886,10 @@ paths:
         '503':
           description: |
             Closing at least one selected connection could not be confirmed
-            (temporarily_unavailable). error.details counts the connections already
-            closed or skipped; they stay closed, so a retry must not assume nothing changed.
+            (temporarily_unavailable), sent after every selected close has finished.
+            error.details carries closed and skipped over the whole selected set;
+            a connection whose close could not be confirmed counts in neither.
+            Closed connections stay closed; a retry selects again from current live state.
           headers:
             Retry-After:
               description: Retry delay in seconds.
@@ -5454,9 +5456,10 @@ paths:
         excluding diagnostic /dns/query calls, in a bounded in-memory ring.
         Results are newest first. The ring holds at most
         resources.dns_log.max_records and is cleared on restart.
-        A limit above resources.dns_log.max_page_size returns 400 invalid_request,
-        as does a cursor whose record has left the ring; restart from the newest
-        page without a cursor.
+        A limit above resources.dns_log.max_page_size returns 400 invalid_request.
+        A cursor whose record has left the ring returns 410 snapshot_expired, as
+        the Cursor parameter defines; restart from the newest page without a
+        cursor.
         A page may hold fewer than limit records while next_cursor is
         non-null, for example when the server's response size limit ends it
         early. Only a null next_cursor ends the walk. A record whose answers
@@ -5562,7 +5565,7 @@ paths:
         '413':
           $ref: '#/components/responses/TooLarge'
         '503':
-          $ref: '#/components/responses/Unavailable'
+          $ref: '#/components/responses/SnapshotUnavailable'
   /api/v1/dns/cache:
     get:
       operationId: listDnsCache
@@ -5669,7 +5672,7 @@ paths:
         '413':
           $ref: '#/components/responses/TooLarge'
         '503':
-          $ref: '#/components/responses/Unavailable'
+          $ref: '#/components/responses/SnapshotUnavailable'
     delete:
       operationId: deleteDnsCacheByName
       summary: Delete cache entries for one exact name
@@ -7028,7 +7031,7 @@ components:
               const: /api/v1/geodata
             operations:
               type: string
-              const: /api/v1/operations/{id}
+              const: /api/v1/operations/{operation_id}
             auth_setup:
               type:
                 - string

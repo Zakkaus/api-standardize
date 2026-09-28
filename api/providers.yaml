@@ -7,8 +7,8 @@ paths:
         Read current subscription, file and inline provider metadata; never fetch a
         subscription while serving a GET. Use the shared snapshot cursor semantics.
         The effective default limit is min(100, resources.providers.max_page_size).
-        A limit above the advertised maximum returns 400 invalid_request, as does an
-        unknown, expired or invalidated cursor. Restart the page walk without it.
+        A limit above the advertised maximum returns 400 invalid_request. The
+        Cursor parameter defines how an unusable cursor is answered.
       x-permission: observe
       security:
         - bearerAuth: []

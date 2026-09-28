@@ -131,8 +131,7 @@ headers remain mandatory.
 
 {% api_example closeConnection 204 closed http %}
 
-An unknown or already-gone ID returns `404 resource_not_found`; see
-[deleting what is not there](errors.html#Deleting-what-is-not-there):
+For the missing-ID response, see [deleting what is not there](errors.html#Deleting-what-is-not-there):
 
 {% api_example closeConnection 404 gone %}
 

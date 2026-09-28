@@ -79,9 +79,8 @@ with `control`; unknown, expired, or unauthorized IDs all return
 
 ## Replay
 
-Only the operations below take an optional `Idempotency-Key` header, and only
-they replay. The key is scoped to the running instance, caller, method, and
-path. Reusing it with a byte-identical body returns the original response: the
+Only the requests below accept `Idempotency-Key` and support replay. The key
+is scoped to the running instance, caller, method, and path. Reusing it with a byte-identical body returns the original response: the
 original `202` body unchanged (its `status` stays `queued` whatever the
 operation's current status), or the original synchronous `200`. Reusing it with
 a body that differs in any byte returns `409 idempotency_conflict`. The key is
@@ -89,7 +88,7 @@ retained while its operation is queued or running and for the advertised
 retention window after the operation reaches a terminal state. Without a key,
 a retried request may start another operation.
 
-| Operation | Replay |
+| Request | Replay |
 |-----------|--------|
 | `POST /api/v1/operations/reload`, `/suspend`, `/resume` | Original `202` |
 | `POST /api/v1/probes` | Original `202` |

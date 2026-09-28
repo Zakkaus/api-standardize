@@ -227,8 +227,10 @@ paths:
         "503":
           description: |
             Closing at least one selected connection could not be confirmed
-            (temporarily_unavailable). error.details counts the connections already
-            closed or skipped; they stay closed, so a retry must not assume nothing changed.
+            (temporarily_unavailable), sent after every selected close has finished.
+            error.details carries closed and skipped over the whole selected set;
+            a connection whose close could not be confirmed counts in neither.
+            Closed connections stay closed; a retry selects again from current live state.
           headers:
             Retry-After:
               description: Retry delay in seconds.

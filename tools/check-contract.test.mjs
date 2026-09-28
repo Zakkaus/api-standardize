@@ -1756,6 +1756,10 @@ test("every paged list shares the cursor rule and returns 410 for an expired cur
     const cursors = operation.parameters.map(resolveRef).filter((parameter) => parameter.name === "cursor");
     assert.equal(cursors.length, 1, `${path} takes one cursor`);
     assert.match(cursors[0].description, /410 snapshot_expired/, `${path} uses the shared cursor rule`);
+    for (const sentence of (operation.description ?? "").split(/(?<=\.)\s+/)) {
+      assert.ok(!(/cursor/i.test(sentence) && /\b400\b/.test(sentence)),
+        `${path} description must not answer an unusable cursor with 400: ${sentence}`);
+    }
     const gone = resolveRef(operation.responses["410"]);
     assert.equal(gone.content["application/json"].examples.snapshot_expired.value.error.code, "snapshot_expired",
       `${path} returns snapshot_expired`);

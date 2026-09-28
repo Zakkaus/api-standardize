@@ -53,7 +53,7 @@ below. Other fields are withheld, not null.
 | links.providers | string | Stable `/api/v1/providers` link; capabilities declare refresh, management support and page size. |
 | links.geodata | string | Stable `/api/v1/geodata` link; capabilities declare update support and asset kinds. |
 | links.rules | string | Stable `/api/v1/rules` link; capabilities declare the rule limit. |
-| links.operations | string | URI template `/api/v1/operations/{id}` for reading one operation; the value is fixed on the wire. |
+| links.operations | string | URI template `/api/v1/operations/{operation_id}` for reading one operation; the string is fixed on the wire, and the placeholder name is not significant under simple string expansion. |
 | links.auth_setup | string or null | `/api/v1/auth/setup` in password mode; null otherwise. |
 | links.auth_login | string or null | `/api/v1/auth/login` in password mode; null otherwise. |
 | links.auth_logout | string or null | `/api/v1/auth/logout` in password mode; null otherwise. |
