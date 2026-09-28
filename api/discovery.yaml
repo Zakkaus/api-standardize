@@ -1025,7 +1025,7 @@ schemas:
               fields:
                 type: array
                 uniqueItems: true
-                description: The settings PATCH /runtime/settings accepts on this backend; others return 400.
+                description: The settings PATCH /runtime/settings accepts on this backend; another field the schema defines returns 422.
                 items:
                   $ref: ./openapi.yaml#/components/schemas/RuntimeSettingField
           geodata:

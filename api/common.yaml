@@ -51,12 +51,13 @@ parameters:
     name: cursor
     in: query
     description: |
-      Opaque cursor bound to the resource, running adapter instance, filters,
-      and retained snapshot. Restart, changed filters, or snapshot expiry or
-      eviction invalidates it. GET /flows returns 410 snapshot_expired;
-      GET /nodes, GET /providers and GET /dns/cache return 400 invalid_request
-      for a cursor that is unknown or no longer valid. Discard it and restart
-      the page walk without a cursor; never silently continue against a new snapshot.
+      Opaque cursor from the previous page's next_cursor, bound to the running
+      instance, the retained snapshot or record, the filters and limit. A cursor
+      the server no longer recognises (snapshot expired or evicted, record left
+      the ring, process restarted, never issued) returns 410 snapshot_expired;
+      discard it and restart the walk without a cursor. A recognised cursor sent
+      with different filters or a different limit returns 400 invalid_request.
+      The server never continues a walk against a different snapshot.
     schema:
       type: string
       minLength: 1
@@ -291,7 +292,30 @@ responses:
               X-Content-Type-Options: nosniff
   Gone:
     $ref: ./openapi.yaml#/components/responses/ErrorResponseCommon
-    description: Flow or paginated snapshot retention expired
+    description: Flow retention expired (flow_expired)
+  SnapshotExpired:
+    description: The page cursor no longer names a retained snapshot or record; restart the walk without a cursor
+    headers:
+      Cache-Control:
+        $ref: ./openapi.yaml#/components/headers/NoStore
+      X-Content-Type-Options:
+        $ref: ./openapi.yaml#/components/headers/NoSniff
+    content:
+      application/json:
+        schema:
+          $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+        examples:
+          snapshot_expired:
+            value:
+              error:
+                code: snapshot_expired
+                message: The page snapshot expired; restart the page walk.
+                details: null
+              request_id: request-01HZX4K8W6
+            x-headers:
+              Content-Type: application/json
+              Cache-Control: no-store
+              X-Content-Type-Options: nosniff
   PreconditionFailed:
     description: If-Match does not equal the current configuration revision or on-disk source content hash
     headers:

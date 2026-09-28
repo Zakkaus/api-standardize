@@ -2126,6 +2126,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/SnapshotExpired'
         '413':
           $ref: '#/components/responses/TooLarge'
         '503':
@@ -2355,6 +2357,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/SnapshotExpired'
         '413':
           $ref: '#/components/responses/TooLarge'
         '503':
@@ -4041,10 +4045,6 @@ paths:
     get:
       operationId: listFlows
       summary: List active and retained terminal flow decisions
-      description: |
-        The cursor binds the filters and limit. A cursor sent with a different
-        limit returns 410 snapshot_expired; to change the page size, restart
-        the walk without a cursor.
       x-permission: observe
       security:
         - bearerAuth: []
@@ -4137,11 +4137,11 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '410':
-          $ref: '#/components/responses/Gone'
+          $ref: '#/components/responses/SnapshotExpired'
         '413':
           $ref: '#/components/responses/TooLarge'
         '503':
-          description: Bounded recorder memory cannot admit a snapshot
+          description: Bounded recorder memory cannot admit a snapshot (snapshot_unavailable)
           headers:
             Retry-After:
               description: Retry delay in seconds when retryable.
@@ -4160,8 +4160,8 @@ paths:
                 snapshot_full:
                   value:
                     error:
-                      code: temporarily_unavailable
-                      message: Flow snapshot capacity is full.
+                      code: snapshot_unavailable
+                      message: The flow snapshot could not be held within its memory budget.
                     request_id: request-1
                   x-headers:
                     Content-Type: application/json
@@ -4861,7 +4861,7 @@ paths:
       parameters:
         - name: kinds
           in: query
-          description: Comma-separated advertised event kinds.
+          description: Comma-separated advertised event kinds. A kind outside EventKind or a repeated kind returns 400; an EventKind member the capabilities do not advertise returns 422.
           schema:
             type: string
             minLength: 1
@@ -4903,10 +4903,13 @@ paths:
           $ref: '#/components/responses/EventCursorExpired'
         '413':
           $ref: '#/components/responses/TooLarge'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
         '429':
           $ref: '#/components/responses/RateLimited'
         '503':
           $ref: '#/components/responses/Unavailable'
+          description: max_clients streams are already open, or the event stream is unavailable (temporarily_unavailable)
   /api/v1/logs:
     get:
       operationId: streamLogs
@@ -4937,7 +4940,7 @@ paths:
       parameters:
         - name: level
           in: query
-          description: Minimum severity, ordered trace < debug < info < warn < error. Omit for all advertised levels; an unadvertised level returns 400 invalid_request.
+          description: Minimum severity, ordered trace < debug < info < warn < error. Omit for all advertised levels. A value outside LogLevel returns 400 invalid_request; a LogLevel member not in resources.logs.levels returns 422 unsupported_value.
           schema:
             $ref: '#/components/schemas/LogLevel'
           example: info
@@ -5105,12 +5108,14 @@ paths:
       operationId: patchRuntimeSettings
       summary: Change runtime-adjustable settings without a reload
       description: |
-        Requires control and resources.runtime_settings.available; only the fields
-        listed in resources.runtime_settings.fields may appear, others return 400
-        invalid_request. The body is a merge: an absent field keeps its value. Every
-        value is checked against its ceiling before anything changes; an unadvertised
-        log level, a ring below 64 records, or a value above the ceiling returns 400
-        and changes nothing. Shrinking a ring drops its oldest records and expires
+        Requires control and resources.runtime_settings.available. The body is a
+        merge: an absent field keeps its value. Every value is checked before
+        anything changes, and a rejected patch changes nothing. A field the schema
+        does not define, a ring below 64 records, or a value above its ceiling
+        returns 400 invalid_request. A field not listed in
+        resources.runtime_settings.fields, a log level not in
+        resources.logs.levels, or pinning a recorder whose allowed is false returns
+        422 unsupported_value; see Errors. Shrinking a ring drops its oldest records and expires
         cursors older than the new floor. The change applies immediately and lasts
         until the process restarts or the next configuration activation resets it; it
         is not written to the configuration file.
@@ -5128,8 +5133,8 @@ paths:
         a stored list that an earlier file wrote but the file no longer names.
         Activations never change them, so patched URLs last until the next startup.
         download follows the same startup rule as the URLs, and a download with
-        route group whose group_id is not a current group returns 422
-        unsupported_value and changes nothing.
+        route group whose group_id is not a current group returns 409
+        state_conflict and changes nothing.
       x-permission: control
       security:
         - bearerAuth: []
@@ -5247,7 +5252,7 @@ paths:
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
         '400':
-          description: A field outside resources.runtime_settings.fields, an unadvertised level, or a value outside its range
+          description: A field the schema does not define, or a value outside its range or advertised ceiling
           headers:
             Cache-Control:
               $ref: '#/components/headers/NoStore'
@@ -5274,11 +5279,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-        '413':
-          $ref: '#/components/responses/TooLarge'
-        '415':
-          $ref: '#/components/responses/UnsupportedMediaType'
-        '422':
+        '409':
           description: geodata.download names a group_id that is not a current group
           headers:
             Cache-Control:
@@ -5293,8 +5294,35 @@ paths:
                 unknown_group:
                   value:
                     error:
-                      code: unsupported_value
+                      code: state_conflict
                       message: geodata.download.group_id is not a current group.
+                      details: null
+                    request_id: request-4
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          description: A field not in resources.runtime_settings.fields, a level not in resources.logs.levels, or pinning a recorder that is not allowed
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/NoStore'
+            X-Content-Type-Options:
+              $ref: '#/components/headers/NoSniff'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                unadvertised_level:
+                  value:
+                    error:
+                      code: unsupported_value
+                      message: log.level is not an advertised level.
                       details: null
                     request_id: request-4
                   x-headers:
@@ -5468,12 +5496,7 @@ paths:
             $ref: '#/components/schemas/SafeUInt'
             minimum: 1
           example: 200
-        - name: cursor
-          in: query
-          description: Opaque cursor from a previous page; older records follow it.
-          schema:
-            type: string
-            minLength: 1
+        - $ref: '#/components/parameters/Cursor'
       responses:
         '200':
           description: Recent resolutions, newest first
@@ -5538,6 +5561,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/SnapshotExpired'
         '413':
           $ref: '#/components/responses/TooLarge'
         '503':
@@ -5643,6 +5668,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/SnapshotExpired'
         '413':
           $ref: '#/components/responses/TooLarge'
         '503':
@@ -6348,12 +6375,13 @@ components:
       name: cursor
       in: query
       description: |
-        Opaque cursor bound to the resource, running adapter instance, filters,
-        and retained snapshot. Restart, changed filters, or snapshot expiry or
-        eviction invalidates it. GET /flows returns 410 snapshot_expired;
-        GET /nodes, GET /providers and GET /dns/cache return 400 invalid_request
-        for a cursor that is unknown or no longer valid. Discard it and restart
-        the page walk without a cursor; never silently continue against a new snapshot.
+        Opaque cursor from the previous page's next_cursor, bound to the running
+        instance, the retained snapshot or record, the filters and limit. A cursor
+        the server no longer recognises (snapshot expired or evicted, record left
+        the ring, process restarted, never issued) returns 410 snapshot_expired;
+        discard it and restart the walk without a cursor. A recognised cursor sent
+        with different filters or a different limit returns 400 invalid_request.
+        The server never continues a walk against a different snapshot.
       schema:
         type: string
         minLength: 1
@@ -6620,7 +6648,30 @@ components:
                 X-Content-Type-Options: nosniff
     Gone:
       $ref: '#/components/responses/ErrorResponseCommon'
-      description: Flow or paginated snapshot retention expired
+      description: Flow retention expired (flow_expired)
+    SnapshotExpired:
+      description: The page cursor no longer names a retained snapshot or record; restart the walk without a cursor
+      headers:
+        Cache-Control:
+          $ref: '#/components/headers/NoStore'
+        X-Content-Type-Options:
+          $ref: '#/components/headers/NoSniff'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            snapshot_expired:
+              value:
+                error:
+                  code: snapshot_expired
+                  message: The page snapshot expired; restart the page walk.
+                  details: null
+                request_id: request-01HZX4K8W6
+              x-headers:
+                Content-Type: application/json
+                Cache-Control: no-store
+                X-Content-Type-Options: nosniff
     PreconditionFailed:
       description: If-Match does not equal the current configuration revision or on-disk source content hash
       headers:
@@ -7854,7 +7905,7 @@ components:
                 fields:
                   type: array
                   uniqueItems: true
-                  description: The settings PATCH /runtime/settings accepts on this backend; others return 400.
+                  description: The settings PATCH /runtime/settings accepts on this backend; another field the schema defines returns 422.
                   items:
                     $ref: '#/components/schemas/RuntimeSettingField'
             geodata:

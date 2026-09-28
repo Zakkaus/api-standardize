@@ -385,10 +385,6 @@ paths:
     get:
       operationId: listFlows
       summary: List active and retained terminal flow decisions
-      description: |
-        The cursor binds the filters and limit. A cursor sent with a different
-        limit returns 410 snapshot_expired; to change the page size, restart
-        the walk without a cursor.
       x-permission: observe
       security:
         - bearerAuth: []
@@ -476,11 +472,11 @@ paths:
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
         "410":
-          $ref: ./openapi.yaml#/components/responses/Gone
+          $ref: ./openapi.yaml#/components/responses/SnapshotExpired
         "413":
           $ref: ./openapi.yaml#/components/responses/TooLarge
         "503":
-          description: Bounded recorder memory cannot admit a snapshot
+          description: Bounded recorder memory cannot admit a snapshot (snapshot_unavailable)
           headers:
             Retry-After:
               description: Retry delay in seconds when retryable.
@@ -499,8 +495,8 @@ paths:
                 snapshot_full:
                   value:
                     error:
-                      code: temporarily_unavailable
-                      message: Flow snapshot capacity is full.
+                      code: snapshot_unavailable
+                      message: The flow snapshot could not be held within its memory budget.
                     request_id: request-1
                   x-headers:
                     Content-Type: application/json

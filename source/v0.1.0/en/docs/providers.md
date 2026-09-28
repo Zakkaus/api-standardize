@@ -14,11 +14,9 @@ not change the configured source.
 
 {% api_request listProviders %}
 
-`limit` defaults to the smaller of 100 and `max_page_size`, with a wire ceiling
-of 1000. A larger-than-advertised limit returns `400 invalid_request`.
-`next_cursor` is null at the end of the list. Cursors bind to the running
-instance and retained snapshot. An unknown, expired, or invalidated cursor
-returns `400 invalid_request`; discard it and restart the page walk.
+`limit` defaults to the smaller of 100 and `max_page_size`; a larger value
+returns `400 invalid_request`. `next_cursor` is null at the end of the list, and
+cursors follow the [paging rule](errors.html#Page-cursors).
 If the server cannot retain the snapshot within its budget, it returns
 `503 snapshot_unavailable` with `Retry-After`.
 

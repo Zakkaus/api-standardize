@@ -190,7 +190,7 @@ Prefer a mirror that publishes checksums.
 
 `group_id` is a current group id from `GET /groups`, required for `group` and
 not allowed otherwise. An id that is not a current group returns
-`422 unsupported_value` and changes nothing. `download` is stored on its own,
+`409 state_conflict` and changes nothing. `download` is stored on its own,
 like `auto_update`. If the stored group later disappears from the
 configuration, `group_id` reads null and downloads fail until the route is
 changed.

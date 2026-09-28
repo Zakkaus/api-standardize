@@ -17,7 +17,8 @@ title: Logs
 | target | absent | Case-sensitive literal module prefix. |
 | Last-Event-ID | absent | Header containing the last processed opaque cursor. |
 
-An invalid or unadvertised level returns `400 invalid_request`. Capabilities
+A level outside the five above returns `400 invalid_request`; one of them that
+`levels` does not advertise returns `422 unsupported_value` (see [errors](errors.html#Choosing-the-status)). Capabilities
 advertise `levels`, `retention_seconds` and `max_buffered_records`; clients
 must not infer them from the engine version.
 

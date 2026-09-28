@@ -18,6 +18,13 @@ envelope. Heartbeat comments are sent at most 15 seconds apart while idle.
 | kinds | all permitted advertised kinds | Comma-separated event kinds below. |
 | flow_id | absent | Limit flow notifications to one flow. |
 
+A kind outside the event kinds below, a repeated kind, or a malformed
+`flow_id` returns `400 invalid_request`; a listed kind that the capabilities do
+not advertise returns `422 unsupported_value`. With `max_clients` streams
+already open, a new stream returns `503 temporarily_unavailable` with
+`Retry-After`. A `Last-Event-ID` that can no longer be replayed returns
+`409 event_cursor_expired`. See [errors](errors.html#Choosing-the-status).
+
 {% api_request streamEvents %}
 
 {% api_event FlowUpdated %}

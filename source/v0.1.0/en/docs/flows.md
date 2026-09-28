@@ -51,10 +51,8 @@ Requires `observe`. Returns active **and retained terminal** flows.
 {% api_example listFlows 200 visible %}
 
 `revision` increases whenever the retained flow changes. Cursors preserve a
-bounded point-in-time list, ordered newest-first with ID as tie-breaker. An
-expired snapshot, or a cursor sent with a different `limit`, returns
-`410 snapshot_expired`; do not silently restart a page walk. To change the page
-size, start a new walk without a cursor. `pname` is the captured process name or `null`, including for LAN
+bounded point-in-time list, ordered newest-first with ID as tie-breaker, and
+follow the [paging rule](errors.html#Page-cursors). `pname` is the captured process name or `null`, including for LAN
 traffic without process context. It is available in summary; summary is a
 payload-size tier, **not an authorization or privacy boundary**.
 
@@ -335,7 +333,7 @@ tombstone exists; otherwise unknown or unauthorized IDs return `404 resource_not
 
 
 All snapshots, rule dictionaries and variable-length step data share bounded
-recorder memory. Admission to a new snapshot may return `503` rather than
+recorder memory. Admission to a new snapshot may return `503 snapshot_unavailable` rather than
 allocate without limit; oversized candidate/rule evidence marks the trace
 partial. Neither longer retention nor pagination permits unbounded metadata.
 Do not stream packets, format rule strings, walk all maps on each GET, or make

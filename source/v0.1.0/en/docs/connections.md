@@ -21,7 +21,7 @@ network speeds where the observation plane provides them.
 |-----------|------|---------|-------------|
 | type | string | all | Filter: `tcp`, `udp`, or `all` |
 | src | string | - | Exact source IP literal without a port; applied with `type` before `limit`. |
-| limit | int | 100 | Max connections to return across both arrays; capped at 1000. |
+| limit | int | 100 | Max connections to return across both arrays, 1–1000; larger returns `400`. |
 | detail | string | summary | `summary` omits `src`, `dst`, and `domain`; `full` includes them when observable. |
 
 ## Response

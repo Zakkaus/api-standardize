@@ -88,12 +88,14 @@ paths:
       operationId: patchRuntimeSettings
       summary: Change runtime-adjustable settings without a reload
       description: |
-        Requires control and resources.runtime_settings.available; only the fields
-        listed in resources.runtime_settings.fields may appear, others return 400
-        invalid_request. The body is a merge: an absent field keeps its value. Every
-        value is checked against its ceiling before anything changes; an unadvertised
-        log level, a ring below 64 records, or a value above the ceiling returns 400
-        and changes nothing. Shrinking a ring drops its oldest records and expires
+        Requires control and resources.runtime_settings.available. The body is a
+        merge: an absent field keeps its value. Every value is checked before
+        anything changes, and a rejected patch changes nothing. A field the schema
+        does not define, a ring below 64 records, or a value above its ceiling
+        returns 400 invalid_request. A field not listed in
+        resources.runtime_settings.fields, a log level not in
+        resources.logs.levels, or pinning a recorder whose allowed is false returns
+        422 unsupported_value; see Errors. Shrinking a ring drops its oldest records and expires
         cursors older than the new floor. The change applies immediately and lasts
         until the process restarts or the next configuration activation resets it; it
         is not written to the configuration file.
@@ -111,8 +113,8 @@ paths:
         a stored list that an earlier file wrote but the file no longer names.
         Activations never change them, so patched URLs last until the next startup.
         download follows the same startup rule as the URLs, and a download with
-        route group whose group_id is not a current group returns 422
-        unsupported_value and changes nothing.
+        route group whose group_id is not a current group returns 409
+        state_conflict and changes nothing.
       x-permission: control
       security:
         - bearerAuth: []
@@ -210,7 +212,7 @@ paths:
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
         "400":
-          description: A field outside resources.runtime_settings.fields, an unadvertised level, or a value outside its range
+          description: A field the schema does not define, or a value outside its range or advertised ceiling
           headers:
             Cache-Control:
               $ref: ./openapi.yaml#/components/headers/NoStore
@@ -241,7 +243,7 @@ paths:
           $ref: ./openapi.yaml#/components/responses/TooLarge
         "415":
           $ref: ./openapi.yaml#/components/responses/UnsupportedMediaType
-        "422":
+        "409":
           description: geodata.download names a group_id that is not a current group
           headers:
             Cache-Control:
@@ -256,8 +258,31 @@ paths:
                 unknown_group:
                   value:
                     error:
-                      code: unsupported_value
+                      code: state_conflict
                       message: geodata.download.group_id is not a current group.
+                      details: null
+                    request_id: request-4
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        "422":
+          description: A field not in resources.runtime_settings.fields, a level not in resources.logs.levels, or pinning a recorder that is not allowed
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                unadvertised_level:
+                  value:
+                    error:
+                      code: unsupported_value
+                      message: log.level is not an advertised level.
                       details: null
                     request_id: request-4
                   x-headers:

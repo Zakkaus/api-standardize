@@ -241,9 +241,11 @@ flow demand, logs and DNS logs follow attachment); pinning a recorder the config
 
 {% api_example patchRuntimeSettings 200 changed %}
 
-Every value is checked against its ceiling before anything changes: an
-unadvertised level, a ring below 64 records, or a value above its ceiling
-returns `400 invalid_request` and changes nothing. Shrinking a ring drops its
+Every value is checked before anything changes, and a rejected patch changes
+nothing. A ring below 64 records or a value above its ceiling returns
+`400 invalid_request`; a field not in `resources.runtime_settings.fields`, an
+unadvertised level, or pinning a recorder whose `allowed` is false returns
+`422 unsupported_value` (see [errors](errors.html#Choosing-the-status)). Shrinking a ring drops its
 oldest records and expires cursors older than the new floor. The change
 applies immediately, is not written to the configuration file, and lasts
 until the process restarts or the next configuration activation resets it.

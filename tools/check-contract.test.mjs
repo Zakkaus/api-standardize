@@ -315,8 +315,10 @@ test("geodata sources are patched through runtime settings and reported with the
   const noRoute = example("getRuntimeSettings:200:current");
   delete noRoute.body.geodata.download;
   assertInvalid(validateExample(contract, noRoute), "the settings report the download route");
-  assert.equal(spec.paths["/api/v1/runtime/settings"].patch.responses["409"], undefined,
-    "URL patches are accepted under any source");
+  const conflict = spec.paths["/api/v1/runtime/settings"].patch.responses["409"];
+  assert.match(conflict.description, /group_id/, "the only settings conflict is a group reference");
+  assert.equal(conflict.content["application/json"].examples.unknown_group.value.error.code, "state_conflict",
+    "a group that is not current is a state conflict, not an unsupported value");
   const seeded = example("getRuntimeSettings:200:config_sources");
   seeded.body.geodata.geoip.urls = [];
   assertInvalid(validateExample(contract, seeded), "a stored URL list is never empty");
@@ -1734,5 +1736,28 @@ test("every operation lists the request-boundary 400 and 413", () => {
         assert.ok(operation.responses[status], `${method} ${path} does not list ${status}`);
       }
     }
+  }
+});
+
+const resolveRef = (value) => value?.$ref
+  ? value.$ref.slice(2).split("/").reduce((node, key) => node[key.replaceAll("~1", "/").replaceAll("~0", "~")], spec)
+  : value;
+
+test("every paged list shares the cursor rule and returns 410 for an expired cursor", () => {
+  for (const [path, operationId] of [
+    ["/api/v1/nodes", "listNodes"],
+    ["/api/v1/providers", "listProviders"],
+    ["/api/v1/flows", "listFlows"],
+    ["/api/v1/dns/cache", "listDnsCache"],
+    ["/api/v1/dns/log", "listDnsLog"],
+  ]) {
+    const operation = spec.paths[path].get;
+    assert.equal(operation.operationId, operationId);
+    const cursors = operation.parameters.map(resolveRef).filter((parameter) => parameter.name === "cursor");
+    assert.equal(cursors.length, 1, `${path} takes one cursor`);
+    assert.match(cursors[0].description, /410 snapshot_expired/, `${path} uses the shared cursor rule`);
+    const gone = resolveRef(operation.responses["410"]);
+    assert.equal(gone.content["application/json"].examples.snapshot_expired.value.error.code, "snapshot_expired",
+      `${path} returns snapshot_expired`);
   }
 });

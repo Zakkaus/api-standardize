@@ -59,6 +59,8 @@ paths:
           $ref: ./openapi.yaml#/components/responses/Forbidden
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
+        "410":
+          $ref: ./openapi.yaml#/components/responses/SnapshotExpired
         "413":
           $ref: ./openapi.yaml#/components/responses/TooLarge
         "503":

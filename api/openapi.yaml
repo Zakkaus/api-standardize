@@ -157,6 +157,8 @@ components:
       $ref: ./common.yaml#/responses/Conflict
     Gone:
       $ref: ./common.yaml#/responses/Gone
+    SnapshotExpired:
+      $ref: ./common.yaml#/responses/SnapshotExpired
     PreconditionFailed:
       $ref: ./common.yaml#/responses/PreconditionFailed
     TooLarge:

@@ -20,7 +20,7 @@ least `domain` or `dst_ip` is required. Other input fields are optional and
 nullable; missing source IP/port, process name, DSCP, and mark are **unknown**,
 not empty strings, zero, or the API caller's own metadata. IPs must be literal
 IPv4/IPv6; DSCP is 0–63, mark 0–4294967295, and source port 1–65535. Domain
-validation uses the DNS query limits. Unknown fields return `400 invalid_request`.
+validation uses the DNS query limits. Unknown fields return `400 invalid_request` (see [errors](errors.html#Choosing-the-status)).
 The supplied domain is explicit input, not a claim that SNI verification passed.
 
 `resolve` is `none` (default) or `live`. With `none`, do not resolve even from

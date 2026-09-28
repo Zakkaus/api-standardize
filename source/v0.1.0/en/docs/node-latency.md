@@ -17,14 +17,10 @@ title: Nodes
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | group_id | string | - | Return direct members of one group. |
-| limit | int | 100 | Maximum nodes to return; capped at 1000. |
+| limit | int | 100 | Maximum nodes to return, 1–1000; larger returns `400`. |
 | cursor | string | - | Opaque cursor returned by `next_cursor`. |
 
-The server binds cursors to the running adapter instance, filters, and
-retained snapshot. Restart, changed filters, or snapshot expiry/eviction invalidates
-them. The server rejects unknown or invalidated cursors with
-`400 invalid_request`; discard the cursor and restart the page walk without it.
-If the server cannot retain the snapshot within its budget, it returns
+Cursors follow the [paging rule](errors.html#Page-cursors). If the server cannot retain the snapshot within its budget, it returns
 `503 snapshot_unavailable` with `Retry-After`.
 
 ## Response

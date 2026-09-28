@@ -212,6 +212,8 @@ paths:
           $ref: ./openapi.yaml#/components/responses/Forbidden
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
+        "410":
+          $ref: ./openapi.yaml#/components/responses/SnapshotExpired
         "413":
           $ref: ./openapi.yaml#/components/responses/TooLarge
         "503":
@@ -413,12 +415,7 @@ paths:
             $ref: ./openapi.yaml#/components/schemas/SafeUInt
             minimum: 1
           example: 200
-        - name: cursor
-          in: query
-          description: Opaque cursor from a previous page; older records follow it.
-          schema:
-            type: string
-            minLength: 1
+        - $ref: ./openapi.yaml#/components/parameters/Cursor
       responses:
         "200":
           description: Recent resolutions, newest first
@@ -471,6 +468,8 @@ paths:
           $ref: ./openapi.yaml#/components/responses/Forbidden
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
+        "410":
+          $ref: ./openapi.yaml#/components/responses/SnapshotExpired
         "413":
           $ref: ./openapi.yaml#/components/responses/TooLarge
         "503":
