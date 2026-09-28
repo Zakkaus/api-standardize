@@ -34,9 +34,13 @@ Clash-compatible listener.
 - Cross-origin browser access requires an exact origin in `allow_origins`.
   An empty list disables cross-origin access, not the same-origin `/ui/`
   interface. Bearer authentication still follows the listener configuration.
+- For an allowed origin, CORS permits the `Authorization`, `Last-Event-ID`,
+  `Content-Type`, `If-Match`, `Idempotency-Key`, and `Accept` request headers,
+  and exposes `Location`, `Retry-After`, and `ETag`.
 - Browsers send CORS preflights without credentials. The server validates the
   origin, requested method, and requested headers, then answers the preflight
-  without bearer authentication; the actual request is authenticated as usual.
+  without bearer authentication; the actual request keeps its normal
+  authentication and permission checks.
 - Non-loopback bearer transport MUST use TLS at the listener or a trusted
   local reverse proxy; a secret sent over untrusted cleartext is not secure.
 - Reject unapproved browser Origins on all native requests, including

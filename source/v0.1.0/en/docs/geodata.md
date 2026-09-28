@@ -164,9 +164,8 @@ and how long overrides last:
 - `overrides_persist: true`: an override lasts across restarts. `false`: it
   lasts until the process exits.
 
-honk advertises `file_values: start` and `overrides_persist: true`. Each field
-changes as follows; "file values taken" means process start, and also
-activation under `file_values: activation`.
+Each field changes as follows; "file values taken" means process start, and
+also activation under `file_values: activation`.
 
 | Event | Field last set by the file | Field set by `PATCH` |
 |-------|----------------------------|----------------------|

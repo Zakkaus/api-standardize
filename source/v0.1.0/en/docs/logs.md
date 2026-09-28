@@ -33,8 +33,8 @@ line break.
 
 {% api_example streamLogs 200 records %}
 
-`stream.ready` is the first frame on every connection, including a resume.
-Its data uses the [events](events.html) payload: `instance_id`, `observed_at`.
+Each connection starts with `stream.ready`, whose data is the
+[events](events.html) payload: `instance_id`, `observed_at`.
 Each `event: log` frame has an `id` and JSON data containing `ts`, `level`,
 `target` (the emitting component, or null when the engine does not report
 one), `message`, and `fields` (object or null). A `target` filter never
@@ -47,24 +47,16 @@ appear, including inside nested fields. Do not forward raw engine output.
 
 ## Replay and recovery
 
-Resume strictly after `Last-Event-ID`, then switch to live delivery without
-an unobserved gap. The initial ready cursor must not skip pending replay;
-keep the supplied cursor until replay advances it. Deduplicate by frame ID,
-not by timestamp or message. IDs are opaque; gaps may reflect filtering.
+Log streams follow the [events replay and recovery rules](events.html#Replay-and-recovery),
+including authentication and CORS, with these differences:
 
-Cursors are bound to the stream, instance, and filters. Unknown, expired,
-previous-instance, and changed-filter cursors return `409 event_cursor_expired`
-before any `200` stream opens. Drop the cursor and reconnect for a new
-baseline; do not present lost records as recovered history. Log cursors and
-notification cursors are not interchangeable.
-
-The replay buffer holds at most `max_buffered_records` records, none older
-than `retention_seconds`. Close slow clients when their bounded queue fills;
-never block engine writers. A reconnect fails if the buffer has already
-evicted its cursor, including a quiet filtered stream whose last record aged
-out. Follow the shared SSE
-[authentication and CORS rules](events.html): no bearer secrets in URLs.
-The server reauthorizes each reconnect and closes streams after revocation.
+- Deduplicate by frame ID, not by timestamp or message.
+- A cursor is bound to the log stream, the instance, and the filters. Log
+  cursors and notification cursors are not interchangeable.
+- The replay buffer holds at most `max_buffered_records` records, none older
+  than `retention_seconds`. A reconnect fails if the buffer has already
+  evicted its cursor, including a quiet filtered stream whose last record aged
+  out.
 
 ## Settings
 

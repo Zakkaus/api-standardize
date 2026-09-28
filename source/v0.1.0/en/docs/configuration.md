@@ -113,11 +113,9 @@ limit, and that limit then applies. Exceeding either returns
 when its content is complete. A body with a masked listener-secret value has no
 `ETag`: it is not the representation that `PUT` replaces.
 `If-Match` is evaluated as [conditional requests](errors.html#Conditional-requests)
-defines.
-The optional `Idempotency-Key` follows the [operation rules](operations.html):
-within the running instance's retention window, the same caller, method, path,
-key, and body return the original operation without another write or hash
-check. Reusing the key with a different body returns `409 idempotency_conflict`.
+defines. The optional `Idempotency-Key` follows the
+[replay rules](operations.html#Replay); a replay returns the original operation
+without another write or hash check.
 
 ### Validation and commit
 
@@ -260,8 +258,7 @@ A failure before the source is stored creates nothing. After it is stored, the
 - `committed: null`: the source stays. Read `GET /config` and `GET /runtime`
   back to learn whether it became active.
 
-A second create for a `path` that is still in the store returns
-`409 state_conflict`. After a successful reload, `GET /config` lists the new source
+After a successful reload, `GET /config` lists the new source
 with `path` as given, and it can be edited through
 `PUT /config/sources/{source_id}`. Replacement never removes a source: a
 replaced source keeps its accepted ID, so a later PUT can repair it.
