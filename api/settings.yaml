@@ -48,6 +48,7 @@ paths:
                           - https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat
                       auto_update: { enabled: true, interval_hours: 24 }
                       download: { route: routing, group_id: null }
+                      verify_checksum: true
                   x-headers:
                     Content-Type: application/json
                     Cache-Control: no-store
@@ -68,6 +69,7 @@ paths:
                         urls: [ https://mirror.example.net/geodata/geoip.dat ]
                       auto_update: { enabled: true, interval_hours: 48 }
                       download: { route: group, group_id: group-proxy }
+                      verify_checksum: true
                   x-headers:
                     Content-Type: application/json
                     Cache-Control: no-store
@@ -96,8 +98,9 @@ paths:
         and an authenticated caller; the anonymous loopback principal gets 403
         permission_denied. The backend stores it and does not change the top-level
         source. A geodata patch merges into the stored settings. Patching geosite or
-        geoip stores both URL lists (geodata.source becomes db); auto_update is
-        stored on its own; null deletes everything stored. It never downloads; POST
+        geoip stores both URL lists (geodata.source becomes db); auto_update,
+        download and verify_checksum are each stored on their own; null deletes
+        everything stored. It never downloads; POST
         /geodata/update does. The stored settings are the only ones in force. At
         startup, the backend writes each geodata download URL the configuration file
         names into the stored settings, replacing a list a patch stored, and deletes
@@ -145,6 +148,11 @@ paths:
                 value:
                   geodata:
                     download: { route: group, group_id: group-proxy }
+              geodata_skip_checksum:
+                summary: Accept files from a mirror without a checksum file
+                value:
+                  geodata:
+                    verify_checksum: false
               geodata_reset:
                 summary: Return to the built-in sources
                 value:
@@ -192,6 +200,7 @@ paths:
                           - https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geoip.dat
                       auto_update: { enabled: true, interval_hours: 24 }
                       download: { route: routing, group_id: null }
+                      verify_checksum: true
                   x-headers:
                     Content-Type: application/json
                     Cache-Control: no-store

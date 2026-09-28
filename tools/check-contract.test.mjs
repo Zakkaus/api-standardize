@@ -298,6 +298,20 @@ test("geodata sources are patched through runtime settings and reported with the
   patch.body = {geodata: {download: {route: "routing"}}};
   assertValid(validateExample(contract, patch), "routing needs no group");
   assert.ok(spec.paths["/api/v1/runtime/settings"].patch.responses["422"], "an unknown group is rejected");
+  const verify = spec.components.schemas.GeoDataSettings;
+  assert.ok(!verify.required.includes("verify_checksum"), "older backends omit verify_checksum");
+  assert.equal(verify.properties.verify_checksum.default, undefined,
+    "verify_checksum has no schema default so generated clients keep it optional");
+  assert.equal(example("getRuntimeSettings:200:current").body.geodata.verify_checksum, true,
+    "the built-in settings verify checksums");
+  const skipChecksum = example("patchRuntimeSettings:request:geodata_skip_checksum");
+  assertValid(validateExample(contract, skipChecksum));
+  assert.deepEqual(skipChecksum.body.geodata, {verify_checksum: false}, "verify_checksum is patchable on its own");
+  patch.body = {geodata: {verify_checksum: "no"}};
+  assertInvalid(validateExample(contract, patch), "verify_checksum is a boolean");
+  const unverified = example("getRuntimeSettings:200:current");
+  delete unverified.body.geodata.verify_checksum;
+  assertValid(validateExample(contract, unverified), "settings without verify_checksum are valid");
   const noRoute = example("getRuntimeSettings:200:current");
   delete noRoute.body.geodata.download;
   assertInvalid(validateExample(contract, noRoute), "the settings report the download route");

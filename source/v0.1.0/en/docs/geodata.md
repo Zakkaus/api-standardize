@@ -31,7 +31,7 @@ carries the update status, and each asset reports where its file came from:
 | Field | Meaning |
 |-------|---------|
 | assets[].fetched_url_redacted | Display-only URL the loaded file was downloaded from, redacted like `source_redacted`. Null when the backend did not download it, for example a file installed by a package. |
-| assets[].verified | The file matched the sha256 published beside its URL. False when no checksum was published or the backend did not download the file. |
+| assets[].verified | The file matched the sha256 published beside its URL. False when no checksum was published, `verify_checksum` was false, or the backend did not download the file. |
 | assets[].download_route | The route the file was downloaded through: `route` as `download` was set for that download, and `group_id` the group the request went through, including the group the routing rules chose. Null when the backend did not download the file. |
 | last_checked_at | When the last update attempt, manual or automatic, finished, whatever its outcome. |
 | last_updated_at | When an update last replaced a loaded file. |
@@ -74,7 +74,8 @@ the next only when one fails:
   raw or CDN URL that serves the file directly;
 - a sha256 mismatch. When a checksum is published at the URL with
   `.sha256sum` appended, the backend fetches and compares it; without one the
-  file is accepted unverified and `verified` is false.
+  file is accepted unverified and `verified` is false. With `verify_checksum`
+  false, the backend requests no checksum and accepts the file unverified.
 
 Every request, the checksum included, leaves through the route in
 `download` (see below). A URL the route cannot reach, because the group has no
@@ -116,6 +117,7 @@ automatic updates are the `geodata` section of
 | source | Read-only: where the stored URL lists came from, `config`, `db` or `default`. |
 | download.route | How downloads leave the device: `routing` (default), `group` or `direct`. |
 | download.group_id | The group for `route: group`, as in `GET /groups`; null otherwise. |
+| verify_checksum | Fetch the checksum beside each URL and reject a file that does not match it. True when nothing is stored; a backend that omits the field behaves as true. |
 
 `GET /runtime/settings` needs only `observe`. The URLs are returned as written,
 with only listener-secret values masked, to an authenticated caller with
@@ -129,7 +131,7 @@ patched value. Activations never
 change them, so a patch lasts until the next startup. For an asset the file
 names no URL for, a list an earlier file wrote is deleted and the built-in URLs
 apply, while a patched list is kept. The route follows the same rule, and
-does not affect `source`. The file never sets `auto_update`.
+does not affect `source`. The file never sets `auto_update` or `verify_checksum`.
 
 `source` tells a client where the stored URL lists came from:
 
@@ -145,9 +147,10 @@ An asset without a stored list uses its built-in URLs under any `source`.
 
 A patch merges into the stored settings and may set URLs under any `source`. Setting `geosite` or `geoip`
 stores both URL lists, so `source` becomes `db`; a `urls` list replaces the
-whole list. `auto_update` is stored on its own and never changes `source`.
+whole list. `auto_update`, `download` and `verify_checksum` are each stored on
+their own and never change `source`.
 `"geodata": null` deletes everything stored: the URLs return to the built-in
-sources, and `auto_update` to its defaults. A configuration file that names URLs
+sources, and the other fields to their defaults. A configuration file that names URLs
 writes them again at the next startup.
 Plain `http` URLs are accepted, but a file fetched without a published checksum
 is unverified, so prefer `https`. Changing `geodata` requires `control` and an
@@ -157,6 +160,14 @@ activations, apart from the writes from the configuration file described above. 
 to fetch from the new URLs.
 
 {% api_request patchRuntimeSettings geodata_sources %}
+
+Some mirrors answer the checksum URL with an error page, or a status such as
+`403` or `429`, instead of `404`, so every update from them fails. Setting
+`verify_checksum` to false lets such a mirror work: the backend sends no
+checksum request and accepts each file unverified, with `verified` false.
+Prefer a mirror that publishes checksums.
+
+{% api_request patchRuntimeSettings geodata_skip_checksum %}
 
 {% api_example patchRuntimeSettings 200 geodata_stored %}
 
