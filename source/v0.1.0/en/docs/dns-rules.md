@@ -28,8 +28,8 @@ appears, with the backend's default action and a null `source`. A rule the
 parser omitted with a diagnostic is not listed; read the diagnostics from
 [GET /config](configuration.html).
 
-Each entry has `rule_id`, zero-based `index`, `expression` (the rule's
-source text as written, for display), `action`, `upstream`, nullable `source`, and `kind`
+Each entry has `rule_id`, zero-based `index`, `expression` (display text,
+see [Rule expressions](rules.html#Rule-expressions)), `action`, `upstream`, nullable `source`, and `kind`
 (`rule` or `fallback`). `source` has the same shape as in
 [GET /rules](rules.html): the source `file` as written, the configuration
 `source_id`, a one-based `line`, and a nullable one-based UTF-8 byte `column`.
@@ -48,7 +48,8 @@ name. Request conditions are `qname`, `qtype` and `sip`; response rules may also
 use `upstream` and `ip`.
 
 `upstream` is the name as the engine resolved it and may differ in case from
-the source text; `expression` keeps the text as written.
+the source text; `expression` is the text as written only when the engine
+retains it.
 
 `rule_id` is stable within a generation, unique across both lists, and
 addresses the rule. Address a rule by `(generation_id, rule_id)`, never by
@@ -60,10 +61,11 @@ Refetch on `generation.changed` from the [events feed](events.html), or poll
 and replace both lists when `generation_id` changes. This endpoint has no
 pagination.
 
-`resources.dns_rules.max_rules` bounds each list, including its fallback.
-Never truncate silently. Return `503 temporarily_unavailable` if a list cannot
-fit, or `503 snapshot_unavailable` if the adapter cannot pin one coherent
-generation.
+`resources.dns_rules.max_rules` bounds each list, including its fallback,
+under the same rule as [traffic rules](rules.html#Generation-changes-and-limits):
+it is never below either running list's size, so both lists are always
+returned complete. Return `503 snapshot_unavailable` if the adapter cannot pin
+one coherent generation.
 
 A backend that does not implement this endpoint advertises
 `resources.dns_rules.available: false` and returns

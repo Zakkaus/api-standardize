@@ -83,7 +83,7 @@ test("connection and flow-summary examples carry required list-view evidence", (
   const fields = ["chain", "chain_source", "rule_id", "rule_expression", "rule_source", "ingress", "domain_source"];
   const sources = {
     chain_source: ["evaluation", "reconstructed", "unknown"],
-    rule_source: ["kernel", "recomputed", "unknown"],
+    rule_source: ["kernel", "userspace", "recomputed", "unknown"],
   };
   const selectors = {
     listConnections: (body) => [...body.tcp, ...body.udp],
@@ -839,8 +839,8 @@ test("required path, query, and header parameters need native examples", () => {
   const mutations = [
     (changed) => delete changed.components.parameters.FlowId.example,
     (changed) => {
-      const parameter = changed.paths["/api/v1/dns/query"].get.parameters.find(
-        (candidate) => candidate.name === "domain",
+      const parameter = changed.paths["/api/v1/dns/cache"].delete.parameters.find(
+        (candidate) => candidate.name === "name",
       );
       assert.ok(parameter);
       delete parameter.example;
@@ -857,8 +857,8 @@ test("required path, query, and header parameters need native examples", () => {
 
 test("unsupported parameter serialization is rejected explicitly", () => {
   const changed = structuredClone(spec);
-  const parameter = changed.paths["/api/v1/dns/query"].get.parameters.find(
-    (candidate) => candidate.name === "domain",
+  const parameter = changed.paths["/api/v1/dns/cache"].delete.parameters.find(
+    (candidate) => candidate.name === "name",
   );
   assert.ok(parameter);
   parameter.style = "deepObject";
@@ -1014,10 +1014,14 @@ test("JSON and HTTP renderers expose the canonical wire values", () => {
   const body = example("createProbe:request:dns_udp");
   assert.deepEqual(JSON.parse(renderExample(body)), body.body);
 
-  const query = renderExample(example("queryDns:request"), "http");
-  assert.match(query, /^GET \/api\/v1\/dns\/query\?/u);
-  assert.match(query, /(?:\?|&)domain=example\.com(?:&| )/u);
+  const query = renderExample(example("deleteDnsCacheByName:request"), "http");
+  assert.match(query, /^DELETE \/api\/v1\/dns\/cache\?/u);
+  assert.match(query, /(?:\?|&)name=example\.com\.(?:&| )/u);
   assert.match(query, /(?:\?|&)type=A&type=AAAA(?:&| )/u);
+
+  const dns = renderExample(example("queryDns:request:dual_stack"), "http");
+  assert.match(dns, /^POST \/api\/v1\/dns\/query(?:\?detail=[a-z]+)? HTTP\/1\.1(?:\r?\n)/u);
+  assert.doesNotMatch(dns.split(/\r?\n/u)[0], /example\.com/u, "the queried name stays out of the URL");
 
   const pathRequest = renderExample(example("getFlow:request"), "http");
   assert.match(pathRequest, /^GET \/api\/v1\/flows\/flow-23 HTTP\/1\.1(?:\r?\n|$)/u);
@@ -1941,4 +1945,65 @@ test("datapath step actions have a core set and accept engine-defined values", (
     assertInvalid(contract.validate(schema, { ...data, action }), `action ${JSON.stringify(action)} passed`);
   }
   assertInvalid(contract.validate(schema, (({ action, ...rest }) => rest)(data)), "action is required");
+});
+
+test("engine-only capabilities, links and routes live under x-<engine>", () => {
+  const capabilities = example("getCapabilities:200:available");
+  capabilities.body.resources["x-honk"] = { config_export: { available: true } };
+  assertValid(validateExample(contract, capabilities));
+  capabilities.body.resources["x-honk"].config_export = {};
+  assertInvalid(validateExample(contract, capabilities), "an extension resource must carry available");
+  delete capabilities.body.resources["x-honk"];
+  capabilities.body.resources.config_export = { available: true };
+  assertInvalid(validateExample(contract, capabilities), "an engine-only resource key must be namespaced");
+  const discovery = example("getDiscovery:200:draft");
+  discovery.body.links["x-honk"] = { config_export: "/api/v1/x-honk/config/export" };
+  assertValid(validateExample(contract, discovery));
+  discovery.body.links["x-honk"].config_export = "/api/v1/config/export";
+  assertInvalid(validateExample(contract, discovery), "an extension link must stay under /api/v1/x-<engine>/");
+  delete discovery.body.links["x-honk"];
+  discovery.body.links.config_export = "/api/v1/x-honk/config/export";
+  assertInvalid(validateExample(contract, discovery), "an engine-only link must be namespaced");
+  for (const path of Object.keys(spec.paths)) {
+    assert.ok(!/^\/api\/v1\/x-/.test(path), `${path}: the contract defines no engine routes`);
+    assert.notEqual(path, "/api/v1/discovery", "discovery has no alias");
+  }
+  const version = example("getVersion:200:build");
+  assert.equal(version.body.api.name, example("getDiscovery:200:draft").body.name);
+  version.body.engine.name = "Honk";
+  assertInvalid(validateExample(contract, version), "engine.name is a lowercase identifier");
+});
+
+test("group config admits dae's fixed policy, a missing interrupt option and engine extensions", () => {
+  const response = example("getGroup:200:current");
+  response.body.policy = { kind: "fixed", native: "fixed" };
+  response.body.config.interrupt_connections = null;
+  response.body.config["x-dae"] = { check_addresses: ["192.0.2.1"] };
+  assertValid(validateExample(contract, response));
+  response.body.config.check_addresses = ["192.0.2.1"];
+  assertInvalid(validateExample(contract, response), "engine-only options go in an x-<engine> member");
+  delete response.body.config.check_addresses;
+  response.body.config["x-dae"] = ["192.0.2.1"];
+  assertInvalid(validateExample(contract, response), "an x-<engine> member is an object");
+  response.body.config["x-dae"] = { check_addresses: ["192.0.2.1"] };
+  const patch = { $ref: "#/components/schemas/JsonPatch" };
+  assertValid(contract.validate(patch, [{ op: "remove", path: "/config/check_url" }, { op: "add", path: "/config/check_url", value: null }]));
+  assertValid(contract.validate(patch, [{ op: "copy", from: "/config/tolerance", path: "/config/idle_timeout" }]));
+  assertValid(contract.validate(patch, [{ op: "replace", path: "/config/interrupt_connections", value: null }]));
+  assertInvalid(contract.validate(patch, [{ op: "replace", path: "/config/interrupt_connections", value: "on" }]), "interrupt_connections is a boolean or null");
+  assertInvalid(contract.validate(patch, [{ op: "remove", path: "/config/check_url", value: null }]), "remove carries no value");
+  assertInvalid(contract.validate(patch, [{ op: "replace", path: "/config/x-dae", value: {} }]), "extension members are not patch targets");
+});
+
+test("flow summaries name the generation of their rule for the rules join", () => {
+  for (const response of contract.examples.values()) {
+    if (response.kind !== "response" || response.status !== 200) continue;
+    const rows = response.operationId === "listFlows" ? response.body.flows : response.operationId === "getFlow" ? [response.body] : [];
+    for (const row of rows) {
+      assert.ok(Object.hasOwn(row, "rule_generation_id"), `${response.operationId}: rule_generation_id is required`);
+      if (row.rule_id === null) assert.equal(row.rule_generation_id, null);
+      const route = row.trace?.steps?.find((step) => step.stage === "route" && step.data.rule_id === row.rule_id);
+      if (route && row.rule_generation_id !== null) assert.equal(row.rule_generation_id, route.generation_id);
+    }
+  }
 });

@@ -108,8 +108,9 @@ curl "http://localhost:9527/api/v1/runtime?detail=full"
 ## GET /api/v1/runtime/outbounds
 
 Requires `observe` and `resources.runtime_outbounds.available`. This snapshot
-mirrors honk's Clash-surface [`/stats` outbound counters](honk-mapping.html#outbound-counters),
-not a sum of the current `/connections` page.
+reports cumulative per-outbound counters kept by the engine since
+`counter_since`, including closed connections, not a sum of the current
+`/connections` page.
 
 {% api_request getRuntimeOutbounds %}
 
@@ -229,7 +230,7 @@ In `auto` mode, a recorder captures according to client demand. The requests
 and streams that create demand, and any grace period after clients leave, are
 engine-defined. Recording starts on demand, so the first history a panel reads
 may be empty. honk's rules are in the
-[honk notes](honk-mapping.html#Runtime-settings-in-honk).
+[honk notes](honk-notes.html#Runtime-settings-in-honk).
 
 `resources.flows.recording` reports the flow recorder's policy, and
 `recording.flows.active` reports whether it is capturing now. The policy is

@@ -1041,7 +1041,7 @@ schemas:
           $ref: ./openapi.yaml#/components/schemas/ConfigDiagnostic
       secrets_redacted:
         type: boolean
-        description: True when a listener-secret value (native_api.secret, clash_api.secret) was masked somewhere in this response. Content, paths and diagnostics are otherwise returned in the clear to an admitted request.
+        description: True when a listener-secret value (the deployment secret of an API listener, such as honk's native_api.secret and clash_api.secret) was masked somewhere in this response. Content, paths and diagnostics are otherwise returned in the clear to an admitted request.
   ConfigSource:
     type: object
     required: [ id, path, kind, content_sha256, bytes, writable, loaded_at, content, line_count ]

@@ -145,9 +145,10 @@ paths:
       operationId: getRuntimeOutbounds
       summary: Read per-outbound cumulative counters
       description: |
-        Mirrors honk's Clash-surface /stats counters for visible traffic, not
-        a sum of live connections. All rows share counter_since; restart or
-        counter reset starts a new interval. Requires resources.runtime_outbounds.available.
+        The engine keeps cumulative per-outbound counters for visible traffic,
+        including closed connections; they are not sums of live connections.
+        All rows share counter_since; a restart or counter reset starts a new
+        interval. Requires resources.runtime_outbounds.available.
       x-permission: observe
       security:
         - bearerAuth: []

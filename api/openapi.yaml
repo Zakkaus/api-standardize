@@ -536,6 +536,8 @@ components:
       $ref: ./dns.yaml#/schemas/DnsRoute
     DnsQueryResult:
       $ref: ./dns.yaml#/schemas/DnsQueryResult
+    DnsQueryRequest:
+      $ref: ./dns.yaml#/schemas/DnsQueryRequest
     DnsQueryResponse:
       $ref: ./dns.yaml#/schemas/DnsQueryResponse
     DnsCacheCoverage:

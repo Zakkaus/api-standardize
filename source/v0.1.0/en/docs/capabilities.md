@@ -112,6 +112,25 @@ nonempty unique subset of `syntax` and `full`.
 See [Configuration](configuration.html) for redaction, byte accounting,
 diagnostics, write preconditions, and recovery.
 
+## Engine extensions
+
+A route, capability or field that only one engine offers is an extension. It
+never takes a shared name, so a later shared resource cannot collide with it
+and a client can tell it apart without knowing the engine. `<engine>` below is
+`engine.name` from [version](version.html).
+
+- An engine-only route MUST be under `/api/v1/x-<engine>/`.
+- Capability entries live in `resources["x-<engine>"]`, an object keyed by
+  extension name whose entries follow the resource-key rules above.
+- Discovery links live in `links["x-<engine>"]` of the admitted view only; the
+  public view's links stay closed.
+- An engine-only field of a shared resource lives in an `x-<engine>` member of
+  that object, and only where its schema does not forbid additional members.
+
+Clients that do not recognise the engine ignore every `x-` member and route.
+A shared resource has one path; the server serves no alias for it, whether
+unversioned or under another name.
+
 ## Conformance profiles
 
 `profiles` is an array, not a feature inferred from engine identity. The

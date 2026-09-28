@@ -2,25 +2,34 @@
 title: DNS Query
 ---
 
-# GET /api/v1/dns/query
+# POST /api/v1/dns/query
 
-Requires `control` and `resources.dns_query.available`. This GET performs a live
-diagnostic query through the configured DNS module. It returns a separate DNS
-result for each requested record type and uses `Cache-Control: no-store`.
+Requires `control` and `resources.dns_query.available`; when the capability is
+unavailable the request returns `404 capability_not_supported`. This POST
+performs a live diagnostic query through the configured DNS module. It returns a separate
+DNS result for each requested record type and uses `Cache-Control: no-store`.
+
+The method is POST because the request is not safe in the RFC 9110 sense: it
+sends DNS traffic and, with `cache_mode: normal`, writes the runtime cache. As
+with the [routing trace](routing-trace.html), the queried name is in the JSON
+body rather than the URL, which keeps it out of URL-based access logs; servers
+or proxies that log request bodies may still record it.
 
 ## Request
 
-{% api_request queryDns %}
+{% api_example queryDns request dual_stack http %}
 
-## Query Parameters
+## Request body
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| domain | string | - | Domain name to query (required) |
-| type | string | A | IANA record type mnemonic such as `A`, `AAAA`, `HTTPS`, `SVCB`, `SRV`, `CNAME`, `MX`, `TXT`, `NS`, `SOA`, or `PTR`; numeric types are allowed when unknown qtypes are advertised. May be specified multiple times (e.g. `&type=A&type=AAAA`) |
-| upstream | string | - | Force a specific upstream defined in `dns.upstream` (e.g. `alidns`). If omitted, the upstream is chosen by `dns.routing` |
-| cache_mode | string | normal | `normal` reads and writes the runtime cache; `bypass` reads from upstream and neither reads nor writes the cache |
-| detail | string | summary | `summary` omits answer RDATA; `full` includes `answers`. |
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| domain | string | - | Domain name to query (required). |
+| type | array of strings | `["A"]` | Unique IANA record type mnemonics such as `A`, `AAAA`, `HTTPS`, `SVCB`, `SRV`, `CNAME`, `MX`, `TXT`, `NS`, `SOA`, or `PTR`; numeric types are allowed when unknown qtypes are advertised. |
+| upstream | string | - | Force a specific upstream defined in `dns.upstream` (e.g. `alidns`). If omitted, the upstream is chosen by `dns.routing`. |
+| cache_mode | string | normal | `normal` reads and writes the runtime cache; `bypass` reads from upstream and neither reads nor writes the cache. |
+
+The `detail` query parameter stays in the URL: `summary` (default) omits answer
+RDATA; `full` includes `answers`. A body that is not JSON returns `415`.
 
 ## Response
 
@@ -73,7 +82,10 @@ An unavailable DNS subsystem returns `503`.
 ## Example
 
 ```bash
-curl "http://localhost:9527/api/v1/dns/query?domain=example.com&type=A&detail=full"
-curl "http://localhost:9527/api/v1/dns/query?domain=example.com&type=A&type=AAAA"
-curl "http://localhost:9527/api/v1/dns/query?domain=example.com&upstream=googledns"
+curl -X POST "http://localhost:9527/api/v1/dns/query?detail=full" \
+  -H 'Content-Type: application/json' -d '{"domain":"example.com","type":["A"]}'
+curl -X POST http://localhost:9527/api/v1/dns/query \
+  -H 'Content-Type: application/json' -d '{"domain":"example.com","type":["A","AAAA"]}'
+curl -X POST http://localhost:9527/api/v1/dns/query \
+  -H 'Content-Type: application/json' -d '{"domain":"example.com","upstream":"googledns"}'
 ```

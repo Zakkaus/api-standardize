@@ -18,7 +18,8 @@ title: Rules
 
 `generation_id` identifies the coherent running generation. `rules` contains
 its complete evaluation order, including exactly one final `kind: fallback`
-entry. Each entry has `rule_id`, zero-based `index`, display `expression`,
+entry. Each entry has `rule_id`, zero-based `index`, `expression` (see
+[Rule expressions](#Rule-expressions)),
 `outbound`, boolean `must`, nullable `source`, and `kind` (`rule` or `fallback`).
 When present, `source` contains the source `file` as written, apart from
 listener secrets (see [Visibility](api-config.html#Visibility)), the
@@ -31,9 +32,10 @@ The top-level `fallback` repeats that entry's `outbound` and `source`.
 `rule_id` is identical to the IDs used by
 [POST /routing/trace](routing-trace.html) and `FlowSummary.rule_id` within the
 same generation. Join by `(generation_id, rule_id)`, never by expression or
-index alone. FlowSummary does not carry the rule's generation; obtain it from
-the corresponding traffic-route step in the retained flow detail. If that
-context is unavailable, do not join the summary to the current rule dictionary.
+index alone. A flow summary carries its rule's generation in
+`rule_generation_id`; join it to this dictionary only when that equals
+`generation_id`. When it is null or names another generation, do not join the
+summary to the current rule dictionary.
 The dictionary does not prove which rule decided a flow, and an outbound is not
 a resolved leaf or evidence of a successful dial.
 
@@ -45,10 +47,21 @@ pagination or `410 snapshot_expired` response. Refetch on `generation.changed` f
 new dictionary. Without events, poll and replace the dictionary when its
 generation changes.
 
-`resources.rules.max_rules` bounds the complete list, including fallback.
-Never truncate silently. Return `503 temporarily_unavailable` if the list
-cannot fit, or `503 snapshot_unavailable` if the adapter cannot pin one
-coherent generation. A generation change alone is not an expired snapshot.
+`resources.rules.max_rules` bounds the complete list, including fallback, and
+is never below the running generation's size: an engine with a fixed bound
+either refuses a configuration whose list would exceed it or advertises the
+larger size. The list is therefore always returned complete, never truncated.
+Return `503 snapshot_unavailable` if the adapter cannot pin one coherent
+generation. A generation change alone is not an expired snapshot.
+
+## Rule expressions
+
+`expression` in this list and in [DNS rules](dns-rules.html) is display text,
+produced the same way for both. When the engine retains the source text,
+`expression` is that text; otherwise it is the engine's rendering of the
+parsed rule. Listener secrets in it are masked (see
+[Visibility](api-config.html#Visibility)); nothing else is removed. It is never
+an editable or executable source representation; edit the source instead.
 
 ## Editing
 

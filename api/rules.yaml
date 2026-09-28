@@ -9,16 +9,14 @@ paths:
         it neither evaluates traffic nor reads back raw configuration. rule_id is identical
         to the ID used by POST /api/v1/routing/trace and FlowSummary.rule_id for the same
         generation. Join rules by generation_id and rule_id, never by expression or
-        index alone. FlowSummary does not carry the rule's generation; obtain it from
-        the corresponding traffic-route step in the retained flow detail. If that
-        context is unavailable, do not join the summary to the current rule dictionary.
+        index alone. FlowSummary.rule_generation_id names the rule's generation; join
+        a summary only when it equals generation_id, never when it is null.
         generation_id identifies the dictionary's routing generation. Refetch after
         generation.changed; do not join old flow evidence to a new generation.
         There is no paginated snapshot and no 410 snapshot_expired response. If a coherent
-        generation cannot be pinned, return 503 snapshot_unavailable. If the complete
-        dictionary exceeds resources.rules.max_rules, return 503 temporarily_unavailable
-        rather than silently truncate it. Mask listener secrets in expression values without
-        changing rule identities or order; other values follow the visibility table in api-config.
+        generation cannot be pinned, return 503 snapshot_unavailable. resources.rules.max_rules
+        is never below the running dictionary's size, so the complete dictionary is always
+        returned and never truncated. expression follows the display rule in rules.
       x-permission: observe
       security:
         - bearerAuth: []
@@ -87,7 +85,7 @@ paths:
         "413":
           $ref: ./openapi.yaml#/components/responses/TooLarge
         "503":
-          description: The dictionary exceeds max_rules (temporarily_unavailable), or a coherent generation could not be pinned (snapshot_unavailable)
+          description: A coherent generation could not be pinned (snapshot_unavailable)
           headers:
             Retry-After:
               description: Retry delay in seconds.
@@ -104,18 +102,6 @@ paths:
               schema:
                 $ref: ./openapi.yaml#/components/schemas/ErrorResponse
               examples:
-                temporarily_unavailable:
-                  value:
-                    error:
-                      code: temporarily_unavailable
-                      message: The rule dictionary exceeds resources.rules.max_rules.
-                      details: null
-                    request_id: request-01HZX4K8W6
-                  x-headers:
-                    Content-Type: application/json
-                    Retry-After: 1
-                    Cache-Control: no-store
-                    X-Content-Type-Options: nosniff
                 snapshot_unavailable:
                   value:
                     error:
@@ -167,7 +153,7 @@ schemas:
       expression:
         type: string
         minLength: 1
-        description: Safe display expression, not raw configuration or an editable source representation.
+        description: Display text for the rule; see rules, Rule expressions. Not an editable source representation.
       outbound:
         type: string
         minLength: 1
