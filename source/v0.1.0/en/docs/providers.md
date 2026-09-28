@@ -33,7 +33,8 @@ If the server cannot retain the snapshot within its budget, it returns
 Neither GET starts a subscription fetch.
 
 `url_redacted` carries the configured URL as written, with only listener-secret
-values masked; the wire name is kept for compatibility. Return null for
+values masked, as the [visibility table](api-config.html#Visibility) describes;
+the wire name is kept for compatibility. Return null for
 file/inline sources. `name` is the configured tag.
 
 `updated_at` is the last successful load or refresh; `expires_at` is the

@@ -9,7 +9,8 @@ paths:
         link-local; any other peer is refused with `permission_denied` before the
         account state is read. Authorization must be absent: a request that
         carries it is authenticated first, and before setup no session exists, so
-        it gets 401 `authentication_required`.
+        it gets 401 `authentication_required`. After setup, a request with a live
+        session gets 409 `setup_already_completed`.
       security: []
       requestBody:
         required: true
@@ -68,7 +69,10 @@ paths:
       description: >-
         Available only in password mode after setup. A wrong username or password
         is `invalid_credentials`; before setup the answer is `setup_required`.
-        Authorization must be absent.
+        Authorization must be absent. A request that carries it is authenticated
+        first: a live session opens another session, anything else gets 401
+        `authentication_required`. The engine may end a session before
+        `expires_at`, for example to stay within its session limit.
       security: []
       requestBody:
         required: true

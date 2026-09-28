@@ -369,7 +369,7 @@ paths:
     post:
       operationId: setupAdministrator
       summary: Create the administrator account and open a session
-      description: 'Available only while discovery reports `auth.mode: password` with `setup_required: true`. The peer must be loopback, RFC 1918, RFC 4193 or link-local; any other peer is refused with `permission_denied` before the account state is read. Authorization must be absent: a request that carries it is authenticated first, and before setup no session exists, so it gets 401 `authentication_required`.'
+      description: 'Available only while discovery reports `auth.mode: password` with `setup_required: true`. The peer must be loopback, RFC 1918, RFC 4193 or link-local; any other peer is refused with `permission_denied` before the account state is read. Authorization must be absent: a request that carries it is authenticated first, and before setup no session exists, so it gets 401 `authentication_required`. After setup, a request with a live session gets 409 `setup_already_completed`.'
       security: []
       requestBody:
         required: true
@@ -425,7 +425,7 @@ paths:
     post:
       operationId: login
       summary: Exchange the administrator credentials for a session
-      description: Available only in password mode after setup. A wrong username or password is `invalid_credentials`; before setup the answer is `setup_required`. Authorization must be absent.
+      description: 'Available only in password mode after setup. A wrong username or password is `invalid_credentials`; before setup the answer is `setup_required`. Authorization must be absent. A request that carries it is authenticated first: a live session opens another session, anything else gets 401 `authentication_required`. The engine may end a session before `expires_at`, for example to stay within its session limit.'
       security: []
       requestBody:
         required: true
@@ -515,8 +515,8 @@ paths:
         accepted sources and retained diagnostics for generation_id and revision,
         not a fresh read of files that may have changed since loading. The source
         set is complete and bounded by resources.config.max_sources; never truncate it.
-        Every source carries its content. Apply visibility filters to paths,
-        content and diagnostics; observe never grants raw secrets.
+        Every source carries its content. Paths, content and diagnostics follow
+        the visibility table in api-config: only listener-secret values are masked.
       x-permission: observe
       security:
         - bearerAuth: []
@@ -714,7 +714,7 @@ paths:
         including locally resolved source text in full mode; exceeding either returns
         413. Geodata assets do not count toward the byte limit.
         The shared max_json_body_bytes limit applies independently to the HTTP body.
-        Never echo candidate text, secrets, or private paths in diagnostics or errors.
+        Never echo candidate text or listener secrets in diagnostics or errors.
       x-permission: control
       security:
         - bearerAuth: []
@@ -8300,7 +8300,7 @@ components:
         message:
           type: string
           minLength: 1
-          description: Safe operator-facing description; never source excerpts, credentials, private paths, or raw engine errors.
+          description: Safe operator-facing description; never source excerpts, listener secrets or raw engine errors. See the visibility table in api-config.
     ConfigDiagnosticSpan:
       type: object
       required:
@@ -9330,7 +9330,7 @@ components:
           oneOf:
             - type: 'null'
             - $ref: '#/components/schemas/GeoDataDownload'
-      description: Safe metadata only. Names, URLs and last_error must not contain secrets, raw configuration or unredacted local paths.
+      description: Provider metadata, visible as the visibility table in api-config describes. url_redacted is the configured URL with only listener-secret values masked; last_error is safe text without raw configuration.
     ProviderTraffic:
       type: object
       required:

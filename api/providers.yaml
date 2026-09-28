@@ -616,7 +616,7 @@ schemas:
         oneOf:
           - type: "null"
           - $ref: ./openapi.yaml#/components/schemas/GeoDataDownload
-    description: Safe metadata only. Names, URLs and last_error must not contain secrets, raw configuration or unredacted local paths.
+    description: Provider metadata, visible as the visibility table in api-config describes. url_redacted is the configured URL with only listener-secret values masked; last_error is safe text without raw configuration.
   ProviderTraffic:
     type: object
     required: [ upload_bytes, download_bytes, total_bytes ]

@@ -627,7 +627,7 @@ schemas:
       message:
         type: string
         minLength: 1
-        description: Safe operator-facing description; never source excerpts, credentials, private paths, or raw engine errors.
+        description: Safe operator-facing description; never source excerpts, listener secrets or raw engine errors. See the visibility table in api-config.
   ConfigDiagnosticSpan:
     type: object
     required: [ start_line, start_column, end_line, end_column ]

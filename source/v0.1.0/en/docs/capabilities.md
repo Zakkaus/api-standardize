@@ -99,9 +99,9 @@ Advertising writes also requires full validation, reload, and operation support.
 source file that an include pattern loads; it is true only when `writable` is.
 
 Paths are returned as the configuration references them, with `absolute_path`
-beside the relative `path`; only listener-secret values are masked, in paths,
-source text and diagnostics alike. `detail=summary` is not a privacy tier. The
-adapter sets `secrets_redacted` when it masked such a value in the response.
+beside the relative `path`. What is masked follows the
+[visibility table](api-config.html#Visibility); the adapter sets
+`secrets_redacted` when it masked a value in the response.
 
 `resources.config_validate.available` independently gates dry-run validation.
 When available, it requires `modes`, `max_bytes`, and `max_sources`; `modes` is a

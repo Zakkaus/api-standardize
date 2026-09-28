@@ -12,6 +12,9 @@ Credentials require a `username` matching `[A-Za-z0-9_.-]{1,64}` and a
 The server does not trim either value. Setup and login requests must not include
 an `Authorization` header. A request that includes one is authenticated first
 and gets `401 authentication_required` unless the header carries a live session.
+With a live session, setup gets `409 setup_already_completed` and login opens
+another session. [API Configuration](api-config.html#Authentication-modes)
+describes what a session grants and when it ends.
 
 ## POST /api/v1/auth/setup
 
@@ -53,7 +56,8 @@ mode after setup.
 {% api_example login 200 opened http %}
 
 The returned `token` is a bearer credential for later requests. It expires at
-`expires_at`; honk sessions expire after 12 hours.
+`expires_at`; honk sessions expire after 12 hours. The engine may end a
+session earlier, for example to stay within its session limit.
 
 | Status and code | Meaning |
 |-----------------|---------|

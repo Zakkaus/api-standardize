@@ -54,7 +54,8 @@ Requires `observe`. Returns active **and retained terminal** flows.
 bounded point-in-time list, ordered newest-first with ID as tie-breaker, and
 follow the [paging rule](errors.html#Page-cursors). `pname` is the captured process name or `null`, including for LAN
 traffic without process context. It is available in summary; summary is a
-payload-size tier, **not an authorization or privacy boundary**.
+payload-size tier, **not an authorization or privacy boundary**; see the
+[visibility table](api-config.html#Visibility).
 
 Use `connection_id` to find retained traces after a connection leaves the
 live snapshot. Correlate IDs only within the same `instance_id`; a restart
