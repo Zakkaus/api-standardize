@@ -32,8 +32,10 @@ datapath policy; they need not be equal when the engine reuses an unchanged poli
 
 `succeeded` means the configuration was accepted and the required runtime and
 datapath state is active. Reload may reuse an unchanged policy, and an unchanged
-configuration need not advance the generation. On failure, the previous active
-generation remains active.
+configuration need not advance the generation.
+
+On failure, use [activation outcomes](errors.html#Activation-outcomes) to
+determine whether a new generation became active before retrying.
 
 ## Example
 

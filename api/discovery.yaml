@@ -159,10 +159,9 @@ paths:
                     resources:
                       config:
                         available: true
-                        content: false
                         writable: true
                         create: true
-                        max_bytes: 65536
+                        max_bytes: 61440
                         max_sources: 32
                       config_validate:
                         available: true
@@ -195,6 +194,7 @@ paths:
                         available: true
                         can_refresh: true
                         can_manage: true
+                        create_unfetched: true
                         create_options:
                           update_interval: 86400
                           user_agent: honk/0.0.1-alpha
@@ -291,6 +291,7 @@ paths:
                       operations:
                         available: true
                         retention_seconds: 300
+                        max_replay_keys: 1024
                       reload:
                         available: true
                       suspend:
@@ -511,7 +512,7 @@ schemas:
                 available:
                   const: true
             then:
-              required: [ content, writable, max_bytes, max_sources ]
+              required: [ writable, max_bytes, max_sources ]
             not:
               required: [ create, writable ]
               properties:
@@ -522,18 +523,15 @@ schemas:
             properties:
               available:
                 type: boolean
-              content:
-                type: boolean
-                default: false
-                description: Visibility flag permitting optional source text; not permission to disclose secrets. False by default.
+                description: Accepted-source readback is implemented. Every returned source carries its content.
               writable:
                 type: boolean
                 description: |
                   Server-wide switch for replacing accepted sources under control;
                   individual sources may still be read-only. True requires full
                   validation and reload operations, including resources.reload.available
-                  and resources.operations.available. Independent of content visibility
-                  and the optional dry-run endpoint.
+                  and resources.operations.available. Independent of the optional
+                  dry-run endpoint.
               create:
                 type: boolean
                 default: false
@@ -544,7 +542,7 @@ schemas:
               max_bytes:
                 $ref: ./openapi.yaml#/components/schemas/SafeUInt
                 minimum: 1
-                description: Maximum UTF-8 bytes in replacement or new source content; the shared JSON body ceiling applies independently.
+                description: Maximum UTF-8 bytes in replacement or new source content. At most limits.max_json_body_bytes minus the request envelope, which is the largest compact UTF-8 JSON encoding of the request body without its content, taking for POST the permitted path whose encoding is longest (each quotation mark or backslash in the path encodes to two bytes, so this exceeds the path's 1024-byte limit). Content that JSON escaping expands can still exceed limits.max_json_body_bytes, and that limit then applies.
               max_sources:
                 $ref: ./openapi.yaml#/components/schemas/SafeUInt
                 minimum: 1
@@ -693,6 +691,9 @@ schemas:
               can_manage:
                 type: boolean
                 description: Supports creating subscription providers and deleting subscription or file providers from a writable managed main source.
+              create_unfetched:
+                type: boolean
+                description: A created provider is not fetched until POST /providers/{provider_id}/refresh; it starts with node_count 0, updated_at null and status stale. False or absent means the backend may fetch it during activation and reports its actual state.
               create_options:
                 type: object
                 additionalProperties: false
@@ -1068,6 +1069,10 @@ schemas:
               retention_seconds:
                 type: integer
                 minimum: 0
+              max_replay_keys:
+                type: integer
+                minimum: 1
+                description: Finished Idempotency-Key records the server keeps before the retention window ends. Beyond this count it may evict the oldest-finished first. Absent means none are evicted before the window ends. Keys of unfinished operations are never evicted.
           reload:
             $ref: ./openapi.yaml#/components/schemas/AvailableResource
           suspend:

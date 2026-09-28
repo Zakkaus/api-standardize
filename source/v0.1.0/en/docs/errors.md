@@ -20,7 +20,9 @@ All native API errors use one JSON envelope:
 The `ErrorCode` schema in the OpenAPI document enumerates exactly the codes below
 for HTTP error bodies (`ApiError`); adding one is a contract change. Errors embedded
 in resources (`operation.error`, `datapath.errors`, `last_reload.error`,
-`provider.last_error`) carry an adapter-defined code.
+`provider.last_error`) carry an adapter-defined code, except the shared codes
+for a failed configuration change listed under
+[activation outcomes](#Activation-outcomes).
 
 | Status | Typical code | Meaning |
 |--------|--------------|---------|
@@ -37,7 +39,7 @@ in resources (`operation.error`, `datapath.errors`, `last_reload.error`,
 | 409 | `setup_already_completed` | Administrator setup was requested after an administrator was created. |
 | 410 | `snapshot_expired` | A page cursor is no longer usable; restart the page walk. |
 | 410 | `flow_expired` | Flow evidence was evicted/expired and a tombstone still exists. |
-| 412 | `stale_revision` | `If-Match` does not match the current resource revision or on-disk source content hash, or the configuration changed while a delete was being admitted. |
+| 412 | `stale_revision` | `If-Match` does not match the current resource revision or stored source content hash, or the configuration changed while a delete was being admitted. |
 | 413 | `request_too_large` | Request or requested fan-out exceeds an advertised limit. |
 | 415 | `unsupported_media_type` | Request `Content-Type` is unsupported. |
 | 422 | `unsupported_value` | The request is well-formed but the engine does not support its meaning, or full validation of a configuration candidate found error diagnostics. |
@@ -52,18 +54,41 @@ every request, and a `GET` with a body is malformed.
 
 ## Choosing the status
 
-After the request boundary, authentication and routing checks (`401`, `403`,
-`404`, `415`), a failed request gets the status of the first row below that
-describes the failure. Endpoint pages link here instead of repeating the rule;
-an endpoint page names only which of its own cases fall in which row.
+A server checks a request in this order and returns the status of the first
+check that fails:
+
+1. Authentication, authorization and routing: `401`, `403`, and `404` for an
+   unknown route or an unadvertised capability.
+2. Request boundary: a missing required `If-Match` (`428`) or a malformed one
+   (`400`), then `Content-Type` (`415`), body size (`413`), and parameter and
+   body schema (`400`).
+3. Idempotent replay, when the request carries `Idempotency-Key`: a retained
+   key with the same body returns the original response and no later check
+   runs, the same key with a different body returns `409 idempotency_conflict`,
+   and a replay store full of unfinished operations returns `503`. See
+   [replay](operations.html#Replay).
+4. Precondition: `412` when `If-Match` no longer matches.
+5. Semantic validation: `422`, including error diagnostics from full
+   validation of a configuration candidate.
+6. Current state: `409`.
+
+A rate limit (`429`) or full shared capacity (`503`) is reported when the
+request is admitted, after the checks it passed. Three exceptions: source
+creation returns `409` for a `path` already in use before it validates the
+content; a configuration write decides the listener-settings `403` during
+validation; and a group patch checks `Content-Type` (`415`) first and reports a
+missing (`428`) or malformed (`400`) `If-Match` after the replay lookup, so a
+retained replay returns the original response without `If-Match`. The table below defines each status. Endpoint pages link here
+instead of repeating the order; an endpoint page names only which of its own
+cases fall in which row.
 
 | Status | Code | The request fails because |
 |--------|------|---------------------------|
 | 400 | `invalid_request` | It cannot be parsed, or a parameter or field is outside its schema: wrong type, a missing field, a field the schema does not define, a value outside the schema's enum, range or length, or a scalar value above a bound the capabilities advertise, such as a page `limit` above `max_page_size`. A page cursor sent with different filters or a different `limit` is also `400`. |
 | 413 | `request_too_large` | The payload, or the fan-out the request asks for, exceeds an advertised bound: the body size, the number of operations in a group patch (`max_patch_operations`), the matching live entries a bulk close selects, including non-closable ones (`max_bulk_close`), or the targets or results of a probe or trace. |
-| 422 | `unsupported_value` | It is well-formed and within every bound, but this engine does not support its meaning: an enum member or field the schema defines and the capabilities do not advertise, or a combination of fields or capabilities the engine does not implement. Error diagnostics from full validation of a configuration candidate are also `422`. |
 | 428 | `precondition_required` | A required `If-Match` header is missing. |
 | 412 | `stale_revision` | `If-Match` names a revision or content hash that is no longer current. |
+| 422 | `unsupported_value` | It is well-formed and within every bound, but this engine does not support its meaning: an enum member or field the schema defines and the capabilities do not advertise, or a combination of fields or capabilities the engine does not implement. Error diagnostics from full validation of a configuration candidate are also `422`. |
 | 409 | `state_conflict` | The request is supported, but the current state prevents it: a name already in use, a referenced object that is not current, or a transition the current state does not allow. The same request can succeed after the state changes. |
 | 429 | `rate_limited` | The caller exceeded a request-rate limit, or a limit on repeating the same work, such as a second probe of a target that already has one admitted. |
 | 503 | `temporarily_unavailable`, `snapshot_unavailable` | A shared capacity limit is full (a bounded queue, the stream subscriber slots, the snapshot memory budget), or a required runtime component is unavailable. |
@@ -83,12 +108,13 @@ stack traces, local file paths, or unredacted chained engine errors.
 
 Every paged list (`GET /nodes`, `/providers`, `/flows`, `/dns/cache`,
 `/dns/log`) takes an opaque `cursor` from the previous page's `next_cursor`. The
-cursor is bound to the running instance, the retained snapshot or record, the
-filters, and `limit`.
+cursor is bound to the running instance, the endpoint and resource it pages,
+the retained snapshot or record, the filters, and `limit`.
 
 - A cursor the server no longer recognises returns `410 snapshot_expired`: its
   snapshot expired or was evicted, its record left the ring, the process
-  restarted, or the server never issued it. Discard the cursor and restart the
+  restarted, the server never issued it, or it was issued for another endpoint
+  or resource. Discard the cursor and restart the
   walk without one.
 - A recognised cursor sent with different filters or a different `limit`
   returns `400 invalid_request`. To change either, restart the walk without a
@@ -107,6 +133,57 @@ cache entries by an ID or filter that matches nothing, returns `200` with
 `deleted: 0`. A connection close acts on one live object and reports whether
 this call closed it, while the other deletes ask for an end state, absent,
 that already holds.
+
+## Activation outcomes
+
+Activation publishes a new runtime generation. A configuration write may be
+stored before or after activation; a plain reload stores nothing. For a reload,
+a source replacement or creation, a node or provider create or delete, or a
+group patch that edits the configuration, an activation failure reports its
+outcome in `error.details`:
+
+| Detail | Type | Meaning |
+|--------|------|---------|
+| `written` | boolean | The store holds the change after the failure. A plain reload stores nothing and omits it. |
+| `committed` | boolean or null | Whether the new generation is active. Present on every activation failure. |
+| `active_generation_id` | string or null | Present when `committed` is `true`: the active generation, or `null` when the server cannot name it. |
+| `stage` | string | Synchronous responses only: the outcome code, or an adapter-defined code for a failure before activation starts. |
+| `durability_confirmed` | boolean | Optional. `false` when the store holds the change but could not confirm that it survives a crash. |
+
+- `committed: false`: the change never became active, and the previous
+  generation is still active.
+- `committed: true`: the new generation is active, but activation did not
+  complete cleanly. The request still fails. Treat the change as applied and
+  refetch the configuration and runtime.
+- `committed: null`: the server cannot tell. Read `GET /runtime` back and
+  compare `generation.active_id` before retrying.
+
+`written` and `committed` are independent: storage can succeed without
+activation, or activation without storage. For source-creation rollback and
+recovery, see [creating a source](configuration.html#Creating-a-source).
+
+A failed operation carries the outcome code in `error.code`. A synchronous
+request returns an HTTP error, usually `503 temporarily_unavailable`, and
+carries the outcome code in `error.details.stage`. An adapter uses each code
+below when its case applies. `supervisor_reconciliation_failed` and
+`store_unavailable` apply only to an engine with a separate worker supervisor
+or a store it records after activation; other engines never report them.
+
+| Code | `committed` | Meaning |
+|------|-------------|---------|
+| `reload_rejected` | `false` | The engine refused the new configuration. |
+| `reload_degraded` | `true` | The new generation is active, but part of the datapath did not load. |
+| `supervisor_reconciliation_failed` | `true` | The new generation is active, but the engine could not bring its workers in line with it. |
+| `activation_unconfirmed` | `null` | Activation started and the server lost track of it, for example because the engine stopped. |
+| `store_unavailable` | `true` | The new generation is active, but the store could not record it. `written` is `false`, and a restart loads the previously stored configuration. |
+
+A failure before activation starts, such as an unavailable engine, has
+`committed: false` and may use another adapter-defined code.
+
+These outcomes are reported only by an instance that survives the failure. If
+the engine process stops or restarts, queued and running operations and their
+outcomes can be lost, and a new instance returns `404` for their IDs. Read
+`GET /runtime` and `GET /config` from the new instance before retrying.
 
 ## Endpoint-specific recovery
 

@@ -5,7 +5,8 @@ title: Operations
 # GET /api/v1/operations/{operation_id}
 
 > Draft endpoint. Reload, suspend, resume, probes, asynchronous group updates,
-> and provider refreshes use one operation envelope.
+> provider refreshes, and asynchronous node and provider writes use one
+> operation envelope.
 
 An operation ID is opaque, unguessable, and unique for the lifetime of the
 running adapter. Clients must not derive its kind or creation time from the ID.
@@ -40,7 +41,7 @@ too soon may return `429` with a fresh `Retry-After`.
 | Field | Type | Description |
 |-------|------|-------------|
 | operation_id | string | Opaque operation identifier. |
-| kind | string | `probe`, `reload`, `suspend`, `resume`, `group_update`, `provider_refresh`, or `geodata_update`. |
+| kind | string | `probe`, `reload`, `suspend`, `resume`, `group_update`, `provider_refresh`, `geodata_update`, `node_create`, `node_delete`, `provider_create`, or `provider_delete`. |
 | status | string | `queued`, `running`, `succeeded`, or `failed`. |
 | created_at | string | Creation timestamp (RFC3339). |
 | started_at | string or null | Execution start timestamp. |
@@ -59,6 +60,11 @@ state; the operation retains the result of that refresh.
 
 A successful `geodata_update` result is the new [GeoData](geodata.html);
 the datapath has already been reloaded with it.
+
+A successful `node_create` or `provider_create` result is the created
+[Node](node-latency.html) or [Provider](providers.html), carrying its ID. A
+successful `node_delete` or `provider_delete` result is the `deleted` count the
+synchronous `200` would have returned.
 
 `error` uses the same `code`, `message`, and optional `details` object defined
 by the [native error contract](errors.html). Raw engine errors, stack traces,
@@ -83,10 +89,12 @@ Only the requests below accept `Idempotency-Key` and support replay. The key
 is scoped to the running instance, caller, method, and path. Reusing it with a byte-identical body returns the original response: the
 original `202` body unchanged (its `status` stays `queued` whatever the
 operation's current status), or the original synchronous `200`. Reusing it with
-a body that differs in any byte returns `409 idempotency_conflict`. The key is
-retained while its operation is queued or running and for the advertised
-retention window after the operation reaches a terminal state. Without a key,
-a retried request may start another operation.
+a body that differs in any byte returns `409 idempotency_conflict`. The key of
+an unfinished operation is never evicted; when the store is full and holds only
+unfinished operations, a new one is refused with `503 temporarily_unavailable`. A finished
+key is retained for the advertised retention window from completion: from the
+terminal state of an operation, or from the reply of a synchronous `200`.
+Without a key, a retried request may start another operation.
 
 | Request | Replay |
 |-----------|--------|
@@ -103,9 +111,10 @@ against current state. After an uncertain result, read the resource back
 before retrying.
 
 A key outlives its operation's early eviction: a replay can return an operation
-whose `GET` is already `404`. Retained keys are bounded too; past 1024, the
-oldest can be lost before the window ends, and replaying it may start a new
-operation.
+whose `GET` is already `404`. A server that advertises
+`resources.operations.max_replay_keys` may evict finished keys beyond that
+count before the window ends, oldest-finished first; replaying an evicted key
+may start a new operation.
 
 Operation idempotency is scoped to the running instance; it is not a durable
 retry guarantee across process restart. A client with an uncertain result

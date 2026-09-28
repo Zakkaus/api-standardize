@@ -8,8 +8,8 @@ paths:
         accepted sources and retained diagnostics for generation_id and revision,
         not a fresh read of files that may have changed since loading. The source
         set is complete and bounded by resources.config.max_sources; never truncate it.
-        Omit source content unless resources.config.content is true. Apply visibility
-        filters to paths, content and diagnostics; observe never grants raw secrets.
+        Every source carries its content. Apply visibility filters to paths,
+        content and diagnostics; observe never grants raw secrets.
       x-permission: observe
       security:
         - bearerAuth: []
@@ -28,7 +28,7 @@ paths:
                 $ref: ./openapi.yaml#/components/schemas/EffectiveConfig
               examples:
                 redacted:
-                  summary: Content withheld; the SHA-256 value is an illustrative placeholder.
+                  summary: A listener secret masked in the content; the SHA-256 value is an illustrative placeholder.
                   value:
                     generation_id: generation-42
                     revision: "17"
@@ -37,9 +37,10 @@ paths:
                         path: api.dae
                         kind: main
                         content_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
-                        bytes: 128
-                        writable: true
+                        bytes: 90
+                        writable: false
                         loaded_at: 2026-08-15T09:30:00Z
+                        content: "global {\n  log_level: info\n}\nexperimental {\n  native_api {\n    secret: '<redacted>'\n  }\n}\n"
                         line_count: 8
                     diagnostics:
                       - level: warning
@@ -55,7 +56,7 @@ paths:
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
                 editable:
-                  summary: Unredacted dae text when resources.config.content is true.
+                  summary: Unredacted dae text.
                   value:
                     generation_id: generation-42
                     revision: "17"
@@ -191,21 +192,29 @@ paths:
         by an include pattern of that source set; if no pattern matches, return
         422 unsupported_value with a source-not-included error diagnostic.
         Content that sets or changes API listener settings or secrets returns
-        403 permission_denied. If any diagnostic has level error, return 422
-        unsupported_value with error.details.diagnostics; never create a file or
-        start a reload. Diagnostics about the new file use the source ID it has
+        403 permission_denied. A requested change that cannot take effect through
+        reload, compared with the active configuration, is a restart-required
+        error diagnostic. If any diagnostic has
+        level error, return 422 unsupported_value with error.details.diagnostics;
+        never store the source or start a reload. Diagnostics about the new file use the source ID it has
         in the validated set; source-not-included names the main source with a
         null location.
-        Otherwise create the file without replacing anything that appeared at
-        path meanwhile, using a temporary file in the target directory and a
-        rename that fails if path exists, with the main source's file mode.
-        Serialize validation and creation against concurrent API writes.
-        After the write, start a reload operation and return 202 OperationAccepted
-        with kind reload, Location, and Retry-After. This is not reload completion.
-        If reload fails, the previous generation remains active and the adapter
-        removes the file it created, unless the file at path is no longer the one
-        it wrote. The failed operation's error.details.written is false when the
-        file was removed or never written and true when it remains.
+        Otherwise commit the source to the configuration store without replacing
+        anything that appeared at path meanwhile; a file store uses a temporary
+        file in the target directory and a rename that fails if path exists,
+        with the main source's file mode. Storing, activation and serialization
+        follow PUT /config/sources/{source_id}. Start a reload operation and
+        return 202 OperationAccepted with kind reload, Location, and
+        Retry-After. This is not reload completion. A failure before the source
+        is stored creates nothing. A failed operation reports
+        error.details.written and error.details.committed as defined under
+        activation outcomes in the error contract. With committed false, remove
+        the created source only if the store still holds the source this
+        operation created, with the same identity and content (a file store
+        compares file identity and file content), and report written false; if
+        it was replaced or modified, or the removal fails, keep it and report
+        the cleanup conflict as written true with committed false. With
+        committed true or null, keep the source.
         After successful reload, GET /config lists the new source with path as
         given. Idempotency-Key follows the same rules as for PUT.
       x-permission: control
@@ -235,7 +244,7 @@ paths:
                   Content-Type: application/json
       responses:
         "202":
-          description: Source file created and reload accepted
+          description: Creation accepted and reload queued; the operation reports whether the source was stored and activated
           headers:
             Location:
               description: Operation status URL; equal to body href.
@@ -298,7 +307,7 @@ paths:
         "401":
           $ref: ./openapi.yaml#/components/responses/Unauthorized
         "403":
-          description: Control permission is absent, editing is disabled, or the content touches API listener settings
+          description: Control permission is absent, editing is disabled, or the content sets or changes API listener settings or secrets
           headers:
             Cache-Control:
               $ref: ./openapi.yaml#/components/headers/NoStore
@@ -362,7 +371,7 @@ paths:
         "415":
           $ref: ./openapi.yaml#/components/responses/UnsupportedMediaType
         "422":
-          description: Full validation found error diagnostics or no include pattern loads the path; no file is written and no reload starts
+          description: Full validation found error diagnostics, including source-not-included and restart-required; nothing is stored and no reload starts
           headers:
             Cache-Control:
               $ref: ./openapi.yaml#/components/headers/NoStore
@@ -411,8 +420,8 @@ paths:
       summary: Read one accepted configuration source
       description: |
         Requires resources.config.available. Returns the same ConfigSource as
-        GET /config, not a fresh read of disk. Include optional content only when
-        resources.config.content is true; apply the same path and secret redaction.
+        GET /config, not a fresh read of the store, with its content; apply the
+        same path and secret redaction.
         Unknown source IDs return 404 resource_not_found. Redacted text must never
         be saved as a replacement; compare its UTF-8 SHA-256 with content_sha256
         before using returned content as an editing representation.
@@ -434,7 +443,7 @@ paths:
                 $ref: ./openapi.yaml#/components/schemas/ConfigSource
               examples:
                 editable:
-                  summary: Unredacted dae text when resources.config.content is true.
+                  summary: Unredacted dae text.
                   value:
                     id: source-main
                     path: config.dae
@@ -455,9 +464,10 @@ paths:
                     path: api.dae
                     kind: main
                     content_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
-                    bytes: 128
-                    writable: true
+                    bytes: 90
+                    writable: false
                     loaded_at: 2026-08-15T09:30:00Z
+                    content: "global {\n  log_level: info\n}\nexperimental {\n  native_api {\n    secret: '<redacted>'\n  }\n}\n"
                     line_count: 8
                   x-headers:
                     Content-Type: application/json
@@ -506,16 +516,18 @@ paths:
       summary: Replace one configuration source and reload
       description: |
         Requires control, resources.config.available, resources.config.writable,
-        and writable: true on the accepted source. A disabled write switch or a
-        read-only source returns 403 permission_denied. Generated and subscription
+        and writable: true on the accepted source. A disabled write switch, a
+        read-only source, or a replacement that sets or changes API listener
+        settings or secrets returns 403 permission_denied. Generated and subscription
         sources are never writable. Unknown IDs return 404 resource_not_found.
         The body replaces the complete source with UTF-8 dae text; no partial
         patches, caller-supplied file paths, or multi-source writes are accepted.
         Enforce resources.config.max_bytes on replacement UTF-8 bytes and the
         shared limits.max_json_body_bytes independently; excess returns 413.
-        Require If-Match before validating or writing: missing returns 428
-        precondition_required; a hash different from the current on-disk bytes
-        returns 412 stale_revision, even if it matches the accepted snapshot.
+        Check If-Match before validating or writing: missing returns 428
+        precondition_required; a hash different from the source's current bytes
+        in the configuration store returns 412 stale_revision, even if it
+        matches the accepted snapshot.
         Validate the resulting source set with the same full-mode checks as
         POST /config/validate, substituting the replacement for this source.
         Resolve dependencies only from submitted text, authorized local files,
@@ -523,19 +535,31 @@ paths:
         Missing or inaccessible required local dependencies produce error diagnostics.
         An unfetched subscription produces a subscription-not-fetched warning and
         does not by itself invalidate the candidate; validation does not fetch it.
-        If any diagnostic has level error, return 422 unsupported_value with
-        error.details.diagnostics using ConfigDiagnostic; never write any file
-        or start a reload. Warnings and info alone do not prevent a write.
-        Otherwise atomically replace the file using a temporary file in the same
-        directory and rename, preserving its mode. Serialize the hash check,
-        validation, and replacement against concurrent API writes; recheck the
-        on-disk hash before replacement and return 412 if it changed.
-        After the write, start a reload operation and return 202 OperationAccepted
-        with kind reload, Location, and Retry-After. This is not reload completion.
+        A requested change that cannot take effect through reload, compared
+        with the active configuration, is a restart-required error diagnostic. If any diagnostic has level error,
+        return 422 unsupported_value with error.details.diagnostics using
+        ConfigDiagnostic; never store the replacement or start a reload. Warnings
+        and info alone do not prevent a write.
+        Otherwise commit the replacement to the configuration store atomically,
+        either before activation or after the new generation becomes active;
+        readers of the store see the old or the new bytes, never a mix. A file
+        store writes a temporary file in the same directory and renames it,
+        preserving the mode. Serialize the hash check, validation, and commit
+        against concurrent API writes; recheck the stored hash at commit and
+        return 412 if it changed. Start a reload operation and return 202
+        OperationAccepted with kind reload, Location, and Retry-After. 202
+        means accepted, not stored or active; the operation succeeds only after
+        both the commit and the activation finish. Activate the candidate that
+        was validated. The next configuration write waits until this activation
+        finishes, or returns 409 state_conflict if the server does not queue
+        writes. An edit to the store outside the API before the commit fails
+        the commit with 412; one made after the commit takes effect at a later
+        reload.
         If reload publishes a new generation and events are available, emit
         generation.changed. After successful reload, GET /config reports the accepted
-        content_sha256. If reload fails, the previous generation remains active and
-        the file write is not rolled back.
+        content_sha256. A failed operation reports error.details.written and
+        error.details.committed as defined under activation outcomes in the
+        error contract.
         Idempotency-Key follows the operation retention rules: scope it to caller,
         method, and path in this instance. A retained same-body replay returns the
         original operation without another write or hash check; a different body
@@ -551,7 +575,7 @@ paths:
           description: |
             One strong entity tag containing the source's content_sha256 from
             GET /config, enclosed in double quotes. Compare the digest with the
-            current on-disk content, not the snapshot revision. Wildcards, weak
+            source's current bytes in the configuration store, not the snapshot revision. Wildcards, weak
             tags, and tag lists are not accepted.
           schema:
             type: string
@@ -585,7 +609,7 @@ paths:
                   If-Match: '"d1f62f00c6da9ec33956e66b8cc3b4670f164556fc12453193904af23451dec1"'
       responses:
         "202":
-          description: Source written atomically and reload accepted
+          description: Replacement accepted and reload queued; the operation reports whether it was stored and activated
           headers:
             Location:
               description: Operation status URL; equal to body href.
@@ -630,7 +654,7 @@ paths:
         "401":
           $ref: ./openapi.yaml#/components/responses/Unauthorized
         "403":
-          description: Control permission is absent, editing is disabled, or the source is read-only
+          description: Control permission is absent, editing is disabled, the source is read-only, or the replacement sets or changes API listener settings or secrets
           headers:
             Cache-Control:
               $ref: ./openapi.yaml#/components/headers/NoStore
@@ -654,7 +678,7 @@ paths:
         "409":
           $ref: ./openapi.yaml#/components/responses/Conflict
         "412":
-          description: If-Match does not match the current on-disk content hash; nothing is written
+          description: If-Match does not match the stored content hash; nothing is stored
           headers:
             Cache-Control:
               $ref: ./openapi.yaml#/components/headers/NoStore
@@ -667,7 +691,7 @@ paths:
               examples:
                 stale_revision:
                   value:
-                    error: { code: stale_revision, message: Source changed on disk; reconcile before retrying. }
+                    error: { code: stale_revision, message: Source changed in the configuration store; reconcile before retrying. }
                     request_id: request-write-2
                   x-headers:
                     Content-Type: application/json
@@ -678,7 +702,7 @@ paths:
         "415":
           $ref: ./openapi.yaml#/components/responses/UnsupportedMediaType
         "422":
-          description: Full validation found error diagnostics; no file is written and no reload starts
+          description: Full validation found error diagnostics, including restart-required; nothing is stored and no reload starts
           headers:
             Cache-Control:
               $ref: ./openapi.yaml#/components/headers/NoStore
@@ -1020,7 +1044,7 @@ schemas:
         description: True when a listener-secret value (native_api.secret, clash_api.secret) was masked somewhere in this response. Content, paths and diagnostics are otherwise returned in the clear to an admitted request.
   ConfigSource:
     type: object
-    required: [ id, path, kind, content_sha256, bytes, writable, loaded_at, line_count ]
+    required: [ id, path, kind, content_sha256, bytes, writable, loaded_at, content, line_count ]
     properties:
       id:
         type: string
@@ -1051,13 +1075,15 @@ schemas:
         description: |
           True only when server-wide editing is enabled and this source permits
           replacement by a control caller. False for engine-written includes,
-          generated sources, and subscriptions; observe alone never grants writes.
+          generated sources, and subscriptions, for a source that holds API
+          listener settings or secrets, and while the configuration store
+          cannot accept writes; observe alone never grants writes.
       loaded_at:
         $ref: ./openapi.yaml#/components/schemas/Timestamp
         description: Time these source bytes were accepted, not the current file modification time.
       content:
         type: string
-        description: Optional dae text, only when resources.config.content is true; still subject to secret redaction. Use for editing only if its UTF-8 SHA-256 matches content_sha256.
+        description: Accepted dae text with listener-secret values masked. Use for editing only if its UTF-8 SHA-256 matches content_sha256.
       line_count:
         $ref: ./openapi.yaml#/components/schemas/SafeUInt
         description: Lines in the accepted source before redaction; empty text has zero lines, and a final newline does not add an empty line.

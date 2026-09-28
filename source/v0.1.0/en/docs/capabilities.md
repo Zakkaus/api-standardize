@@ -60,7 +60,8 @@ separately from invalidation events.
 `providers` advertises `can_refresh`, `can_manage` and `max_page_size`
 (1–1000); refresh requires `control` and the operation resource, and
 `can_manage` means the backend owns a writable main source and implements
-provider create and delete. `nodes` advertises `can_manage` on the same terms
+provider create and delete. `create_unfetched: true` means a created provider
+is not fetched until refresh. `nodes` advertises `can_manage` on the same terms
 for inline nodes. `geodata` advertises `can_update` and the `assets` it reports
 (`geosite`, `geoip`); update requires `control` and the operation resource.
 `geodata.configurable_sources: true` means the download URLs and automatic
@@ -86,12 +87,11 @@ bounds each of its two lists, including the fallback entry. See
 ## Configuration capabilities
 
 `resources.config.available` gates accepted-source readback. When available, it
-requires `content`, `writable`, `max_bytes`, and `max_sources`.
+requires `writable`, `max_bytes`, and `max_sources`.
 
-`content` is reported for compatibility: an admitted caller receives source
-text with only listener-secret values (`native_api.secret`, `clash_api.secret`)
-masked. It does not grant access to those secrets. `max_sources` bounds the
-complete source set; it does not permit truncation.
+`max_sources` bounds the complete source set; it does not permit truncation.
+See [visibility](configuration.html#Visibility) for returned content and
+[editing](configuration.html#Editing) for `max_bytes`.
 
 Writing requires `control`, the server-wide switch, and a writable source.
 Advertising writes also requires full validation, reload, and operation support.

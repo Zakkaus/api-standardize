@@ -95,11 +95,17 @@ The backend writes the provider into the managed main source, advances the
 configuration revision, and emits `generation.changed`. A subsequent write to
 that changed source using its old `content_sha256` receives `412 stale_revision`;
 a generation change alone does not invalidate an unchanged source's hash.
-The provider is created
-unfetched (`node_count` 0, `updated_at` null, `status` stale); call refresh
-to load it. The URL is stored and never returned. A name already in use
+A backend that advertises `resources.providers.create_unfetched` creates the
+provider unfetched (`node_count` 0, `updated_at` null, `status` stale); call
+refresh to load it. Otherwise the backend may fetch the provider while it
+activates the change, and the created provider reports its actual state. The URL is stored and never returned. A name already in use
 returns `409 state_conflict`; a URL that is not http(s) returns
 `422 unsupported_value`.
+
+A backend returns ``201`` once the change is active, or `202 Accepted` with
+a ``provider_create`` [operation](operations.html) when it activates the change
+asynchronously; the operation's result is the created provider.
+For failed activations, see [activation outcomes](errors.html#Activation-outcomes).
 
 {% api_request createProvider options %}
 
@@ -131,3 +137,8 @@ Deletion removes the provider's line from the managed main source and its
 nodes from the running groups, advances the configuration revision and emits
 `generation.changed`. It is idempotent: an unknown id returns `deleted` 0. A
 group whose only member source was the provider is left empty.
+
+A backend returns ``200`` once the change is active, or `202 Accepted` with
+a ``provider_delete`` [operation](operations.html) when it activates the change
+asynchronously; the operation's result is the same `deleted` count.
+For failed activations, see [activation outcomes](errors.html#Activation-outcomes).
