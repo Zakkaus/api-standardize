@@ -255,10 +255,11 @@ paths:
                         max_bulk_close: 1000
                       flows:
                         available: true
-                        recording: 'on'
+                        recording: on_demand
                         scopes:
                           - userspace_tcp
                           - userspace_udp
+                        min_flows: 64
                         max_flows: 10000
                         max_steps_per_flow: 256
                         retention_seconds: 300
@@ -297,7 +298,11 @@ paths:
                           - info
                           - warn
                           - error
+                        filters:
+                          - level
+                          - target
                         retention_seconds: 60
+                        min_buffered_records: 64
                         max_buffered_records: 4096
                       dns_query:
                         available: true
@@ -322,6 +327,7 @@ paths:
                           - negative
                       dns_log:
                         available: true
+                        min_records: 64
                         max_records: 2048
                         max_page_size: 500
                       dns_rules:
@@ -2082,8 +2088,17 @@ paths:
                         epoch: '3'
                       attachments:
                         - name: wan_ingress
+                          kind: interface
                           interface: eth0
                           direction: ingress
+                          state: attached
+                        - name: connect4
+                          kind: cgroup
+                          cgroup: /
+                          state: attached
+                        - name: sk_msg_verdict
+                          kind: other
+                          hook: sk_msg verdict on the socket map
                           state: attached
                       maps:
                         state: ready
@@ -5161,7 +5176,7 @@ paths:
           example: info
         - name: target
           in: query
-          description: Case-sensitive literal module prefix; omit for all targets.
+          description: Case-sensitive literal prefix of LogRecord.target; omit for all targets. Requires target in resources.logs.filters, otherwise 422 unsupported_value. Records whose target is null never match.
           schema:
             type: string
             minLength: 1
@@ -5210,6 +5225,29 @@ paths:
           $ref: '#/components/responses/EventCursorExpired'
         '413':
           $ref: '#/components/responses/TooLarge'
+        '422':
+          description: level is a LogLevel member not in resources.logs.levels, or target is set while resources.logs.filters omits target (unsupported_value).
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/NoStore'
+            X-Content-Type-Options:
+              $ref: '#/components/headers/NoSniff'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                unadvertised_filter:
+                  value:
+                    error:
+                      code: unsupported_value
+                      message: target is not an advertised log filter.
+                      details: null
+                    request_id: request-5
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
         '429':
           $ref: '#/components/responses/RateLimited'
         '503':
@@ -5220,8 +5258,12 @@ paths:
       summary: Read the runtime-adjustable settings
       description: |
         Requires resources.runtime_settings.available. Returns the current
-        runtime-adjustable settings. Numeric values cannot exceed their corresponding
-        capability ceilings. source is config when values come from the activated
+        runtime-adjustable settings. Only observed_at and source are always present:
+        a value appears when resources.runtime_settings.fields lists it, and
+        recording.flows, recording.logs and recording.dns_log appear when
+        record_flows, record_logs and record_dns_log are listed. An engine may
+        report other values it cannot change. Numeric values stay inside their
+        capability bounds. source is config when values come from the activated
         configuration and runtime after a runtime override. geodata appears when
         resources.geodata.configurable_sources is true and carries its own source.
         Its URLs are returned as written, with only listener-secret values masked,
@@ -5308,6 +5350,17 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+                level_only:
+                  summary: An engine whose only runtime setting is the log level
+                  value:
+                    observed_at: '2026-08-15T10:00:00Z'
+                    source: config
+                    log:
+                      level: info
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -5325,7 +5378,7 @@ paths:
         Requires control and resources.runtime_settings.available. The body is a
         merge: an absent field keeps its value. Every value is checked before
         anything changes, and a rejected patch changes nothing. A field the schema
-        does not define, a ring below 64 records, or a value above its ceiling
+        does not define, or a value outside its schema range or advertised bounds,
         returns 400 invalid_request. A field not listed in
         resources.runtime_settings.fields, a log level not in
         resources.logs.levels, or pinning a recorder whose allowed is false returns
@@ -5366,6 +5419,11 @@ paths:
                     level: debug
                   dns_log:
                     max_records: 1024
+              level_only:
+                summary: Change only the log level
+                value:
+                  log:
+                    level: info
               geodata_sources:
                 summary: Use a mirror first
                 value:
@@ -5464,7 +5522,7 @@ paths:
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
         '400':
-          description: A field the schema does not define, or a value outside its range or advertised ceiling
+          description: A field the schema does not define, or a value outside its schema range or advertised bounds
           headers:
             Cache-Control:
               $ref: '#/components/headers/NoStore'
@@ -7837,20 +7895,28 @@ components:
                     - 'off'
                     - 'on'
                     - sampled
+                    - on_demand
+                  description: The engine's flow recording policy, not whether the recorder is capturing now. off records none, because the configuration does not permit the flow recorder or its mode is off; on records every flow in scopes (mode on); sampled records a subset; on_demand is mode auto, recording while clients create demand, whether or not any client does now. recording.flows.active in GET /runtime/settings reports whether the recorder is capturing.
                 scopes:
                   type: array
                   uniqueItems: true
                   items:
                     $ref: '#/components/schemas/FlowScope'
+                min_flows:
+                  $ref: '#/components/schemas/SafeUInt'
+                  minimum: 1
+                  description: Smallest flows.max_flows a runtime-settings PATCH may set. Absent means 1.
                 max_flows:
                   type: integer
                   minimum: 1
+                  description: The largest flow capacity the engine supports, which is the most a runtime-settings PATCH may set, not the current value. The current value is flows.max_flows in GET /runtime/settings.
                 max_steps_per_flow:
                   type: integer
                   minimum: 1
                 retention_seconds:
                   type: integer
-                  minimum: 0
+                  minimum: 1
+                  description: The longest terminal-flow retention the engine supports, which is the most a runtime-settings PATCH may set, not the current value. The smallest a PATCH may set is always 1. The current value is flows.retention_seconds in GET /runtime/settings.
                 snapshot_ttl_seconds:
                   type: integer
                   minimum: 1
@@ -7965,6 +8031,7 @@ components:
               then:
                 required:
                   - levels
+                  - filters
                   - retention_seconds
                   - max_buffered_records
               properties:
@@ -7976,10 +8043,25 @@ components:
                   uniqueItems: true
                   items:
                     $ref: '#/components/schemas/LogLevel'
+                filters:
+                  type: array
+                  uniqueItems: true
+                  description: The GET /logs query filters this engine applies. level is always listed; a filter not listed returns 422 unsupported_value.
+                  items:
+                    type: string
+                    enum:
+                      - level
+                      - target
+                  contains:
+                    const: level
                 retention_seconds:
                   type: integer
                   minimum: 1
                   description: Maximum age of a replayable record, in seconds. A resume cursor older than this returns 409 event_cursor_expired even when the ring has room.
+                min_buffered_records:
+                  $ref: '#/components/schemas/SafeUInt'
+                  minimum: 1
+                  description: Smallest log.buffered_records a runtime-settings PATCH may set. Absent means 1.
                 max_buffered_records:
                   $ref: '#/components/schemas/SafeUInt'
                   minimum: 1
@@ -8055,6 +8137,10 @@ components:
               properties:
                 available:
                   type: boolean
+                min_records:
+                  $ref: '#/components/schemas/SafeUInt'
+                  minimum: 1
+                  description: Smallest dns_log.max_records a runtime-settings PATCH may set. Absent means 1.
                 max_records:
                   $ref: '#/components/schemas/SafeUInt'
                   minimum: 1
@@ -9120,6 +9206,7 @@ components:
           properties:
             attachments:
               type: array
+              description: The attachments the engine checks. The list may be partial; an engine need not report every program it attached.
               items:
                 $ref: '#/components/schemas/EbpfAttachment'
             maps:
@@ -9128,13 +9215,20 @@ components:
       type: object
       required:
         - name
-        - interface
-        - direction
+        - kind
         - state
+      description: One program attachment. An interface attachment names the interface and direction, a cgroup attachment names the cgroup, and any other attachment, such as a sockmap verdict or a tracing program, describes its hook in `hook`.
       properties:
         name:
           type: string
           minLength: 1
+          description: Program or hook name.
+        kind:
+          type: string
+          enum:
+            - interface
+            - cgroup
+            - other
         interface:
           type: string
           minLength: 1
@@ -9143,6 +9237,14 @@ components:
           enum:
             - ingress
             - egress
+        cgroup:
+          type: string
+          minLength: 1
+          description: cgroup v2 path relative to the cgroup2 mount; / is the root cgroup.
+        hook:
+          type: string
+          minLength: 1
+          description: Where an `other` attachment is attached, in the engine's words, such as the sockmap a verdict program serves or the kernel function a tracing program hooks.
         state:
           type: string
           enum:
@@ -9150,6 +9252,40 @@ components:
             - detached
             - error
             - unknown
+      allOf:
+        - if:
+            properties:
+              kind:
+                const: interface
+          then:
+            required:
+              - interface
+              - direction
+            properties:
+              cgroup: false
+              hook: false
+        - if:
+            properties:
+              kind:
+                const: cgroup
+          then:
+            required:
+              - cgroup
+            properties:
+              interface: false
+              direction: false
+              hook: false
+        - if:
+            properties:
+              kind:
+                const: other
+          then:
+            required:
+              - hook
+            properties:
+              interface: false
+              direction: false
+              cgroup: false
     EbpfMaps:
       type: object
       required:
@@ -11552,14 +11688,9 @@ components:
             - userspace
         action:
           type: string
-          enum:
-            - pass
-            - redirect
-            - hold
-            - arm_direct
-            - activate_direct
-            - activate_proxy
-            - drop
+          pattern: ^[a-z][a-z0-9_]*$
+          maxLength: 64
+          description: pass lets the packet continue without the proxy, redirect hands it to the userspace proxy, hold keeps it until a pending decision completes, and drop discards it. Any other value is an engine-defined step documented with that engine; clients show an unknown value as it is.
         reason:
           type: string
           minLength: 1
@@ -11850,7 +11981,7 @@ components:
             - direct
             - global
             - unknown
-          description: Clash-mode override observed for this outbound attempt, separate from the configured dial mode. This field does not expose a native runtime-mode setting. none means no override was applied; unknown means the recorder could not determine it.
+          description: Engine mode override observed for this outbound attempt, separate from the configured dial mode. This field does not expose a native runtime-mode setting. none means no override was applied; unknown means the recorder could not determine it.
         selection_path:
           type: array
           items:
@@ -12608,8 +12739,10 @@ components:
         entries:
           $ref: '#/components/schemas/UInt64'
         entry_capacity:
-          $ref: '#/components/schemas/UInt64'
-          description: Effective entry limit after the engine applies its bounds, at most 100,000.
+          oneOf:
+            - $ref: '#/components/schemas/UInt64'
+            - type: 'null'
+          description: Effective entry limit after the engine applies its bounds, or null when the cache has no entry limit or the engine cannot report it.
     DnsLogRecord:
       type: object
       required:
@@ -13060,9 +13193,11 @@ components:
         level:
           $ref: '#/components/schemas/LogLevel'
         target:
-          type: string
+          type:
+            - string
+            - 'null'
           minLength: 1
-          description: Engine module name, not a network destination.
+          description: The engine component that emitted the record, such as a module name; not a network destination. null when the engine does not report one.
         message:
           type: string
           minLength: 1
@@ -13090,9 +13225,7 @@ components:
       required:
         - observed_at
         - source
-        - log
-        - dns_log
-        - flows
+      description: Every section is optional. A value appears when resources.runtime_settings.fields lists it; an engine may also report a value it cannot change.
       properties:
         observed_at:
           $ref: '#/components/schemas/Timestamp'
@@ -13104,17 +13237,15 @@ components:
           description: config while every value comes from the activated configuration; runtime once any PATCH overrode one. geodata has its own source and does not affect this one.
         log:
           type: object
-          required:
-            - level
-            - buffered_records
+          minProperties: 1
           properties:
             level:
               $ref: '#/components/schemas/LogLevel'
               description: Minimum severity the engine emits. A lower stream level cannot recover records the engine did not emit.
             buffered_records:
               $ref: '#/components/schemas/SafeUInt'
-              minimum: 64
-              description: Log replay ring capacity, at most logs.max_buffered_records.
+              minimum: 1
+              description: Log replay ring capacity, within logs.min_buffered_records and logs.max_buffered_records. Independent of level.
         dns_log:
           type: object
           required:
@@ -13122,42 +13253,28 @@ components:
           properties:
             max_records:
               $ref: '#/components/schemas/SafeUInt'
-              minimum: 64
-              description: DNS log ring capacity, at most dns_log.max_records.
+              minimum: 1
+              description: DNS log ring capacity, within dns_log.min_records and dns_log.max_records.
         flows:
           type: object
-          required:
-            - max_flows
-            - retention_seconds
+          minProperties: 1
           properties:
             max_flows:
               $ref: '#/components/schemas/SafeUInt'
-              minimum: 64
-              description: Retained flows, at most flows.max_flows.
+              minimum: 1
+              description: Retained flows, within flows.min_flows and flows.max_flows.
             retention_seconds:
               $ref: '#/components/schemas/SafeUInt'
               minimum: 1
               description: Maximum age of a retained terminal flow, in seconds, bounded by resources.flows.retention_seconds. Capacity pressure may evict it earlier.
         recording:
           type: object
-          required:
-            - flows
-            - logs
-            - dns_log
-            - events
-            - grace_remaining_seconds
+          minProperties: 1
           description: |
-            Read-only recorder state. A client is attached while an admitted GET SSE stream on
-            /events or /logs is open, or for 60 seconds after the last stream closed or a successful
-            GET on /flows, /flows/{flow_id} or /dns/log; other requests, including settings reads, do not
-            renew attachment. Automatic log and DNS-log recorders follow attachment. The automatic
-            flow recorder follows flow demand instead, so that an open panel does not record full
-            flow traces for every connection: an admitted GET /events stream whose kinds include
-            flow.updated or flow.gap, or that sets a nonblank flow_id with a flow kind in its
-            effective kinds, holds demand while open and for 60 seconds after the last one closed,
-            and a successful GET on /flows or /flows/{flow_id} renews it for 60 seconds. Event streams
-            without kinds, /logs streams and /dns/log reads do not create flow demand. Recording
-            starts on attachment or demand, so the first history a client reads may be empty.
+            Read-only recorder state. Each recorder appears when its record_* field is listed in
+            resources.runtime_settings.fields. In auto mode a recorder captures on demand, so the
+            first history a client reads may be empty. Engine-specific demand rules are
+            documented with the engine; see the honk notes.
           properties:
             flows:
               $ref: '#/components/schemas/RecorderState'
@@ -13172,10 +13289,10 @@ components:
               properties:
                 active:
                   type: boolean
-                  description: Event capture runs while a client is attached or any permitted recorder is pinned on.
+                  description: Event capture is running.
             grace_remaining_seconds:
               $ref: '#/components/schemas/SafeUInt'
-              description: Seconds left before the automatic log and DNS-log recorders stop, 0 while a stream is open or nothing is attached. The flow-demand grace is not reported.
+              description: Seconds left in the engine's attachment grace after the last client left, 0 while a client is attached or once the grace has run out. Which recorders follow this grace is engine-defined, and a recorder may keep its own demand timer that this value does not count. Absent when the engine keeps no attachment grace.
         geodata:
           $ref: '#/components/schemas/GeoDataSettings'
           description: Geodata download sources and automatic updates. Present when resources.geodata.configurable_sources is true. URLs are returned as written, with only listener-secret values masked, to every admitted caller.
@@ -13199,7 +13316,7 @@ components:
               $ref: '#/components/schemas/LogLevel'
             buffered_records:
               $ref: '#/components/schemas/SafeUInt'
-              minimum: 64
+              minimum: 1
         dns_log:
           type: object
           additionalProperties: false
@@ -13207,7 +13324,7 @@ components:
           properties:
             max_records:
               $ref: '#/components/schemas/SafeUInt'
-              minimum: 64
+              minimum: 1
         flows:
           type: object
           additionalProperties: false
@@ -13215,14 +13332,14 @@ components:
           properties:
             max_flows:
               $ref: '#/components/schemas/SafeUInt'
-              minimum: 64
+              minimum: 1
             retention_seconds:
               $ref: '#/components/schemas/SafeUInt'
               minimum: 1
         geodata:
           $ref: '#/components/schemas/GeoDataSettingsPatch'
     RecorderMode:
-      description: true pins a permitted recorder on, false forces it off, auto (the startup default) follows flow demand for record_flows and client attachment for the other recorders.
+      description: The value a PATCH sets for a recorder. true pins a permitted recorder on, false forces it off, and "auto" (the startup default) lets the engine record on demand. What counts as demand, and how long it lasts, is engine-defined. GET reports the result as the string RecorderState.mode, not as this value.
       oneOf:
         - type: boolean
         - type: string
@@ -13244,6 +13361,7 @@ components:
             - auto
             - 'on'
             - 'off'
+          description: The recorder's mode as reported by GET, always a string. "on" follows a PATCH of true, "off" a PATCH of false, and auto a PATCH of "auto" or no PATCH at all.
         active:
           type: boolean
           description: The recorder is capturing right now.

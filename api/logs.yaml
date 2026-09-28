@@ -35,7 +35,7 @@ paths:
           example: info
         - name: target
           in: query
-          description: Case-sensitive literal module prefix; omit for all targets.
+          description: Case-sensitive literal prefix of LogRecord.target; omit for all targets. Requires target in resources.logs.filters, otherwise 422 unsupported_value. Records whose target is null never match.
           schema:
             type: string
             minLength: 1
@@ -85,6 +85,29 @@ paths:
           $ref: ./openapi.yaml#/components/responses/EventCursorExpired
         "413":
           $ref: ./openapi.yaml#/components/responses/TooLarge
+        "422":
+          description: level is a LogLevel member not in resources.logs.levels, or target is set while resources.logs.filters omits target (unsupported_value).
+          headers:
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+              examples:
+                unadvertised_filter:
+                  value:
+                    error:
+                      code: unsupported_value
+                      message: target is not an advertised log filter.
+                      details: null
+                    request_id: request-5
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
         "429":
           $ref: ./openapi.yaml#/components/responses/RateLimited
         "503":
@@ -102,9 +125,9 @@ schemas:
       level:
         $ref: ./openapi.yaml#/components/schemas/LogLevel
       target:
-        type: string
+        type: [ string, "null" ]
         minLength: 1
-        description: Engine module name, not a network destination.
+        description: The engine component that emitted the record, such as a module name; not a network destination. null when the engine does not report one.
       message:
         type: string
         minLength: 1

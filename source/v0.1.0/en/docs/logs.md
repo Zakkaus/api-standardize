@@ -14,13 +14,17 @@ title: Logs
 | Parameter | Default | Meaning |
 |-----------|---------|---------|
 | level | all advertised levels | Minimum severity: `trace`, `debug`, `info`, `warn`, `error`, in ascending order. |
-| target | absent | Case-sensitive literal module prefix. |
+| target | absent | Case-sensitive literal prefix of a record's `target`. |
 | Last-Event-ID | absent | Header containing the last processed opaque cursor. |
 
 A level outside the five above returns `400 invalid_request`; one of them that
-`levels` does not advertise returns `422 unsupported_value` (see [errors](errors.html#Choosing-the-status)). Capabilities
-advertise `levels`, `retention_seconds` and `max_buffered_records`; clients
-must not infer them from the engine version.
+`levels` does not advertise returns `422 unsupported_value` (see [errors](errors.html#Choosing-the-status)).
+`filters` lists the query filters the engine applies; `level` is always
+listed, and `target` on an engine that does not list it returns
+`422 unsupported_value`. Capabilities advertise `levels`, `filters`,
+`retention_seconds`, `max_buffered_records` and the optional
+`min_buffered_records`; clients must not infer them
+from the engine version.
 
 ## Response
 
@@ -32,7 +36,9 @@ line break.
 `stream.ready` is the first frame on every connection, including a resume.
 Its data uses the [events](events.html) payload: `instance_id`, `observed_at`.
 Each `event: log` frame has an `id` and JSON data containing `ts`, `level`,
-`target` (module), `message`, and `fields` (object or null). Heartbeat comments
+`target` (the emitting component, or null when the engine does not report
+one), `message`, and `fields` (object or null). A `target` filter never
+matches a record whose `target` is null. Heartbeat comments
 arrive at most 15 seconds apart while idle and do not advance the cursor.
 
 Sanitize messages and structured fields before buffering. No secrets,

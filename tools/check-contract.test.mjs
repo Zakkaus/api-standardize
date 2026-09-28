@@ -237,11 +237,85 @@ test("runtime settings stay inside their capability ceilings and advertised fiel
   assertInvalid(validateExample(contract, patch), "levels come from the enum");
   patch.body = {source: "runtime"};
   assertInvalid(validateExample(contract, patch), "source is read-only");
+  patch.body = {dns_log: {max_records: 0}};
+  assertInvalid(validateExample(contract, patch), "rings hold at least one record");
   patch.body = {dns_log: {max_records: 63}};
-  assertInvalid(validateExample(contract, patch), "rings keep at least 64 records");
+  assertValid(validateExample(contract, patch), "engines advertise their own minimum");
   const rejected = example("patchRuntimeSettings:400:above_ceiling");
   assert.equal(rejected.body.error.code, "invalid_request");
   assertValid(validateExample(contract, rejected));
+});
+
+test("runtime settings sections are optional and the log level stands alone", () => {
+  const levelOnly = example("patchRuntimeSettings:request:level_only");
+  assert.deepEqual(levelOnly.body, {log: {level: "info"}});
+  assertValid(validateExample(contract, levelOnly));
+  const read = example("getRuntimeSettings:200:level_only");
+  assert.deepEqual(Object.keys(read.body).sort(), ["log", "observed_at", "source"]);
+  assertValid(validateExample(contract, read));
+  const current = example("getRuntimeSettings:200:current");
+  for (const section of ["log", "dns_log", "flows", "geodata"]) delete current.body[section];
+  assertValid(validateExample(contract, current), "only observed_at and source are required");
+  for (const required of ["observed_at", "source"]) {
+    const missing = example("getRuntimeSettings:200:current");
+    delete missing.body[required];
+    assertInvalid(validateExample(contract, missing), `${required} was optional`);
+  }
+  for (const [section, value] of [["log", {}], ["dns_log", {}], ["flows", {}], ["recording", {}]]) {
+    const empty = example("getRuntimeSettings:200:current");
+    empty.body[section] = value;
+    assertInvalid(validateExample(contract, empty), `an empty ${section} passed`);
+  }
+  const ring = example("getRuntimeSettings:200:current");
+  ring.body.log = {buffered_records: 512};
+  assertValid(validateExample(contract, ring), "the replay ring does not need the level");
+  ring.body.flows = {retention_seconds: 60};
+  assertValid(validateExample(contract, ring), "flow fields are independent");
+});
+
+test("recorder state is allowed, mode and active, and flow recording may be on demand", () => {
+  const settings = example("getRuntimeSettings:200:current");
+  const recorder = {allowed: true, mode: "auto", active: false};
+  settings.body.recording = {flows: recorder};
+  assertValid(validateExample(contract, settings), "a single recorder is enough");
+  settings.body.recording = {flows: recorder, logs: recorder, dns_log: recorder, events: {active: true}, grace_remaining_seconds: 42};
+  assertValid(validateExample(contract, settings));
+  for (const field of ["allowed", "mode", "active"]) {
+    const partial = {...recorder};
+    delete partial[field];
+    settings.body.recording = {flows: partial};
+    assertInvalid(validateExample(contract, settings), `recorder ${field} was optional`);
+  }
+  settings.body.recording = {flows: {...recorder, mode: "on_demand"}};
+  assertInvalid(validateExample(contract, settings), "on_demand is a recording value, not a mode");
+  const capabilities = example("getCapabilities:200:available");
+  const flows = capabilities.body.resources.flows;
+  assert.equal(flows.recording, "on_demand");
+  for (const recording of ["off", "on", "sampled", "on_demand"]) {
+    flows.recording = recording;
+    assertValid(validateExample(contract, capabilities));
+  }
+  flows.recording = "auto";
+  assertInvalid(validateExample(contract, capabilities), "recording comes from the enum");
+  flows.recording = "on_demand";
+  flows.retention_seconds = 0;
+  assertInvalid(validateExample(contract, capabilities), "flow retention is at least 1 second");
+});
+
+test("runtime setting bounds are advertised, with an absent minimum meaning 1", () => {
+  const capabilities = example("getCapabilities:200:available");
+  const resources = capabilities.body.resources;
+  const current = example("getRuntimeSettings:200:current").body;
+  assert.ok(current.log.buffered_records >= resources.logs.min_buffered_records);
+  assert.ok(current.dns_log.max_records >= resources.dns_log.min_records);
+  assert.ok(current.flows.max_flows >= resources.flows.min_flows);
+  for (const [resource, bound] of [["logs", "min_buffered_records"], ["dns_log", "min_records"], ["flows", "min_flows"]]) {
+    const response = example("getCapabilities:200:available");
+    delete response.body.resources[resource][bound];
+    assertValid(validateExample(contract, response), `${resource}.${bound} is optional`);
+    response.body.resources[resource][bound] = 0;
+    assertInvalid(validateExample(contract, response), `${resource}.${bound} accepted 0`);
+  }
 });
 
 test("geodata sources are patched through runtime settings and reported with their status", () => {
@@ -1342,7 +1416,7 @@ test("observability resources expose discovery, permissions and examples for eve
 
 test("observability capabilities require usable bounds only when available", () => {
   for (const [resource, fields] of [
-    ["logs", ["levels", "retention_seconds", "max_buffered_records"]],
+    ["logs", ["levels", "filters", "retention_seconds", "max_buffered_records"]],
     ["providers", ["can_refresh", "can_manage", "max_page_size"]],
     ["rules", ["max_rules"]],
     ["geodata", ["can_update", "assets"]],
@@ -1399,7 +1473,8 @@ test("log payloads and filters preserve typed records and the shared cursor erro
   const schema = { $ref: bindings.log };
   record.fields = null;
   assertValid(contract.validate(schema, record));
-  for (const [field, invalid] of [["ts", "yesterday"], ["level", "fatal"], ["fields", []]]) {
+  assertValid(contract.validate(schema, { ...record, target: null }), "an engine without targets reports null");
+  for (const [field, invalid] of [["ts", "yesterday"], ["level", "fatal"], ["fields", []], ["target", ""]]) {
     const changed = { ...record, [field]: invalid };
     assertInvalid(contract.validate(schema, changed));
   }
@@ -1412,6 +1487,7 @@ test("log payloads and filters preserve typed records and the shared cursor erro
   const expired = example("streamLogs:409:event_cursor_expired");
   assert.deepEqual(expired.body, example("streamEvents:409:event_cursor_expired").body);
   assert.equal(expired.mediaType, "application/json");
+  assert.ok(spec.paths["/api/v1/logs"].get.responses["422"], "an unadvertised level or filter is declared");
 });
 
 test("native EventSource receives log readiness, record IDs and heartbeat framing", { timeout: 3_000 }, async () => {
@@ -1808,4 +1884,61 @@ test("only operations with replay semantics take Idempotency-Key", () => {
   assert.equal(replays(spec.paths["/api/v1/runtime/settings"].patch), false);
   assert.equal(replays(spec.paths["/api/v1/operations/reload"].post), true);
   assert.equal(replays(spec.paths["/api/v1/groups/{group_id}"].patch), true);
+});
+
+test("log filters are advertised and always include level", () => {
+  const capabilities = example("getCapabilities:200:available");
+  const logs = capabilities.body.resources.logs;
+  assert.deepEqual(logs.filters, ["level", "target"]);
+  logs.filters = ["level"];
+  assertValid(validateExample(contract, capabilities), "an engine without targets lists level alone");
+  for (const invalid of [["target"], [], ["level", "module"], ["level", "level"]]) {
+    logs.filters = invalid;
+    assertInvalid(validateExample(contract, capabilities), `filters ${JSON.stringify(invalid)} passed`);
+  }
+});
+
+test("DNS cache capacity may be unbounded and is not capped by the contract", () => {
+  const usage = { $ref: "#/components/schemas/DnsCacheUsage" };
+  assertValid(contract.validate(usage, { entries: "5", entry_capacity: null }), "null capacity");
+  assertValid(contract.validate(usage, { entries: "5", entry_capacity: "1000000" }), "no fixed cap");
+  assertInvalid(contract.validate(usage, { entries: "5" }), "capacity may be null but not absent");
+});
+
+test("eBPF attachments are interface, cgroup or other attachments", () => {
+  const response = example("getDatapath:200:active");
+  const attachments = response.body.ebpf.attachments;
+  assert.deepEqual(attachments.map((attachment) => attachment.kind), ["interface", "cgroup", "other"]);
+  assertValid(validateExample(contract, response));
+  const schema = { $ref: "#/components/schemas/EbpfAttachment" };
+  const [iface, cgroup, other] = attachments;
+  for (const [label, value] of [
+    ["kind is required", (({ kind, ...rest }) => rest)(iface)],
+    ["an interface attachment needs its direction", (({ direction, ...rest }) => rest)(iface)],
+    ["an interface attachment needs its interface", (({ interface: _, ...rest }) => rest)(iface)],
+    ["an interface attachment has no cgroup", { ...iface, cgroup: "/" }],
+    ["a cgroup attachment needs its path", (({ cgroup: _, ...rest }) => rest)(cgroup)],
+    ["a cgroup attachment has no interface", { ...cgroup, interface: "eth0" }],
+    ["a cgroup attachment has no direction", { ...cgroup, direction: "egress" }],
+    ["kind comes from the enum", { ...cgroup, kind: "xdp" }],
+    ["an interface attachment has no hook", { ...iface, hook: "tc" }],
+    ["a cgroup attachment has no hook", { ...cgroup, hook: "connect4" }],
+    ["an other attachment needs its hook", (({ hook, ...rest }) => rest)(other)],
+    ["an other attachment has no interface", { ...other, interface: "eth0" }],
+    ["an other attachment has no cgroup", { ...other, cgroup: "/" }],
+  ]) {
+    assertInvalid(contract.validate(schema, value), label);
+  }
+});
+
+test("datapath step actions have a core set and accept engine-defined values", () => {
+  const schema = { $ref: "#/components/schemas/DatapathStepData" };
+  const data = { plane: "kernel", action: "pass", reason: "bypass", error: null };
+  for (const action of ["pass", "redirect", "hold", "drop", "arm_direct", "sk_assign"]) {
+    assertValid(contract.validate(schema, { ...data, action }), action);
+  }
+  for (const action of ["", "Redirect", "x y", "1drop", "a".repeat(65)]) {
+    assertInvalid(contract.validate(schema, { ...data, action }), `action ${JSON.stringify(action)} passed`);
+  }
+  assertInvalid(contract.validate(schema, (({ action, ...rest }) => rest)(data)), "action is required");
 });
