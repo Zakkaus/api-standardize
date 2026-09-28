@@ -731,7 +731,7 @@ paths:
         "409":
           $ref: ./openapi.yaml#/components/responses/Conflict
         "412":
-          description: If-Match does not equal the current configuration revision
+          description: If-Match does not match the current configuration revision, on arrival or at commit
           headers:
             Cache-Control:
               $ref: ./openapi.yaml#/components/headers/NoStore

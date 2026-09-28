@@ -115,9 +115,11 @@ retained idempotent replay may omit it.
 Requires `resources.groups.config_patch`; without it the request
 returns `404 capability_not_supported`. A group patch is a configuration
 write, so `config_patch` is true only when `resources.config.writable` is.
-Because `config_revision` is configuration-wide, a patch sent after an
-unrelated accepted change returns `412`. Read `GET /groups/{group_id}/config`
-again and retry with its current `ETag`.
+Because `config_revision` is configuration-wide, a patch whose `If-Match` names
+the revision before an unrelated accepted change returns `412`. Read
+`GET /groups/{group_id}/config` again and retry with its current `ETag`. At
+commit the server evaluates `If-Match` again, with the `412` and `409` outcomes
+of a [source replacement](configuration.html#Validation-and-commit).
 
 {% api_example patchGroupConfig request tolerance http %}
 
@@ -179,7 +181,7 @@ as a `comment`, are ignored ([RFC 6902 §4](https://www.rfc-editor.org/rfc/rfc69
 | 202 | The update was accepted and returns the shared `group_update` operation summary. |
 | 412 | `If-Match` does not match the current configuration-wide `config_revision`. |
 | 404 | The group does not exist, or `resources.groups.config_patch` is false. |
-| 409 | A `test` operation failed, or current runtime state prevents the requested transition. |
+| 409 | A `test` operation failed, current runtime state prevents the requested transition, or the configuration changed before the commit while `If-Match` still matched. |
 | 422 | The patch is syntactically valid but the field or value is unsupported. |
 | 428 | A new patch has no `If-Match`. |
 

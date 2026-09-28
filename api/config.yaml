@@ -622,7 +622,7 @@ paths:
         "409":
           $ref: ./openapi.yaml#/components/responses/Conflict
         "412":
-          description: If-Match does not match the stored content hash; nothing is stored
+          description: If-Match does not match the stored content hash, on arrival or at commit; nothing is stored
           headers:
             Cache-Control:
               $ref: ./openapi.yaml#/components/headers/NoStore
