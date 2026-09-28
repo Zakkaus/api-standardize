@@ -2,6 +2,7 @@ paths:
   /api/v1/routing/trace:
     post:
       operationId: traceRouting
+      tags: [ Routing ]
       summary: Simulate bounded routing evaluation
       x-permission: control
       security:

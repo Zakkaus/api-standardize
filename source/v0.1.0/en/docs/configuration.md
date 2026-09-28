@@ -50,9 +50,11 @@ Never save it over the source.
 
 ## GET /api/v1/config/sources/{source_id}
 
-Requires `observe` and `resources.config.available`. Returns one `ConfigSource`
-with the same fields and visibility rules as an entry in `GET /config`. It reads
-the accepted snapshot, not the store's current contents. An unknown ID returns
+Requires `observe` and `resources.config.available`. Returns one source's
+identity and content (`ConfigSourceContent`) under the same visibility rules as
+`GET /config`. It reads the accepted snapshot, not the store's current contents.
+The body leaves out `writable` and `loaded_at`, which can change while the bytes
+stay the same; read them from `GET /config`. An unknown ID returns
 `404 resource_not_found`; unavailable readback returns
 `404 capability_not_supported`.
 
@@ -107,7 +109,11 @@ allowed length. Content that JSON escaping expands can still exceed the body
 limit, and that limit then applies. Exceeding either returns
 `413 request_too_large`.
 
-`If-Match` accepts one quoted strong tag, not a wildcard, weak tag, or tag list.
+`GET /config/sources/{source_id}` returns the quoted `content_sha256` in `ETag`
+when its content is complete. A body with a masked listener-secret value has no
+`ETag`: it is not the representation that `PUT` replaces.
+`If-Match` is evaluated as [conditional requests](errors.html#Conditional-requests)
+defines.
 The optional `Idempotency-Key` follows the [operation rules](operations.html):
 within the running instance's retention window, the same caller, method, path,
 key, and body return the original operation without another write or hash

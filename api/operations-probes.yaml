@@ -2,6 +2,7 @@ paths:
   /api/v1/probes:
     post:
       operationId: createProbe
+      tags: [ Probes ]
       summary: Start a bounded typed probe operation
       x-permission: control
       security:
@@ -22,7 +23,6 @@ paths:
                     type: group
                     group_id: group-proxy
                   kind: dns
-                  purpose: dns
                   transport: [ udp ]
                   ip_version: ipv4
                   members: [ node-hk-01, group-jp ]
@@ -114,6 +114,7 @@ paths:
   /api/v1/operations/reload:
     post:
       operationId: startReload
+      tags: [ Operations ]
       summary: Start an asynchronous reload
       x-permission: control
       security:
@@ -188,6 +189,7 @@ paths:
   /api/v1/operations/suspend:
     post:
       operationId: startSuspend
+      tags: [ Operations ]
       summary: Start an asynchronous suspend transition
       x-permission: control
       security:
@@ -262,6 +264,7 @@ paths:
   /api/v1/operations/resume:
     post:
       operationId: startResume
+      tags: [ Operations ]
       summary: Start an asynchronous resume transition
       x-permission: control
       security:
@@ -302,6 +305,7 @@ paths:
   /api/v1/operations/{operation_id}:
     get:
       operationId: getOperation
+      tags: [ Operations ]
       summary: Read an asynchronous operation
       x-permission: observe-owner-or-control
       security:
@@ -510,19 +514,18 @@ schemas:
   ProbeRequest:
     type: object
     description: >-
-      The schema does not restrict kind, purpose and transport combinations.
-      tcp_connect and http take purpose data over tcp; dns takes purpose dns.
-      Any other combination parses and returns 422 unsupported_value.
+      The schema does not restrict kind and transport combinations.
+      tcp_connect and http run over tcp; dns runs over tcp, udp or both.
+      Any other combination parses and returns 422 unsupported_value. The
+      kind fixes the health purpose that results report: tcp_connect and http
+      test data, dns tests dns.
     additionalProperties: false
-    required: [ target, kind, purpose, transport, ip_version, warmth ]
+    required: [ target, kind, transport, ip_version, warmth ]
     properties:
       target:
         $ref: ./openapi.yaml#/components/schemas/ProbeTarget
       kind:
         $ref: ./openapi.yaml#/components/schemas/ProbeKind
-      purpose:
-        type: string
-        enum: [ data, dns ]
       transport:
         type: array
         minItems: 1

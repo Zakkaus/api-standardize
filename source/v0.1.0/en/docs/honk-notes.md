@@ -79,7 +79,8 @@ recorders on the `feat/native-api` branch.
   and `retention_seconds` rather than its maxima, and omits `min_flows`,
   `logs.min_buffered_records`, `dns_log.min_records`, `logs.filters` and the
   eBPF attachment `kind`. A planned honk change reports all of them as the
-  contract requires, with `on_demand` in `auto` mode.
+  contract requires, reporting `resources.flows.recording: auto` when the flow
+  recorder's mode is `auto`.
 - `grace_remaining_seconds` counts the attachment grace only, not the
   flow-demand grace. Event capture runs while a client is attached or any
   permitted recorder is pinned on.
@@ -96,4 +97,6 @@ This section records honk-specific detail behind the
   hold, arm, verdict and publication step.
 - honk's UDP decision token is not a flow ID, and the persisted UDP token
   allocator is not changed to produce flow IDs.
-- `mode_override` reports honk's Clash-mode override (`direct` or `global`).
+- An outbound step's `data["x-honk"].mode_override` reports honk's Clash-mode
+  override for the attempt: `none`, `direct`, `global` or `unknown`. It is not
+  part of the shared step.

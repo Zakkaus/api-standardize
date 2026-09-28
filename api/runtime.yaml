@@ -2,6 +2,7 @@ paths:
   /api/v1/runtime:
     get:
       operationId: getRuntime
+      tags: [ Runtime ]
       summary: Read coherent runtime summary
       x-permission: observe
       security:
@@ -90,6 +91,7 @@ paths:
   /api/v1/runtime/memory:
     get:
       operationId: getRuntimeMemory
+      tags: [ Runtime ]
       summary: Read lightweight process, cgroup, and eBPF memory
       x-permission: observe
       security:
@@ -143,6 +145,7 @@ paths:
   /api/v1/runtime/outbounds:
     get:
       operationId: getRuntimeOutbounds
+      tags: [ Runtime ]
       summary: Read per-outbound cumulative counters
       description: |
         The engine keeps cumulative per-outbound counters for visible traffic,
@@ -211,6 +214,7 @@ paths:
   /api/v1/runtime/traffic/history:
     get:
       operationId: getTrafficHistory
+      tags: [ Runtime ]
       summary: Read bounded traffic history
       description: |
         Reads a bounded in-memory ring of visible traffic samples without
@@ -317,6 +321,7 @@ paths:
   /api/v1/runtime/memory/history:
     get:
       operationId: getMemoryHistory
+      tags: [ Runtime ]
       summary: Read bounded memory history
       description: |
         Requires resources.memory_history.available. Reads a bounded in-memory ring
@@ -423,6 +428,7 @@ paths:
   /api/v1/datapath:
     get:
       operationId: getDatapath
+      tags: [ Runtime ]
       summary: Read detailed datapath state
       x-permission: observe
       security:

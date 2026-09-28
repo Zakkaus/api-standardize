@@ -2,6 +2,7 @@ paths:
   /api/v1/config:
     get:
       operationId: getConfig
+      tags: [ Configuration ]
       summary: Read the effective configuration
       description: |
         Requires resources.config.available. Returns one coherent snapshot of the
@@ -79,25 +80,7 @@ paths:
         "400":
           $ref: ./openapi.yaml#/components/responses/BadRequest
         "401":
-          description: Credentials are missing or invalid
-          headers:
-            Cache-Control:
-              $ref: ./openapi.yaml#/components/headers/NoStore
-            X-Content-Type-Options:
-              $ref: ./openapi.yaml#/components/headers/NoSniff
-          content:
-            application/json:
-              schema:
-                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
-              examples:
-                authentication_required:
-                  value:
-                    error: { code: authentication_required, message: Credentials are required. }
-                    request_id: request-config-1
-                  x-headers:
-                    Content-Type: application/json
-                    Cache-Control: no-store
-                    X-Content-Type-Options: nosniff
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
         "403":
           description: Authenticated caller lacks observe permission
           headers:
@@ -170,6 +153,7 @@ paths:
   /api/v1/config/sources:
     post:
       operationId: createConfigSource
+      tags: [ Configuration ]
       summary: Create one configuration source and reload
       description: |
         Requires control, resources.config.available, resources.config.writable,
@@ -417,11 +401,14 @@ paths:
         example: source-main
     get:
       operationId: getConfigSource
+      tags: [ Configuration ]
       summary: Read one accepted configuration source
       description: |
-        Requires resources.config.available. Returns the same ConfigSource as
-        GET /config, not a fresh read of the store, with its content; mask listener
-        secrets as in GET /config.
+        Requires resources.config.available. Returns the source's identity and
+        content from the same snapshot as GET /config, not a fresh read of the
+        store; mask listener secrets as in GET /config. The body carries no field
+        that can change while the source bytes stay the same: writable and
+        loaded_at are only in the GET /config source list.
         Unknown source IDs return 404 resource_not_found. Redacted text must never
         be saved as a replacement; compare its UTF-8 SHA-256 with content_sha256
         before using returned content as an editing representation.
@@ -433,6 +420,11 @@ paths:
         "200":
           description: Accepted source; content remains subject to visibility policy
           headers:
+            ETag:
+              schema:
+                type: string
+                minLength: 1
+              description: The source's content_sha256 in double quotes, the value PUT compares in If-Match. Sent only when content is complete, that is, when no listener-secret value was masked; a masked body has no ETag.
             Cache-Control:
               $ref: ./openapi.yaml#/components/headers/NoStore
             X-Content-Type-Options:
@@ -440,7 +432,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: ./openapi.yaml#/components/schemas/ConfigSource
+                $ref: ./openapi.yaml#/components/schemas/ConfigSourceContent
               examples:
                 editable:
                   summary: Unredacted dae text.
@@ -450,12 +442,11 @@ paths:
                     kind: main
                     content_sha256: d1f62f00c6da9ec33956e66b8cc3b4670f164556fc12453193904af23451dec1
                     bytes: 31
-                    writable: true
-                    loaded_at: 2026-08-15T09:30:00Z
                     content: "routing {\n  fallback: direct\n}\n"
                     line_count: 3
                   x-headers:
                     Content-Type: application/json
+                    ETag: '"d1f62f00c6da9ec33956e66b8cc3b4670f164556fc12453193904af23451dec1"'
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
                 redacted:
@@ -465,8 +456,6 @@ paths:
                     kind: main
                     content_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
                     bytes: 90
-                    writable: false
-                    loaded_at: 2026-08-15T09:30:00Z
                     content: "global {\n  log_level: info\n}\nexperimental {\n  native_api {\n    secret: '<redacted>'\n  }\n}\n"
                     line_count: 8
                   x-headers:
@@ -513,6 +502,7 @@ paths:
           $ref: ./openapi.yaml#/components/responses/RateLimited
     put:
       operationId: replaceConfigSource
+      tags: [ Configuration ]
       summary: Replace one configuration source and reload
       description: |
         Requires control, resources.config.available, resources.config.writable,
@@ -569,18 +559,14 @@ paths:
         - bearerAuth: []
         - {}
       parameters:
-        - name: If-Match
-          in: header
-          required: true
+        - $ref: ./openapi.yaml#/components/parameters/IfMatch
           description: |
-            One strong entity tag containing the source's content_sha256 from
-            GET /config, enclosed in double quotes. Compare the digest with the
-            source's current bytes in the configuration store, not the snapshot revision. Wildcards, weak
-            tags, and tag lists are not accepted.
-          schema:
-            type: string
-            pattern: '^"[0-9a-f]{64}"$'
-          example: '"d1f62f00c6da9ec33956e66b8cc3b4670f164556fc12453193904af23451dec1"'
+            The source's content_sha256, from GET /config or the ETag of
+            GET /config/sources/{source_id}, enclosed in double quotes. The server
+            compares it with the source's current bytes in the configuration store,
+            not the snapshot revision, as RFC 9110 §13.1.1 defines: `*` matches the
+            existing source, a list matches when any strong tag in it matches, and a
+            weak tag never matches.
         - $ref: ./openapi.yaml#/components/parameters/IdempotencyKey
       requestBody:
         required: true
@@ -759,6 +745,7 @@ paths:
   /api/v1/config/validate:
     post:
       operationId: validateConfig
+      tags: [ Configuration ]
       summary: Validate candidate configuration without applying it
       description: |
         Requires resources.config_validate.available and control because the body
@@ -861,25 +848,7 @@ paths:
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
         "401":
-          description: Credentials are missing or invalid
-          headers:
-            Cache-Control:
-              $ref: ./openapi.yaml#/components/headers/NoStore
-            X-Content-Type-Options:
-              $ref: ./openapi.yaml#/components/headers/NoSniff
-          content:
-            application/json:
-              schema:
-                $ref: ./openapi.yaml#/components/schemas/ErrorResponse
-              examples:
-                authentication_required:
-                  value:
-                    error: { code: authentication_required, message: Credentials are required. }
-                    request_id: request-validate-2
-                  x-headers:
-                    Content-Type: application/json
-                    Cache-Control: no-store
-                    X-Content-Type-Options: nosniff
+          $ref: ./openapi.yaml#/components/responses/Unauthorized
         "403":
           description: Authenticated caller lacks control permission
           headers:
@@ -1042,9 +1011,10 @@ schemas:
       secrets_redacted:
         type: boolean
         description: True when a listener-secret value (the deployment secret of an API listener, such as honk's native_api.secret and clash_api.secret) was masked somewhere in this response. Content, paths and diagnostics are otherwise returned in the clear to an admitted request.
-  ConfigSource:
+  ConfigSourceContent:
     type: object
-    required: [ id, path, kind, content_sha256, bytes, writable, loaded_at, content, line_count ]
+    description: One accepted source's identity and content, the representation GET /config/sources/{source_id} returns. Every field stays the same while the source bytes do, so content_sha256 can serve as its entity tag.
+    required: [ id, path, kind, content_sha256, bytes, content, line_count ]
     properties:
       id:
         type: string
@@ -1070,32 +1040,39 @@ schemas:
       bytes:
         $ref: ./openapi.yaml#/components/schemas/SafeUInt
         description: Accepted source size in bytes before redaction.
-      writable:
-        type: boolean
-        description: |
-          True only when server-wide editing is enabled and this source permits
-          replacement by a control caller. False for engine-written includes,
-          generated sources, and subscriptions, for a source that holds API
-          listener settings or secrets, and while the configuration store
-          cannot accept writes; observe alone never grants writes.
-      loaded_at:
-        $ref: ./openapi.yaml#/components/schemas/Timestamp
-        description: Time these source bytes were accepted, not the current file modification time.
       content:
         type: string
         description: Accepted dae text with listener-secret values masked. Use for editing only if its UTF-8 SHA-256 matches content_sha256.
       line_count:
         $ref: ./openapi.yaml#/components/schemas/SafeUInt
         description: Lines in the accepted source before redaction; empty text has zero lines, and a final newline does not add an empty line.
-    if:
-      properties:
-        kind:
-          enum: [ subscription, generated ]
-      required: [ kind ]
-    then:
-      properties:
-        writable:
-          const: false
+  ConfigSource:
+    description: A source entry of GET /config, ConfigSourceContent plus the fields that can change without the bytes changing.
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/ConfigSourceContent
+      - type: object
+        required: [ writable, loaded_at ]
+        properties:
+          writable:
+            type: boolean
+            description: |
+              True only when server-wide editing is enabled and this source permits
+              replacement by a control caller. False for engine-written includes,
+              generated sources, and subscriptions, for a source that holds API
+              listener settings or secrets, and while the configuration store
+              cannot accept writes; observe alone never grants writes.
+          loaded_at:
+            $ref: ./openapi.yaml#/components/schemas/Timestamp
+            description: Time these source bytes were accepted, not the current file modification time.
+        if:
+          properties:
+            kind:
+              enum: [ subscription, generated ]
+          required: [ kind ]
+        then:
+          properties:
+            writable:
+              const: false
   ConfigSourceCreate:
     type: object
     additionalProperties: false

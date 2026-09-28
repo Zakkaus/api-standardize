@@ -2,6 +2,7 @@ paths:
   /api/v1/connections:
     get:
       operationId: listConnections
+      tags: [ Connections ]
       summary: Read a scope-labelled live connection snapshot
       x-permission: observe
       security:
@@ -103,6 +104,7 @@ paths:
           $ref: ./openapi.yaml#/components/responses/TooLarge
     delete:
       operationId: closeConnections
+      tags: [ Connections ]
       summary: Close matching userspace-owned connections
       description: |
         Requires control permission and resources.connections.available with
@@ -273,6 +275,7 @@ paths:
   /api/v1/connections/{connection_id}:
     delete:
       operationId: closeConnection
+      tags: [ Connections ]
       summary: Close one userspace-owned connection
       description: |
         Requires control permission and resources.connections.available with
@@ -384,6 +387,7 @@ paths:
   /api/v1/flows:
     get:
       operationId: listFlows
+      tags: [ Flows ]
       summary: List active and retained terminal flow decisions
       x-permission: observe
       security:
@@ -507,6 +511,7 @@ paths:
   /api/v1/flows/{flow_id}:
     get:
       operationId: getFlow
+      tags: [ Flows ]
       summary: Read one recorded causal flow trace
       x-permission: observe
       security:
@@ -620,7 +625,6 @@ paths:
                             routing_source: evaluation
                             routed_outbound: proxy
                             effective_outbound: proxy
-                            mode_override: none
                             selection_path:
                               - group_id: group-proxy
                                 member_id: node-hk-01
@@ -805,7 +809,6 @@ paths:
                             routing_source: evaluation
                             routed_outbound: proxy
                             effective_outbound: proxy
-                            mode_override: none
                             selection_path: []
                             leaf_node_id: node-hk-01
                             leaf_node_name: hk-01
@@ -880,7 +883,6 @@ paths:
                             routing_source: evaluation
                             routed_outbound: proxy
                             effective_outbound: proxy
-                            mode_override: none
                             selection_path: []
                             leaf_node_id: node-hk-01
                             leaf_node_name: hk-01
@@ -1168,21 +1170,24 @@ schemas:
         not:
           required: [ mode ]
       - oneOf:
-          - properties:
+          - required: [ trace_status ]
+            properties:
               trace_status:
                 const: complete
               trace:
                 properties:
                   status:
                     const: complete
-          - properties:
+          - required: [ trace_status ]
+            properties:
               trace_status:
                 const: partial
               trace:
                 properties:
                   status:
                     const: partial
-          - properties:
+          - required: [ trace_status ]
+            properties:
               trace_status:
                 const: disabled
               trace:

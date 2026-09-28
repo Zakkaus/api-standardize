@@ -2,6 +2,7 @@ paths:
   /api/v1/rules:
     get:
       operationId: listRules
+      tags: [ Rules ]
       summary: Read the running generation's routing rules
       description: |
         Return one coherent, complete rule dictionary for the running routing generation,

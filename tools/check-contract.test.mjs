@@ -273,7 +273,7 @@ test("runtime settings sections are optional and the log level stands alone", ()
   assertValid(validateExample(contract, ring), "flow fields are independent");
 });
 
-test("recorder state is allowed, mode and active, and flow recording may be on demand", () => {
+test("recorder state is allowed, mode and active, and one mode spelling serves PATCH, GET and capabilities", () => {
   const settings = example("getRuntimeSettings:200:current");
   const recorder = {allowed: true, mode: "auto", active: false};
   settings.body.recording = {flows: recorder};
@@ -287,17 +287,20 @@ test("recorder state is allowed, mode and active, and flow recording may be on d
     assertInvalid(validateExample(contract, settings), `recorder ${field} was optional`);
   }
   settings.body.recording = {flows: {...recorder, mode: "on_demand"}};
-  assertInvalid(validateExample(contract, settings), "on_demand is a recording value, not a mode");
+  assertInvalid(validateExample(contract, settings), "on_demand is not a mode");
+  const patch = { $ref: "#/components/schemas/RuntimeSettingsPatch" };
+  for (const mode of ["on", "off", "auto"]) assertValid(contract.validate(patch, {record_flows: mode}));
+  for (const mode of [true, false, "on_demand"]) assertInvalid(contract.validate(patch, {record_flows: mode}), `${mode} is not a mode`);
   const capabilities = example("getCapabilities:200:available");
   const flows = capabilities.body.resources.flows;
-  assert.equal(flows.recording, "on_demand");
-  for (const recording of ["off", "on", "sampled", "on_demand"]) {
+  assert.equal(flows.recording, "auto");
+  for (const recording of ["off", "on", "auto", "sampled"]) {
     flows.recording = recording;
     assertValid(validateExample(contract, capabilities));
   }
-  flows.recording = "auto";
-  assertInvalid(validateExample(contract, capabilities), "recording comes from the enum");
   flows.recording = "on_demand";
+  assertInvalid(validateExample(contract, capabilities), "recording comes from the enum");
+  flows.recording = "auto";
   flows.retention_seconds = 0;
   assertInvalid(validateExample(contract, capabilities), "flow retention is at least 1 second");
 });
@@ -683,7 +686,10 @@ test("source editing examples preserve exact bytes and use the accepted hash as 
   const snapshot = example("getConfig:200:editable").body;
   const source = example("getConfigSource:200:editable").body;
   const request = example("replaceConfigSource:request:replacement");
-  assert.deepEqual(source, snapshot.sources.find(({ id }) => id === source.id));
+  const { writable, loaded_at, ...listed } = snapshot.sources.find(({ id }) => id === source.id);
+  assert.equal(typeof writable, "boolean");
+  assert.equal(typeof loaded_at, "string");
+  assert.deepEqual(source, listed);
   assert.equal(createHash("sha256").update(source.content, "utf8").digest("hex"), source.content_sha256);
   assert.equal(Buffer.byteLength(source.content, "utf8"), source.bytes);
   assert.equal(request.parameters.find(({ definition }) => definition.name === "source_id").value, source.id);
@@ -697,7 +703,22 @@ test("source editing examples preserve exact bytes and use the accepted hash as 
   assert.match(renderExample(request, "http"), /^PUT \/api\/v1\/config\/sources\/source-main HTTP\/1\.1/m);
 });
 
-test("source replacement accepts only complete text with a single hash precondition", () => {
+test("single-source readback is a content representation that the content hash can tag", () => {
+  const reference = spec.paths["/api/v1/config/sources/{source_id}"].get.responses["200"]
+    .content["application/json"].schema;
+  assert.equal(reference.$ref, "#/components/schemas/ConfigSourceContent");
+  const schema = spec.components.schemas.ConfigSourceContent;
+  for (const field of ["writable", "loaded_at"]) {
+    assert.equal(schema.properties[field], undefined, `${field} changes without the bytes changing`);
+  }
+  const editable = example("getConfigSource:200:editable");
+  assert.equal(editable.headers.ETag, `"${editable.body.content_sha256}"`);
+  const redacted = example("getConfigSource:200:redacted");
+  assert.equal(redacted.headers.ETag, undefined, "masked content is not the representation PUT replaces");
+  assertValid(validateExample(contract, redacted));
+});
+
+test("source replacement accepts only complete text with an RFC 9110 If-Match precondition", () => {
   const request = example("replaceConfigSource:request:replacement");
   request.body.content = "";
   assertValid(validateExample(contract, request));
@@ -710,11 +731,20 @@ test("source replacement accepts only complete text with a single hash precondit
   const missing = structuredClone(request);
   delete missing.headers["If-Match"];
   assertInvalid(validateExample(contract, missing));
-  for (const value of ["*", `W/${request.headers["If-Match"]}`, '"17"', request.headers["If-Match"].slice(1, -1),
-    `${request.headers["If-Match"]}, ${request.headers["If-Match"]}`]) {
+  // Wildcards, weak tags and lists are well-formed; they fail to match with 412, not 400.
+  // RFC 9110 §5.6.1.2: recipients ignore empty list elements.
+  for (const value of ["*", `W/${request.headers["If-Match"]}`, '"17"',
+    `${request.headers["If-Match"]}, W/"17"`, '"17", , "18"', ',"17",', 'W/"a" ,\t"b"', '""']) {
     const changed = structuredClone(request);
     changed.headers["If-Match"] = value;
-    assertInvalid(validateExample(contract, changed));
+    assertValid(validateExample(contract, changed));
+  }
+  // §8.8.3: no space, tab or double quote inside an entity tag; the weak prefix is case-sensitive.
+  for (const value of [request.headers["If-Match"].slice(1, -1), '"a" "b"', "*, \"17\"",
+    '"a b"', '"a\tb"', 'w/"17"', 'W/ "17"', '"17"x']) {
+    const changed = structuredClone(request);
+    changed.headers["If-Match"] = value;
+    assertInvalid(validateExample(contract, changed), `${value} is not If-Match syntax`);
   }
 });
 
@@ -724,15 +754,16 @@ test("source readback always carries content and never advertises writable engin
   delete withheld.body.content;
   assertInvalid(validateExample(contract, withheld));
   assertValid(validateExample(contract, source));
+  const listed = example("getConfig:200:redacted");
   for (const kind of ["subscription", "generated"]) {
-    source.body.kind = kind;
-    source.body.writable = false;
-    assertValid(validateExample(contract, source));
-    source.body.writable = true;
-    assertInvalid(validateExample(contract, source));
+    listed.body.sources[0].kind = kind;
+    listed.body.sources[0].writable = false;
+    assertValid(validateExample(contract, listed));
+    listed.body.sources[0].writable = true;
+    assertInvalid(validateExample(contract, listed));
   }
-  delete source.body.writable;
-  assertInvalid(validateExample(contract, source));
+  delete listed.body.sources[0].writable;
+  assertInvalid(validateExample(contract, listed));
   const unavailable = example("getConfigSource:404:resource_not_found");
   assert.equal(unavailable.body.error.code, "resource_not_found");
   assertValid(validateExample(contract, unavailable));
@@ -866,11 +897,11 @@ test("unsupported parameter serialization is rejected explicitly", () => {
 });
 
 test("required request headers are checked case-insensitively", () => {
-  const missing = example("patchGroup:request:tolerance");
+  const missing = example("replaceConfigSource:request:replacement");
   delete missing.headers["If-Match"];
   assertInvalid(validateExample(contract, missing));
 
-  const lowerCase = example("patchGroup:request:tolerance");
+  const lowerCase = example("replaceConfigSource:request:replacement");
   lowerCase.headers["if-match"] = lowerCase.headers["If-Match"];
   delete lowerCase.headers["If-Match"];
   assertValid(validateExample(contract, lowerCase));
@@ -1107,13 +1138,15 @@ test("request targets stay closed while response targets remain additive", () =>
   assertValid(validateExample(contract, response));
 
   const tcp = example("createProbe:request:dns_udp");
-  Object.assign(tcp.body, { kind: "tcp_connect", purpose: "data", transport: ["tcp"] });
+  Object.assign(tcp.body, { kind: "tcp_connect", transport: ["tcp"] });
   assertValid(validateExample(contract, tcp));
 
-  // An unsupported kind, purpose and transport pairing parses; the server answers 422.
-  const wrongPurpose = structuredClone(tcp);
-  wrongPurpose.body.purpose = "dns";
-  assertValid(validateExample(contract, wrongPurpose));
+  // The kind fixes the purpose; a request that names one has an unknown field.
+  const withPurpose = structuredClone(tcp);
+  withPurpose.body.purpose = "data";
+  assertInvalid(validateExample(contract, withPurpose), "purpose is derived from kind");
+
+  // An unsupported kind and transport pairing parses; the server answers 422.
 
   const wrongTransport = structuredClone(tcp);
   wrongTransport.body.transport = ["udp"];
@@ -1798,7 +1831,7 @@ test("group tolerance is whole milliseconds", () => {
   const group = example("getGroup:200:current");
   group.body.config.tolerance = 0.5;
   assertInvalid(validateExample(contract, group), "fractional tolerance passed");
-  const patch = example("patchGroup:request:tolerance");
+  const patch = example("patchGroupConfig:request:tolerance");
   const operation = patch.body.find((candidate) => candidate.path === "/config/tolerance");
   operation.value = 0.5;
   assertInvalid(validateExample(contract, patch), "fractional tolerance patch passed");
@@ -1887,7 +1920,7 @@ test("only operations with replay semantics take Idempotency-Key", () => {
   assert.equal(replays(spec.paths["/api/v1/connections/{connection_id}"].delete), false);
   assert.equal(replays(spec.paths["/api/v1/runtime/settings"].patch), false);
   assert.equal(replays(spec.paths["/api/v1/operations/reload"].post), true);
-  assert.equal(replays(spec.paths["/api/v1/groups/{group_id}"].patch), true);
+  assert.equal(replays(spec.paths["/api/v1/groups/{group_id}/config"].patch), true);
 });
 
 test("log filters are advertised and always include level", () => {
@@ -1991,7 +2024,10 @@ test("group config admits dae's fixed policy, a missing interrupt option and eng
   assertValid(contract.validate(patch, [{ op: "copy", from: "/config/tolerance", path: "/config/idle_timeout" }]));
   assertValid(contract.validate(patch, [{ op: "replace", path: "/config/interrupt_connections", value: null }]));
   assertInvalid(contract.validate(patch, [{ op: "replace", path: "/config/interrupt_connections", value: "on" }]), "interrupt_connections is a boolean or null");
-  assertInvalid(contract.validate(patch, [{ op: "remove", path: "/config/check_url", value: null }]), "remove carries no value");
+  // RFC 6902 §4: members an operation does not define are ignored, not rejected.
+  assertValid(contract.validate(patch, [{ op: "remove", path: "/config/check_url", value: null }]));
+  assertValid(contract.validate(patch, [{ op: "replace", path: "/config/tolerance", value: 100, comment: "tune" }]));
+  assertInvalid(contract.validate(patch, [{ op: "remove", comment: "no path" }]), "an operation still needs its path");
   assertInvalid(contract.validate(patch, [{ op: "replace", path: "/config/x-dae", value: {} }]), "extension members are not patch targets");
 });
 
@@ -2006,4 +2042,23 @@ test("flow summaries name the generation of their rule for the rules join", () =
       if (route && row.rule_generation_id !== null) assert.equal(row.rule_generation_id, route.generation_id);
     }
   }
+});
+
+test("group conditional writes use the configuration document, not the group", () => {
+  const group = spec.paths["/api/v1/groups/{group_id}"];
+  const config = spec.paths["/api/v1/groups/{group_id}/config"];
+  assert.equal(group.patch, undefined, "PATCH moved to /config");
+  assert.equal(group.get.responses["200"].headers.ETag, undefined, "the group carries runtime state, so no strong ETag");
+  assert.ok(config.get.responses["200"].headers.ETag, "the configuration document carries the revision");
+  assert.ok(config.patch.responses["200"].headers.ETag);
+  const ifMatch = config.patch.parameters.map(resolveRef).find((parameter) => parameter.name === "If-Match");
+  assert.equal(ifMatch.required ?? false, false, "a retained replay may omit If-Match");
+  const request = example("patchGroupConfig:request:tolerance");
+  assert.equal(request.headers["If-Match"], example("getGroupConfig:200:current").headers.ETag);
+  assert.equal(request.headers["Content-Type"], "application/json-patch+json");
+  assertValid(validateExample(contract, request));
+  delete request.headers["If-Match"];
+  assertValid(validateExample(contract, request));
+  const document = example("getGroupConfig:200:current");
+  assert.deepEqual(document.body.config, example("getGroup:200:current").body.config);
 });

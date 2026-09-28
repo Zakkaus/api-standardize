@@ -1,0 +1,172 @@
+# Per-location lint exceptions; redocly.yaml explains each rule listed here.
+# Regenerate with: redocly lint source/openapi.yaml --config redocly.yaml --generate-ignore-file
+# and review that every new entry is a conditional branch, an SSE binding or the local server.
+source/openapi.yaml:
+  no-server-example.com:
+    - '#/servers/0/url'
+  no-required-schema-properties-undefined:
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/config/then/required/0
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/config/then/required/1
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/config/then/required/2
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/config_validate/then/required/0
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/config_validate/then/required/1
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/config_validate/then/required/2
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/runtime_memory/then/required/0
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/traffic_history/then/required/0
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/traffic_history/then/required/1
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/memory_history/then/required/0
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/memory_history/then/required/1
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/datapath/then/required/0
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/datapath/then/required/1
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/nodes/then/required/0
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/providers/then/required/0
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/providers/then/required/1
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/providers/then/required/2
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/groups/then/required/0
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/groups/then/required/1
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/groups/then/required/2
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/probes/then/required/0
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/probes/then/required/1
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/probes/then/required/2
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/probes/then/required/3
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/probes/then/required/4
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/connections/then/required/0
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/connections/then/required/1
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/flows/then/required/0
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/flows/then/required/1
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/flows/then/required/2
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/flows/then/required/3
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/flows/then/required/4
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/flows/then/required/5
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/flows/then/required/6
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/routing_trace/then/required/0
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/routing_trace/then/required/1
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/routing_trace/then/required/2
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/routing_trace/then/required/3
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/routing_trace/then/required/4
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/routing_trace/then/required/5
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/rules/then/required/0
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/events/then/required/0
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/events/then/required/1
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/events/then/required/2
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/events/then/required/3
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/events/then/required/4
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/logs/then/required/0
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/logs/then/required/1
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/logs/then/required/2
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/logs/then/required/3
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/dns_query/then/required/0
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/dns_query/then/required/1
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/dns_cache/then/required/0
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/dns_cache/then/required/1
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/dns_cache/then/required/2
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/dns_cache/then/required/3
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/dns_cache/then/required/4
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/dns_log/then/required/0
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/dns_log/then/required/1
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/dns_rules/then/required/0
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/runtime_settings/then/required/0
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/geodata/allOf/0/then/required/0
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/geodata/allOf/0/then/required/1
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/geodata/allOf/1/then/required/0
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/geodata/allOf/2/then/required/0
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/geodata/allOf/2/then/required/1
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/geodata/allOf/2/then/required/2
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/geodata/allOf/2/then/required/3
+    - >-
+      #/components/schemas/Capabilities/properties/resources/properties/operations/then/required/0
+    - '#/components/schemas/EbpfAttachment/allOf/0/then/required/0'
+    - '#/components/schemas/EbpfAttachment/allOf/0/then/required/1'
+    - '#/components/schemas/EbpfAttachment/allOf/1/then/required/0'
+    - '#/components/schemas/EbpfAttachment/allOf/2/then/required/0'
+    - '#/components/schemas/ProbeRequest/allOf/0/then/not/required/0'
+    - '#/components/schemas/FlowDetail/allOf/1/not/required/0'
+    - '#/components/schemas/RoutingTraceResponse/not/anyOf/0/required/0'
+    - '#/components/schemas/RoutingTraceResponse/not/anyOf/1/required/0'
+    - '#/components/schemas/RoutingTraceResponse/not/anyOf/2/required/0'
+    - '#/components/schemas/GeoDataDownloadPatch/then/required/0'
+    - '#/components/schemas/GeoDataDownloadPatch/else/not/required/0'
+    - '#/components/schemas/StreamReadyEvent/not/anyOf/0/required/0'
+    - '#/components/schemas/StreamReadyEvent/not/anyOf/1/required/0'
+    - '#/components/schemas/StreamReadyEvent/not/anyOf/2/required/0'
+    - '#/components/schemas/StreamReadyEvent/not/anyOf/3/required/0'
+    - '#/components/schemas/StreamReadyEvent/not/anyOf/4/required/0'
+    - '#/components/schemas/StreamReadyEvent/not/anyOf/5/required/0'
+    - '#/components/schemas/StreamReadyEvent/not/anyOf/6/required/0'
+  no-unused-components:
+    - '#/components/schemas/LogRecord'
+    - '#/components/schemas/StreamReadyEvent'
+    - '#/components/schemas/RuntimeUpdatedEvent'
+    - '#/components/schemas/FlowUpdatedEvent'
+    - '#/components/schemas/FlowGapEvent'
+    - '#/components/schemas/OperationUpdatedEvent'
+    - '#/components/schemas/GenerationChangedEvent'
+    - '#/components/examples/FlowUpdated'

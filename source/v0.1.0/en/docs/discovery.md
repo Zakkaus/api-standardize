@@ -58,7 +58,7 @@ below. Other fields are withheld, not null.
 | links.auth_login | string or null | `/api/v1/auth/login` in password mode; null otherwise. |
 | links.auth_logout | string or null | `/api/v1/auth/logout` in password mode; null otherwise. |
 | links.x-&lt;engine&gt; | object, optional | The engine's [extension](capabilities.html#Engine-extensions) links, each under `/api/v1/x-<engine>/`, in the admitted view only; the public view's links stay closed. No other link member is allowed. |
-| auth | object, optional | Authentication mode; absent on servers that predate password login. |
+| auth | object | Authentication mode. |
 | auth.mode | string | `password` or `token`. |
 | auth.setup_required | boolean | Whether password-mode administrator setup is required. |
 | auth.anonymous_loopback | boolean | Whether loopback peers may enter without a credential in token mode. |
@@ -71,8 +71,7 @@ Clash-compatible `/version` payload.
 In password mode, use setup when `auth.setup_required` is true and login when
 it is false. In token mode, use the configured bearer when the response is the
 public view or `auth.anonymous_loopback` is false, and no credential when it is
-true. When `auth` is absent on an older server, or discovery answers `401`, use
-the configured bearer.
+true. When discovery answers `401`, use the configured bearer.
 
 ## Example
 

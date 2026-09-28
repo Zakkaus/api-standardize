@@ -10,8 +10,9 @@ title: Groups
 
 The group API separates these responsibilities:
 
-- `GET` reads the current group state.
-- `PATCH` changes group configuration only.
+- `GET /groups/{group_id}` reads the current group state.
+- `GET /groups/{group_id}/config` reads the group's policy and configured
+  options with an `ETag`, and `PATCH` on the same path changes them.
 - `PUT` changes runtime selection when the policy supports manual selection, or pins a member on an automatic policy that allows an override.
 - `DELETE` clears such a pin so the automatic policy chooses again.
 - `POST /api/v1/probes` starts a typed probe job whose target can be a group.
@@ -27,7 +28,7 @@ The group API separates these responsibilities:
 | id | string | Opaque stable group identifier. Do not derive API identity from `name`. |
 | name | string | Engine-visible group name. |
 | icon | string or null | Icon the configuration names for the group (absolute http(s) URL or data URI), shown beside the name. `null` when none is configured; a client may keep its own local override. |
-| config_revision | string | Configuration-wide revision, the same value as `revision` in [GET /config](configuration.html); PATCH sends it in `If-Match`. Any accepted configuration change advances it, not only a change to this group. |
+| config_revision | string | The same underlying revision as [`GET /config`](configuration.html)'s `revision`, quoted in the `ETag` of `GET /groups/{group_id}/config`. Any accepted configuration change advances it, not only a change to this group. |
 | policy.kind | string | Canonical behavior: `selector`, `urltest`, `loadbalance`, `fallback`, `random`, `score`, or `fixed`. A `fixed` group always uses its configured member, even when that member fails its check; dae's `fixed(index)` maps to it, with the index naming the member. |
 | policy.native | string | Effective engine policy, not a configuration alias that the runtime implements differently. |
 | members | array | Direct group members, in declaration order. |
@@ -85,25 +86,40 @@ Use the detail endpoint for members and health observations.
 
 ## GET /api/v1/groups/{group_id}
 
-Returns the complete current group resource described above.
-The response includes an `ETag` whose value matches `config_revision`.
+Returns the complete current group resource described above. The response
+has no `ETag` because a tag based only on the configuration revision would not
+track selection or health changes. Use `GET /groups/{group_id}/config`
+for a conditional write.
 
 ### Request
 
 {% api_request getGroup %}
 
-## PATCH /api/v1/groups/{group_id}
+## GET /api/v1/groups/{group_id}/config
+
+Returns `{"policy": …, "config": …}`, the group's `policy` and `config` as
+`GET /groups/{group_id}` reports them. The `ETag` is the configuration-wide
+`config_revision` in double quotes and changes only with an accepted
+configuration change.
+
+{% api_example getGroupConfig 200 current %}
+
+## PATCH /api/v1/groups/{group_id}/config
 
 Updates group configuration only. It does not change runtime selection.
 
-Use RFC 6902 JSON Patch and send the revision returned by `GET` in
-`If-Match`. Requires `resources.groups.config_patch`; without it the request
+Use RFC 6902 JSON Patch and send the `ETag` of `GET /groups/{group_id}/config`
+in `If-Match`, evaluated as [conditional requests](errors.html#Conditional-requests)
+defines. A new group-configuration PATCH without `If-Match` returns `428`; a
+retained idempotent replay may omit it.
+Requires `resources.groups.config_patch`; without it the request
 returns `404 capability_not_supported`. A group patch is a configuration
 write, so `config_patch` is true only when `resources.config.writable` is.
 Because `config_revision` is configuration-wide, a patch sent after an
-unrelated accepted change returns `412`; read the group again and retry.
+unrelated accepted change returns `412`. Read `GET /groups/{group_id}/config`
+again and retry with its current `ETag`.
 
-{% api_example patchGroup request tolerance http %}
+{% api_example patchGroupConfig request tolerance http %}
 
 Only fields listed in `capabilities.mutable_config` may be patched, judged by
 the effective write: the fields whose values the patch changes, checked against
@@ -119,7 +135,8 @@ membership sources are intentionally not part of this operation:
 configuration reload and must not be silently changed at runtime.
 More operations than `resources.groups.max_patch_operations` returns
 `413 request_too_large` before any change is applied. A successful synchronous
-update returns the new `ETag`; a rejected patch changes nothing.
+update returns the updated document and its new `ETag`; a rejected patch
+changes nothing.
 
 Mutable `check_url` values follow the
 [outbound-request policy](api-config.html#Outbound-requests). A group has one
@@ -130,10 +147,11 @@ a patch changes `check_url`, after which it resolves the new host itself.
 
 ### Patch semantics
 
-The patch target is the document `{"policy": …, "config": …}` built from the
-group's `policy` and `config` as `GET` returns them. The server applies the
+The patch target is the document `GET /groups/{group_id}/config` returns, so
+paths are `/policy` and `/config/<option>`. The server applies the
 operations in order, as RFC 6902 requires, to that document; the whole patch
-succeeds or nothing changes.
+succeeds or nothing changes. Members an operation object does not define, such
+as a `comment`, are ignored ([RFC 6902 §4](https://www.rfc-editor.org/rfc/rfc6902#section-4)).
 
 - `remove` makes the targeted property absent. Absent means the group drops
   its own value: the engine applies its inheritance and defaults, which in dae
@@ -155,17 +173,17 @@ succeeds or nothing changes.
 
 | Status | Meaning |
 |--------|---------|
-| 200 | Configuration was applied and the response contains the updated group. |
+| 200 | Configuration was applied; the body is the updated configuration document and `ETag` its new revision. |
 | 202 | The update was accepted and returns the shared `group_update` operation summary. |
 | 412 | `If-Match` does not match the current configuration-wide `config_revision`. |
 | 404 | The group does not exist, or `resources.groups.config_patch` is false. |
 | 409 | A `test` operation failed, or current runtime state prevents the requested transition. |
 | 422 | The patch is syntactically valid but the field or value is unsupported. |
-| 428 | Required `If-Match` is missing. |
+| 428 | A new patch has no `If-Match`. |
 
 An asynchronous response uses the [shared operation contract](operations.html):
 
-{% api_example patchGroup 202 queued %}
+{% api_example patchGroupConfig 202 queued %}
 
 ## PUT /api/v1/groups/{group_id}/selection
 

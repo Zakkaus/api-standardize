@@ -2,6 +2,7 @@ paths:
   /api/v1/geodata:
     get:
       operationId: getGeoData
+      tags: [ Geodata ]
       summary: Read the geosite and geoip assets the engine loaded
       description: |
         Requires resources.geodata.available; otherwise returns 404
@@ -110,6 +111,7 @@ paths:
   /api/v1/geodata/update:
     post:
       operationId: updateGeoData
+      tags: [ Geodata ]
       summary: Queue a download of the geosite and geoip assets
       description: |
         Requires resources.geodata.can_update; otherwise returns 404

@@ -4,17 +4,57 @@ info:
   version: 0.1.0-draft
   description: |
     Normative wire contract for the native control-plane API. Unknown response
-    extension fields are permitted. Request objects reject unknown fields.
+    extension fields are permitted. Request objects reject unknown fields,
+    except JSON Patch operation objects, which ignore them as RFC 6902 requires.
     Published as a generated bundle at source/openapi.yaml; edit the api/ sources,
     not the published file.
 jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
 servers:
   - url: http://localhost:9527
 security: []
+tags:
+  - name: Discovery
+    description: Entry point, version and capabilities.
+  - name: Authentication
+    description: Password-mode setup, login and logout.
+  - name: Configuration
+    description: Accepted configuration sources, validation and source writes.
+  - name: Runtime
+    description: Runtime status, memory, outbounds, history and datapath.
+  - name: Runtime settings
+    description: Runtime settings the engine can change without a reload.
+  - name: Nodes
+    description: Nodes and node management.
+  - name: Providers
+    description: Node providers and subscription refresh.
+  - name: Geodata
+    description: Geodata files, sources and updates.
+  - name: Groups
+    description: Groups, their configuration and runtime selection.
+  - name: Probes
+    description: Node and group health probes.
+  - name: Connections
+    description: Live connections.
+  - name: Flows
+    description: Recorded flows and their traces.
+  - name: Routing
+    description: Routing simulation.
+  - name: Rules
+    description: Traffic routing rules.
+  - name: DNS
+    description: DNS query, log, cache and rules.
+  - name: Events
+    description: Server-sent change events.
+  - name: Logs
+    description: Engine log records.
+  - name: Operations
+    description: Asynchronous operations (reload, suspend, resume) and their status.
 paths:
   /api:
     get:
       operationId: getDiscovery
+      tags:
+        - Discovery
       summary: Discover the native API
       description: 'Public in every auth mode, so a client can choose how to sign in. A caller the listener admits (a valid bearer or session, or no credential on an explicitly secretless loopback listener) receives the full view. Any other request without a credential receives the public view, which carries only the API name and major, the sign-in links, and the auth mode. A request that carries a credential is authenticated first: an invalid one gets 401, never the public view. No resource permission is required.'
       security:
@@ -89,6 +129,8 @@ paths:
   /api/v1/version:
     get:
       operationId: getVersion
+      tags:
+        - Discovery
       summary: Read native and engine version identity
       description: Requires bearer authentication when the listener has a deployment secret or runs in password mode. Anonymous access is permitted only on an explicitly secretless loopback listener. No resource permission is required.
       security:
@@ -135,6 +177,8 @@ paths:
   /api/v1/capabilities:
     get:
       operationId: getCapabilities
+      tags:
+        - Discovery
       summary: Negotiate resources, visibility, and limits
       description: Requires bearer authentication when the listener has a deployment secret or runs in password mode. Anonymous access is permitted only on an explicitly secretless loopback listener. No resource permission is required.
       security:
@@ -231,9 +275,6 @@ paths:
                           - tcp_connect
                           - http
                           - dns
-                        purposes:
-                          - data
-                          - dns
                         transports:
                           - tcp
                           - udp
@@ -255,7 +296,7 @@ paths:
                         max_bulk_close: 1000
                       flows:
                         available: true
-                        recording: on_demand
+                        recording: auto
                         scopes:
                           - userspace_tcp
                           - userspace_udp
@@ -383,6 +424,8 @@ paths:
   /api/v1/auth/setup:
     post:
       operationId: setupAdministrator
+      tags:
+        - Authentication
       summary: Create the administrator account and open a session
       description: 'Available only while discovery reports `auth.mode: password` with `setup_required: true`. Checks run in this order: the Authorization header, the peer, the account state, the body. A header that does not carry a live session gets 401 `authentication_required`; before setup no session exists. The peer must be loopback, RFC 1918, RFC 4193 or link-local; any other peer is refused with `permission_denied` before the account state is read. After setup, the answer is 409 `setup_already_completed`, with or without a live session.'
       security: []
@@ -439,6 +482,8 @@ paths:
   /api/v1/auth/login:
     post:
       operationId: login
+      tags:
+        - Authentication
       summary: Exchange the administrator credentials for a session
       description: 'Available only in password mode after setup. Checks run in this order: the Authorization header, the account state, the body. A header that does not carry a live session gets 401 `authentication_required`; a live session does not replace the body, which is still validated. Before setup the answer is `setup_required`; a wrong username or password is `invalid_credentials`. The engine may end a session before `expires_at`, for example to stay within its session limit.'
       security: []
@@ -495,6 +540,8 @@ paths:
   /api/v1/auth/logout:
     post:
       operationId: logout
+      tags:
+        - Authentication
       summary: End the session that authenticates this request
       description: Requires a password-session bearer; a configured bearer cannot log out.
       security:
@@ -524,6 +571,8 @@ paths:
   /api/v1/config:
     get:
       operationId: getConfig
+      tags:
+        - Configuration
       summary: Read the effective configuration
       description: |
         Requires resources.config.available. Returns one coherent snapshot of the
@@ -612,27 +661,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
-          description: Credentials are missing or invalid
-          headers:
-            Cache-Control:
-              $ref: '#/components/headers/NoStore'
-            X-Content-Type-Options:
-              $ref: '#/components/headers/NoSniff'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              examples:
-                authentication_required:
-                  value:
-                    error:
-                      code: authentication_required
-                      message: Credentials are required.
-                    request_id: request-config-1
-                  x-headers:
-                    Content-Type: application/json
-                    Cache-Control: no-store
-                    X-Content-Type-Options: nosniff
+          $ref: '#/components/responses/Unauthorized'
         '403':
           description: Authenticated caller lacks observe permission
           headers:
@@ -711,6 +740,8 @@ paths:
   /api/v1/config/validate:
     post:
       operationId: validateConfig
+      tags:
+        - Configuration
       summary: Validate candidate configuration without applying it
       description: |
         Requires resources.config_validate.available and control because the body
@@ -823,27 +854,7 @@ paths:
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
         '401':
-          description: Credentials are missing or invalid
-          headers:
-            Cache-Control:
-              $ref: '#/components/headers/NoStore'
-            X-Content-Type-Options:
-              $ref: '#/components/headers/NoSniff'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              examples:
-                authentication_required:
-                  value:
-                    error:
-                      code: authentication_required
-                      message: Credentials are required.
-                    request_id: request-validate-2
-                  x-headers:
-                    Content-Type: application/json
-                    Cache-Control: no-store
-                    X-Content-Type-Options: nosniff
+          $ref: '#/components/responses/Unauthorized'
         '403':
           description: Authenticated caller lacks control permission
           headers:
@@ -999,6 +1010,8 @@ paths:
   /api/v1/config/sources:
     post:
       operationId: createConfigSource
+      tags:
+        - Configuration
       summary: Create one configuration source and reload
       description: |
         Requires control, resources.config.available, resources.config.writable,
@@ -1260,11 +1273,15 @@ paths:
         example: source-main
     get:
       operationId: getConfigSource
+      tags:
+        - Configuration
       summary: Read one accepted configuration source
       description: |
-        Requires resources.config.available. Returns the same ConfigSource as
-        GET /config, not a fresh read of the store, with its content; mask listener
-        secrets as in GET /config.
+        Requires resources.config.available. Returns the source's identity and
+        content from the same snapshot as GET /config, not a fresh read of the
+        store; mask listener secrets as in GET /config. The body carries no field
+        that can change while the source bytes stay the same: writable and
+        loaded_at are only in the GET /config source list.
         Unknown source IDs return 404 resource_not_found. Redacted text must never
         be saved as a replacement; compare its UTF-8 SHA-256 with content_sha256
         before using returned content as an editing representation.
@@ -1276,6 +1293,11 @@ paths:
         '200':
           description: Accepted source; content remains subject to visibility policy
           headers:
+            ETag:
+              schema:
+                type: string
+                minLength: 1
+              description: The source's content_sha256 in double quotes, the value PUT compares in If-Match. Sent only when content is complete, that is, when no listener-secret value was masked; a masked body has no ETag.
             Cache-Control:
               $ref: '#/components/headers/NoStore'
             X-Content-Type-Options:
@@ -1283,7 +1305,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConfigSource'
+                $ref: '#/components/schemas/ConfigSourceContent'
               examples:
                 editable:
                   summary: Unredacted dae text.
@@ -1293,8 +1315,6 @@ paths:
                     kind: main
                     content_sha256: d1f62f00c6da9ec33956e66b8cc3b4670f164556fc12453193904af23451dec1
                     bytes: 31
-                    writable: true
-                    loaded_at: '2026-08-15T09:30:00Z'
                     content: |
                       routing {
                         fallback: direct
@@ -1302,6 +1322,7 @@ paths:
                     line_count: 3
                   x-headers:
                     Content-Type: application/json
+                    ETag: '"d1f62f00c6da9ec33956e66b8cc3b4670f164556fc12453193904af23451dec1"'
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
                 redacted:
@@ -1311,8 +1332,6 @@ paths:
                     kind: main
                     content_sha256: '0000000000000000000000000000000000000000000000000000000000000000'
                     bytes: 90
-                    writable: false
-                    loaded_at: '2026-08-15T09:30:00Z'
                     content: |
                       global {
                         log_level: info
@@ -1371,6 +1390,8 @@ paths:
           $ref: '#/components/responses/RateLimited'
     put:
       operationId: replaceConfigSource
+      tags:
+        - Configuration
       summary: Replace one configuration source and reload
       description: |
         Requires control, resources.config.available, resources.config.writable,
@@ -1427,18 +1448,14 @@ paths:
         - bearerAuth: []
         - {}
       parameters:
-        - name: If-Match
-          in: header
-          required: true
+        - $ref: '#/components/parameters/IfMatch'
           description: |
-            One strong entity tag containing the source's content_sha256 from
-            GET /config, enclosed in double quotes. Compare the digest with the
-            source's current bytes in the configuration store, not the snapshot revision. Wildcards, weak
-            tags, and tag lists are not accepted.
-          schema:
-            type: string
-            pattern: ^"[0-9a-f]{64}"$
-          example: '"d1f62f00c6da9ec33956e66b8cc3b4670f164556fc12453193904af23451dec1"'
+            The source's content_sha256, from GET /config or the ETag of
+            GET /config/sources/{source_id}, enclosed in double quotes. The server
+            compares it with the source's current bytes in the configuration store,
+            not the snapshot revision, as RFC 9110 §13.1.1 defines: `*` matches the
+            existing source, a list matches when any strong tag in it matches, and a
+            weak tag never matches.
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
@@ -1632,6 +1649,8 @@ paths:
   /api/v1/runtime:
     get:
       operationId: getRuntime
+      tags:
+        - Runtime
       summary: Read coherent runtime summary
       x-permission: observe
       security:
@@ -1720,6 +1739,8 @@ paths:
   /api/v1/runtime/memory:
     get:
       operationId: getRuntimeMemory
+      tags:
+        - Runtime
       summary: Read lightweight process, cgroup, and eBPF memory
       x-permission: observe
       security:
@@ -1773,6 +1794,8 @@ paths:
   /api/v1/runtime/outbounds:
     get:
       operationId: getRuntimeOutbounds
+      tags:
+        - Runtime
       summary: Read per-outbound cumulative counters
       description: |
         The engine keeps cumulative per-outbound counters for visible traffic,
@@ -1841,6 +1864,8 @@ paths:
   /api/v1/runtime/traffic/history:
     get:
       operationId: getTrafficHistory
+      tags:
+        - Runtime
       summary: Read bounded traffic history
       description: |
         Reads a bounded in-memory ring of visible traffic samples without
@@ -1947,6 +1972,8 @@ paths:
   /api/v1/runtime/memory/history:
     get:
       operationId: getMemoryHistory
+      tags:
+        - Runtime
       summary: Read bounded memory history
       description: |
         Requires resources.memory_history.available. Reads a bounded in-memory ring
@@ -2053,6 +2080,8 @@ paths:
   /api/v1/datapath:
     get:
       operationId: getDatapath
+      tags:
+        - Runtime
       summary: Read detailed datapath state
       x-permission: observe
       security:
@@ -2128,6 +2157,8 @@ paths:
   /api/v1/nodes:
     get:
       operationId: listNodes
+      tags:
+        - Nodes
       summary: List nodes and latest typed health samples
       x-permission: observe
       security:
@@ -2200,6 +2231,8 @@ paths:
           $ref: '#/components/responses/SnapshotUnavailable'
     post:
       operationId: createNode
+      tags:
+        - Nodes
       summary: Add an inline node from a share link
       description: |
         Requires resources.nodes.can_manage; otherwise returns 404
@@ -2209,7 +2242,8 @@ paths:
         generation.changed. The response does not echo the link; the source text
         returns it as written (see Visibility in API Configuration). A link the engine
         cannot parse returns 422 unsupported_value with a sanitized reason in
-        error.message. A name already in use returns 409 state_conflict. The node belongs to the
+        error.message. A name already in use, or a configuration change while the
+        create is being admitted, returns 409 state_conflict. The node belongs to the
         inline provider and to every group whose filter matches it after reload.
         Returns 201 with the node once the change is active, or 202 with a
         node_create operation whose result is the created node. A failed
@@ -2309,7 +2343,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: A node with this name exists
+          description: A node with this name exists, or the configuration changed while the create was being admitted (state_conflict)
           headers:
             Cache-Control:
               $ref: '#/components/headers/NoStore'
@@ -2405,6 +2439,8 @@ paths:
   /api/v1/providers:
     get:
       operationId: listProviders
+      tags:
+        - Providers
       summary: List provider metadata
       description: |
         Read current subscription, file and inline provider metadata; never fetch a
@@ -2472,6 +2508,8 @@ paths:
           $ref: '#/components/responses/SnapshotUnavailable'
     post:
       operationId: createProvider
+      tags:
+        - Providers
       summary: Add a subscription provider to the managed configuration
       description: |
         Requires resources.providers.can_manage; otherwise returns 404
@@ -2485,7 +2523,8 @@ paths:
         POST /providers/{provider_id}/refresh to load it. Otherwise the backend may fetch the
         provider during activation and returns its actual state. The response carries the
         URL in url_redacted, as written apart from listener secrets. A name already in use
-        returns 409 state_conflict. A URL that is not HTTP(S) returns 422 unsupported_value.
+        returns 409 state_conflict, as does a configuration change while the create is
+        being admitted. A URL that is not HTTP(S) returns 422 unsupported_value.
         update_interval, user_agent and cache are accepted only when named in
         resources.providers.create_options; an omitted one takes the default listed there,
         and one the backend does not list returns 422 unsupported_value.
@@ -2601,7 +2640,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: A provider with this name exists
+          description: A provider with this name exists, or the configuration changed while the create was being admitted (state_conflict)
           headers:
             Cache-Control:
               $ref: '#/components/headers/NoStore'
@@ -2699,6 +2738,8 @@ paths:
       - $ref: '#/components/parameters/ProviderId'
     get:
       operationId: getProvider
+      tags:
+        - Providers
       summary: Read one provider's current metadata
       x-permission: observe
       security:
@@ -2751,6 +2792,8 @@ paths:
           $ref: '#/components/responses/TooLarge'
     delete:
       operationId: deleteProvider
+      tags:
+        - Providers
       summary: Remove a subscription or file provider from the managed configuration
       description: |
         Requires resources.providers.can_manage; otherwise returns 404
@@ -2833,10 +2876,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
-          description: The configuration still names the provider in a reference the delete would break (state_conflict); nothing is removed. Filter-matched membership is not a reference.
-        '412':
-          $ref: '#/components/responses/PreconditionFailed'
-          description: The configuration changed while the delete was being admitted (stale_revision); nothing is removed. Read the provider back and retry.
+          description: The configuration still names the provider in a reference the delete would break, or the configuration changed while the delete was being admitted (state_conflict); nothing is removed. Filter-matched membership is not a reference. After a concurrent change, read the provider back and retry.
         '413':
           $ref: '#/components/responses/TooLarge'
         '503':
@@ -2846,6 +2886,8 @@ paths:
       - $ref: '#/components/parameters/ProviderId'
     post:
       operationId: refreshProvider
+      tags:
+        - Providers
       summary: Queue a provider refresh
       description: |
         Requires resources.providers.can_refresh. This action takes no request body
@@ -2985,6 +3027,8 @@ paths:
       - $ref: '#/components/parameters/NodeId'
     get:
       operationId: getNode
+      tags:
+        - Nodes
       summary: Read one node and its latest typed health samples
       description: |
         Returns the same projection as one entry of GET /api/v1/nodes. An unknown id
@@ -3032,6 +3076,8 @@ paths:
           $ref: '#/components/responses/TooLarge'
     delete:
       operationId: deleteNode
+      tags:
+        - Nodes
       summary: Remove an inline node from the managed configuration
       description: |
         Requires resources.nodes.can_manage; otherwise returns 404
@@ -3114,10 +3160,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
-          description: A group or the routing final outbound still names the node (state_conflict); nothing is removed. Filter-matched membership is not a reference.
-        '412':
-          $ref: '#/components/responses/PreconditionFailed'
-          description: The configuration changed while the delete was being admitted (stale_revision); nothing is removed. Read the node back and retry.
+          description: A group or the routing final outbound still names the node, or the configuration changed while the delete was being admitted (state_conflict); nothing is removed. Filter-matched membership is not a reference. After a concurrent change, read the node back and retry.
         '413':
           $ref: '#/components/responses/TooLarge'
         '503':
@@ -3125,6 +3168,8 @@ paths:
   /api/v1/geodata:
     get:
       operationId: getGeoData
+      tags:
+        - Geodata
       summary: Read the geosite and geoip assets the engine loaded
       description: |
         Requires resources.geodata.available; otherwise returns 404
@@ -3246,6 +3291,8 @@ paths:
   /api/v1/geodata/update:
     post:
       operationId: updateGeoData
+      tags:
+        - Geodata
       summary: Queue a download of the geosite and geoip assets
       description: |
         Requires resources.geodata.can_update; otherwise returns 404
@@ -3359,6 +3406,8 @@ paths:
   /api/v1/groups:
     get:
       operationId: listGroups
+      tags:
+        - Groups
       summary: List group summaries
       x-permission: observe
       security:
@@ -3409,7 +3458,13 @@ paths:
       - $ref: '#/components/parameters/GroupId'
     get:
       operationId: getGroup
+      tags:
+        - Groups
       summary: Read a complete group resource
+      description: |
+        Returns the group with its configuration, runtime selection and health.
+        The response has no ETag: selection and health change without a
+        configuration change. Conditional writes use GET /groups/{group_id}/config.
       x-permission: observe
       security:
         - bearerAuth: []
@@ -3418,8 +3473,6 @@ paths:
         '200':
           description: Current group
           headers:
-            ETag:
-              $ref: '#/components/headers/ETag'
             Cache-Control:
               $ref: '#/components/headers/NoStore'
             X-Content-Type-Options:
@@ -3500,6 +3553,66 @@ paths:
                         - udp
                   x-headers:
                     Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+  /api/v1/groups/{group_id}/config:
+    parameters:
+      - $ref: '#/components/parameters/GroupId'
+    get:
+      operationId: getGroupConfig
+      tags:
+        - Groups
+      summary: Read the group's policy and configured options
+      description: |
+        Returns the group's policy and config, the same values GET
+        /groups/{group_id} embeds, as the target document of PATCH. The ETag is
+        the configuration-wide revision in double quotes; it changes only with
+        an accepted configuration change.
+      x-permission: observe
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        '200':
+          description: Current group configuration
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+              description: The configuration-wide revision in double quotes, the value PATCH compares in If-Match.
+            Cache-Control:
+              $ref: '#/components/headers/NoStore'
+            X-Content-Type-Options:
+              $ref: '#/components/headers/NoSniff'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupConfigDocument'
+              examples:
+                current:
+                  value:
+                    policy:
+                      kind: urltest
+                      native: urltest
+                    config:
+                      default_member_id: null
+                      final_outbound: direct
+                      check_url: null
+                      check_interval: 30
+                      tolerance: 50
+                      idle_timeout: null
+                      interrupt_connections: false
+                  x-headers:
+                    Content-Type: application/json
                     ETag: '"17"'
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
@@ -3514,12 +3627,14 @@ paths:
         '413':
           $ref: '#/components/responses/TooLarge'
     patch:
-      operationId: patchGroup
+      operationId: patchGroupConfig
+      tags:
+        - Groups
       summary: Patch mutable group configuration
       description: |
-        RFC 6902 JSON Patch whose target document is the group's policy and
-        config as GET returns them. Operations apply in order to that document;
-        see groups, Patch semantics, for remove, null, copy, move and test.
+        RFC 6902 JSON Patch whose target document is GroupConfigDocument, the
+        body GET /groups/{group_id}/config returns. Operations apply in order to
+        that document; see groups, Patch semantics, for remove, null, copy, move and test.
         Only fields in capabilities.mutable_config may change, judged by the
         effective write against the policy after the patch: one patch may set
         policy to urltest and add tolerance. When the resulting policy is not
@@ -3527,14 +3642,14 @@ paths:
         A change to a field absent from mutable_config, such as
         interrupt_connections on an engine without that option, returns 422
         unsupported_value. Requires resources.groups.config_patch. If-Match carries the
-        configuration-wide revision, so an accepted change anywhere in the
-        configuration makes an older revision fail with 412.
+        configuration-wide revision from the ETag of GET, so an accepted change
+        anywhere in the configuration makes an older revision fail with 412.
       x-permission: control
       security:
         - bearerAuth: []
         - {}
       parameters:
-        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IfMatchOptional'
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
@@ -3551,12 +3666,16 @@ paths:
                   - op: replace
                     path: /config/interrupt_connections
                     value: true
+                x-headers:
+                  Content-Type: application/json-patch+json
+                  If-Match: '"17"'
       responses:
         '200':
-          description: Updated group
+          description: Updated group configuration
           headers:
             ETag:
               $ref: '#/components/headers/ETag'
+              description: The new configuration revision in double quotes.
             Cache-Control:
               $ref: '#/components/headers/NoStore'
             X-Content-Type-Options:
@@ -3564,7 +3683,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Group'
+                $ref: '#/components/schemas/GroupConfigDocument'
         '202':
           description: Operation accepted
           headers:
@@ -3651,6 +3770,8 @@ paths:
       - $ref: '#/components/parameters/GroupId'
     put:
       operationId: selectGroupMember
+      tags:
+        - Groups
       summary: Replace a selector's choice, or pin a member on an automatic group
       x-permission: control
       security:
@@ -3714,6 +3835,8 @@ paths:
           description: The runtime control owner is unavailable or did not confirm the transition (temporarily_unavailable). The selection may have changed; read the group back before retrying after Retry-After.
     delete:
       operationId: clearGroupOverride
+      tags:
+        - Groups
       summary: Clear a pinned member so the automatic policy chooses again
       x-permission: control
       security:
@@ -3780,6 +3903,8 @@ paths:
   /api/v1/probes:
     post:
       operationId: createProbe
+      tags:
+        - Probes
       summary: Start a bounded typed probe operation
       x-permission: control
       security:
@@ -3800,7 +3925,6 @@ paths:
                     type: group
                     group_id: group-proxy
                   kind: dns
-                  purpose: dns
                   transport:
                     - udp
                   ip_version: ipv4
@@ -3895,6 +4019,8 @@ paths:
   /api/v1/connections:
     get:
       operationId: listConnections
+      tags:
+        - Connections
       summary: Read a scope-labelled live connection snapshot
       x-permission: observe
       security:
@@ -4001,6 +4127,8 @@ paths:
           $ref: '#/components/responses/TooLarge'
     delete:
       operationId: closeConnections
+      tags:
+        - Connections
       summary: Close matching userspace-owned connections
       description: |
         Requires control permission and resources.connections.available with
@@ -4172,6 +4300,8 @@ paths:
   /api/v1/connections/{connection_id}:
     delete:
       operationId: closeConnection
+      tags:
+        - Connections
       summary: Close one userspace-owned connection
       description: |
         Requires control permission and resources.connections.available with
@@ -4283,6 +4413,8 @@ paths:
   /api/v1/flows:
     get:
       operationId: listFlows
+      tags:
+        - Flows
       summary: List active and retained terminal flow decisions
       x-permission: observe
       security:
@@ -4411,6 +4543,8 @@ paths:
   /api/v1/flows/{flow_id}:
     get:
       operationId: getFlow
+      tags:
+        - Flows
       summary: Read one recorded causal flow trace
       x-permission: observe
       security:
@@ -4527,7 +4661,6 @@ paths:
                             routing_source: evaluation
                             routed_outbound: proxy
                             effective_outbound: proxy
-                            mode_override: none
                             selection_path:
                               - group_id: group-proxy
                                 member_id: node-hk-01
@@ -4713,7 +4846,6 @@ paths:
                             routing_source: evaluation
                             routed_outbound: proxy
                             effective_outbound: proxy
-                            mode_override: none
                             selection_path: []
                             leaf_node_id: node-hk-01
                             leaf_node_name: hk-01
@@ -4793,7 +4925,6 @@ paths:
                             routing_source: evaluation
                             routed_outbound: proxy
                             effective_outbound: proxy
-                            mode_override: none
                             selection_path: []
                             leaf_node_id: node-hk-01
                             leaf_node_name: hk-01
@@ -4819,6 +4950,8 @@ paths:
   /api/v1/routing/trace:
     post:
       operationId: traceRouting
+      tags:
+        - Routing
       summary: Simulate bounded routing evaluation
       x-permission: control
       security:
@@ -4961,6 +5094,8 @@ paths:
   /api/v1/rules:
     get:
       operationId: listRules
+      tags:
+        - Rules
       summary: Read the running generation's routing rules
       description: |
         Return one coherent, complete rule dictionary for the running routing generation,
@@ -5076,6 +5211,8 @@ paths:
   /api/v1/events:
     get:
       operationId: streamEvents
+      tags:
+        - Events
       summary: Follow bounded resumable invalidation events
       description: |
         Send stream.ready first on every connection, including a valid resume.
@@ -5141,6 +5278,8 @@ paths:
   /api/v1/logs:
     get:
       operationId: streamLogs
+      tags:
+        - Logs
       summary: Follow bounded resumable engine logs
       description: |
         Requires resources.logs.available. Emit stream.ready first on every connection,
@@ -5253,6 +5392,8 @@ paths:
   /api/v1/runtime/settings:
     get:
       operationId: getRuntimeSettings
+      tags:
+        - Runtime settings
       summary: Read the runtime-adjustable settings
       description: |
         Requires resources.runtime_settings.available. Returns the current
@@ -5371,6 +5512,8 @@ paths:
           $ref: '#/components/responses/TooLarge'
     patch:
       operationId: patchRuntimeSettings
+      tags:
+        - Runtime settings
       summary: Change runtime-adjustable settings without a reload
       description: |
         Requires control and resources.runtime_settings.available. The body is a
@@ -5603,6 +5746,8 @@ paths:
   /api/v1/dns/query:
     post:
       operationId: queryDns
+      tags:
+        - DNS
       summary: Execute a routed diagnostic DNS query
       description: 'POST because the query has side effects: it sends live DNS traffic and, with cache_mode normal, writes the runtime cache. The name, types and upstream travel in the JSON body, not in the URL. Requires resources.dns_query.available; without it the request returns 404 capability_not_supported.'
       x-permission: control
@@ -5699,6 +5844,8 @@ paths:
   /api/v1/dns/log:
     get:
       operationId: listDnsLog
+      tags:
+        - DNS
       summary: Read the bounded ring of recent resolutions
       description: |
         Requires resources.dns_log.available. Records client DNS resolutions,
@@ -5818,6 +5965,8 @@ paths:
   /api/v1/dns/cache:
     get:
       operationId: listDnsCache
+      tags:
+        - DNS
       summary: Read a paginated DNS cache snapshot
       description: |
         A page holds at most limit entries and may hold fewer while
@@ -5924,6 +6073,8 @@ paths:
           $ref: '#/components/responses/SnapshotUnavailable'
     delete:
       operationId: deleteDnsCacheByName
+      tags:
+        - DNS
       summary: Delete cache entries for one exact name
       x-permission: control
       security:
@@ -5986,6 +6137,8 @@ paths:
   /api/v1/dns/cache/{entry_id}:
     delete:
       operationId: deleteDnsCacheEntry
+      tags:
+        - DNS
       summary: Delete one opaque DNS cache entry
       x-permission: control
       security:
@@ -6028,6 +6181,8 @@ paths:
   /api/v1/dns/cache/flush:
     post:
       operationId: flushDnsCache
+      tags:
+        - DNS
       summary: Flush the complete runtime DNS cache
       x-permission: control
       security:
@@ -6077,6 +6232,8 @@ paths:
   /api/v1/dns/rules:
     get:
       operationId: listDnsRules
+      tags:
+        - DNS
       summary: Read the running generation's DNS routing rules
       description: |
         Requires resources.dns_rules.available. Return the DNS routing rules of the
@@ -6216,6 +6373,8 @@ paths:
   /api/v1/operations/reload:
     post:
       operationId: startReload
+      tags:
+        - Operations
       summary: Start an asynchronous reload
       x-permission: control
       security:
@@ -6290,6 +6449,8 @@ paths:
   /api/v1/operations/suspend:
     post:
       operationId: startSuspend
+      tags:
+        - Operations
       summary: Start an asynchronous suspend transition
       x-permission: control
       security:
@@ -6364,6 +6525,8 @@ paths:
   /api/v1/operations/resume:
     post:
       operationId: startResume
+      tags:
+        - Operations
       summary: Start an asynchronous resume transition
       x-permission: control
       security:
@@ -6404,6 +6567,8 @@ paths:
   /api/v1/operations/{operation_id}:
     get:
       operationId: getOperation
+      tags:
+        - Operations
       summary: Read an asynchronous operation
       x-permission: observe-owner-or-control
       security:
@@ -6565,7 +6730,7 @@ components:
         type: string
         const: nosniff
     ETag:
-      description: Quoted group configuration revision.
+      description: Strong entity tag of the representation, the value a later If-Match compares.
       required: true
       schema:
         type: string
@@ -6666,9 +6831,16 @@ components:
       name: If-Match
       in: header
       required: true
+      description: Evaluated as RFC 9110 §13.1.1 defines; see Conditional requests in the error contract.
       schema:
-        type: string
-        minLength: 1
+        $ref: '#/components/schemas/EntityTagList'
+      example: '"d1f62f00c6da9ec33956e66b8cc3b4670f164556fc12453193904af23451dec1"'
+    IfMatchOptional:
+      name: If-Match
+      in: header
+      description: Evaluated as RFC 9110 §13.1.1 defines; see Conditional requests in the error contract. A new group-configuration PATCH without If-Match returns 428 precondition_required; a retained idempotent replay may omit it.
+      schema:
+        $ref: '#/components/schemas/EntityTagList'
       example: '"17"'
     IdempotencyKey:
       name: Idempotency-Key
@@ -6788,6 +6960,12 @@ components:
     Unauthorized:
       description: Credentials are missing or invalid
       headers:
+        WWW-Authenticate:
+          description: The authentication challenge (RFC 9110 §15.5.2); the native API uses the Bearer scheme.
+          required: true
+          schema:
+            type: string
+            pattern: ^Bearer(\s|$)
         Cache-Control:
           $ref: '#/components/headers/NoStore'
         X-Content-Type-Options:
@@ -6806,6 +6984,7 @@ components:
                 request_id: request-01HZX4K8W6
               x-headers:
                 Content-Type: application/json
+                WWW-Authenticate: Bearer
                 Cache-Control: no-store
                 X-Content-Type-Options: nosniff
     Forbidden:
@@ -6908,29 +7087,6 @@ components:
                 error:
                   code: snapshot_expired
                   message: The page snapshot expired; restart the page walk.
-                  details: null
-                request_id: request-01HZX4K8W6
-              x-headers:
-                Content-Type: application/json
-                Cache-Control: no-store
-                X-Content-Type-Options: nosniff
-    PreconditionFailed:
-      description: If-Match does not equal the current configuration revision or stored source content hash
-      headers:
-        Cache-Control:
-          $ref: '#/components/headers/NoStore'
-        X-Content-Type-Options:
-          $ref: '#/components/headers/NoSniff'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          examples:
-            stale_revision:
-              value:
-                error:
-                  code: stale_revision
-                  message: The resource changed; read it again.
                   details: null
                 request_id: request-01HZX4K8W6
               x-headers:
@@ -7135,6 +7291,7 @@ components:
         - permission_denied
         - resource_not_found
         - capability_not_supported
+        - method_not_allowed
         - state_conflict
         - idempotency_conflict
         - event_cursor_expired
@@ -7201,6 +7358,7 @@ components:
         - api_major
         - base_path
         - links
+        - auth
       properties:
         name:
           type: string
@@ -7304,7 +7462,6 @@ components:
               description: Present in password mode, null otherwise.
         auth:
           $ref: '#/components/schemas/AuthDiscovery'
-          description: Absent from servers that predate password login; clients then assume a configured bearer.
     PublicDiscovery:
       type: object
       description: What a client needs before it signs in. Status, base path, resource links, `auth_logout` and `auth.anonymous_loopback` are withheld.
@@ -7772,7 +7929,7 @@ components:
                   type: boolean
                 config_patch:
                   type: boolean
-                  description: PATCH /groups/{group_id} is implemented. A group patch is a configuration write, so true requires resources.config.writable.
+                  description: PATCH /groups/{group_id}/config is implemented. A group patch is a configuration write, so true requires resources.config.writable.
                 selection:
                   type: boolean
                 max_patch_operations:
@@ -7790,7 +7947,6 @@ components:
                 required:
                   - targets
                   - kinds
-                  - purposes
                   - transports
                   - ip_versions
                   - limits
@@ -7810,14 +7966,6 @@ components:
                   uniqueItems: true
                   items:
                     $ref: '#/components/schemas/ProbeKind'
-                purposes:
-                  type: array
-                  uniqueItems: true
-                  items:
-                    type: string
-                    enum:
-                      - data
-                      - dns
                 transports:
                   type: array
                   uniqueItems: true
@@ -7877,9 +8025,9 @@ components:
                   enum:
                     - 'off'
                     - 'on'
+                    - auto
                     - sampled
-                    - on_demand
-                  description: The engine's flow recording policy, not whether the recorder is capturing now. off records none, because the configuration does not permit the flow recorder or its mode is off; on records every flow in scopes (mode on); sampled records a subset; on_demand is mode auto, recording while clients create demand, whether or not any client does now. recording.flows.active in GET /runtime/settings reports whether the recorder is capturing.
+                  description: The engine's flow recording policy, not whether the recorder is capturing now. off records none, because the configuration does not permit the flow recorder or its mode is off; on records every flow in scopes (mode on); auto enables recording on client demand; sampled records a subset. recording.flows.active in GET /runtime/settings reports whether capture is active now.
                 scopes:
                   type: array
                   uniqueItems: true
@@ -8321,16 +8469,15 @@ components:
         secrets_redacted:
           type: boolean
           description: True when a listener-secret value (the deployment secret of an API listener, such as honk's native_api.secret and clash_api.secret) was masked somewhere in this response. Content, paths and diagnostics are otherwise returned in the clear to an admitted request.
-    ConfigSource:
+    ConfigSourceContent:
       type: object
+      description: One accepted source's identity and content, the representation GET /config/sources/{source_id} returns. Every field stays the same while the source bytes do, so content_sha256 can serve as its entity tag.
       required:
         - id
         - path
         - kind
         - content_sha256
         - bytes
-        - writable
-        - loaded_at
         - content
         - line_count
       properties:
@@ -8362,35 +8509,44 @@ components:
         bytes:
           $ref: '#/components/schemas/SafeUInt'
           description: Accepted source size in bytes before redaction.
-        writable:
-          type: boolean
-          description: |
-            True only when server-wide editing is enabled and this source permits
-            replacement by a control caller. False for engine-written includes,
-            generated sources, and subscriptions, for a source that holds API
-            listener settings or secrets, and while the configuration store
-            cannot accept writes; observe alone never grants writes.
-        loaded_at:
-          $ref: '#/components/schemas/Timestamp'
-          description: Time these source bytes were accepted, not the current file modification time.
         content:
           type: string
           description: Accepted dae text with listener-secret values masked. Use for editing only if its UTF-8 SHA-256 matches content_sha256.
         line_count:
           $ref: '#/components/schemas/SafeUInt'
           description: Lines in the accepted source before redaction; empty text has zero lines, and a final newline does not add an empty line.
-      if:
-        properties:
-          kind:
-            enum:
-              - subscription
-              - generated
-        required:
-          - kind
-      then:
-        properties:
-          writable:
-            const: false
+    ConfigSource:
+      description: A source entry of GET /config, ConfigSourceContent plus the fields that can change without the bytes changing.
+      allOf:
+        - $ref: '#/components/schemas/ConfigSourceContent'
+        - type: object
+          required:
+            - writable
+            - loaded_at
+          properties:
+            writable:
+              type: boolean
+              description: |
+                True only when server-wide editing is enabled and this source permits
+                replacement by a control caller. False for engine-written includes,
+                generated sources, and subscriptions, for a source that holds API
+                listener settings or secrets, and while the configuration store
+                cannot accept writes; observe alone never grants writes.
+            loaded_at:
+              $ref: '#/components/schemas/Timestamp'
+              description: Time these source bytes were accepted, not the current file modification time.
+          if:
+            properties:
+              kind:
+                enum:
+                  - subscription
+                  - generated
+            required:
+              - kind
+          then:
+            properties:
+              writable:
+                const: false
     ConfigSourceCreate:
       type: object
       additionalProperties: false
@@ -10032,9 +10188,20 @@ components:
           enum:
             - node
             - group
+    GroupConfigDocument:
+      type: object
+      description: The group's policy and configured options, the target document of PATCH /groups/{group_id}/config.
+      required:
+        - policy
+        - config
+      properties:
+        policy:
+          $ref: '#/components/schemas/GroupPolicy'
+        config:
+          $ref: '#/components/schemas/GroupConfig'
     GroupConfig:
       type: object
-      description: The group's own configured options, the target of PATCH. For an option the engine supports, null means the group sets no value of its own and the engine's inheritance and defaults apply. Engine-only options go in a nested x-<engine> member, for example config["x-dae"].check_addresses; GET reports these members and they are not patch targets. Other unlisted keys are not allowed.
+      description: The group's own configured options, patched through PATCH /groups/{group_id}/config. For an option the engine supports, null means the group sets no value of its own and the engine's inheritance and defaults apply. Engine-only options go in a nested x-<engine> member, for example config["x-dae"].check_addresses; GET reports these members and they are not patch targets. Other unlisted keys are not allowed.
       required:
         - default_member_id
         - final_outbound
@@ -10325,10 +10492,9 @@ components:
           - $ref: '#/components/schemas/InterruptPatch'
           - $ref: '#/components/schemas/RemovePatch'
           - $ref: '#/components/schemas/CopyMovePatch'
-      description: RFC 6902 operations over the group's policy and config, applied in order. Bounded by resources.groups.max_patch_operations.
+      description: RFC 6902 operations over the group's policy and config, applied in order. Bounded by resources.groups.max_patch_operations. Members an operation object does not define are ignored (RFC 6902 §4).
     PolicyPatch:
       type: object
-      additionalProperties: false
       required:
         - op
         - path
@@ -10347,7 +10513,6 @@ components:
           $ref: '#/components/schemas/GroupPolicyRequest'
     MemberIdPatch:
       type: object
-      additionalProperties: false
       required:
         - op
         - path
@@ -10368,7 +10533,6 @@ components:
             - 'null'
     OutboundPatch:
       type: object
-      additionalProperties: false
       required:
         - op
         - path
@@ -10389,7 +10553,6 @@ components:
             - 'null'
     CheckUrlPatch:
       type: object
-      additionalProperties: false
       required:
         - op
         - path
@@ -10410,7 +10573,6 @@ components:
             - $ref: '#/components/schemas/SafeHttpUrl'
     PositiveIntegerPatch:
       type: object
-      additionalProperties: false
       required:
         - op
         - path
@@ -10433,7 +10595,6 @@ components:
           minimum: 1
     TolerancePatch:
       type: object
-      additionalProperties: false
       required:
         - op
         - path
@@ -10455,7 +10616,6 @@ components:
           minimum: 0
     IdleTimeoutPatch:
       type: object
-      additionalProperties: false
       required:
         - op
         - path
@@ -10477,7 +10637,6 @@ components:
           minimum: 0
     InterruptPatch:
       type: object
-      additionalProperties: false
       required:
         - op
         - path
@@ -10509,7 +10668,6 @@ components:
         - /config/interrupt_connections
     RemovePatch:
       type: object
-      additionalProperties: false
       required:
         - op
         - path
@@ -10520,7 +10678,6 @@ components:
           $ref: '#/components/schemas/MutableGroupPath'
     CopyMovePatch:
       type: object
-      additionalProperties: false
       required:
         - op
         - path
@@ -10679,12 +10836,11 @@ components:
             minLength: 1
     ProbeRequest:
       type: object
-      description: The schema does not restrict kind, purpose and transport combinations. tcp_connect and http take purpose data over tcp; dns takes purpose dns. Any other combination parses and returns 422 unsupported_value.
+      description: 'The schema does not restrict kind and transport combinations. tcp_connect and http run over tcp; dns runs over tcp, udp or both. Any other combination parses and returns 422 unsupported_value. The kind fixes the health purpose that results report: tcp_connect and http test data, dns tests dns.'
       additionalProperties: false
       required:
         - target
         - kind
-        - purpose
         - transport
         - ip_version
         - warmth
@@ -10693,11 +10849,6 @@ components:
           $ref: '#/components/schemas/ProbeTarget'
         kind:
           $ref: '#/components/schemas/ProbeKind'
-        purpose:
-          type: string
-          enum:
-            - data
-            - dns
         transport:
           type: array
           minItems: 1
@@ -11396,21 +11547,27 @@ components:
             required:
               - mode
         - oneOf:
-            - properties:
+            - required:
+                - trace_status
+              properties:
                 trace_status:
                   const: complete
                 trace:
                   properties:
                     status:
                       const: complete
-            - properties:
+            - required:
+                - trace_status
+              properties:
                 trace_status:
                   const: partial
                 trace:
                   properties:
                     status:
                       const: partial
-            - properties:
+            - required:
+                - trace_status
+              properties:
                 trace_status:
                   const: disabled
                 trace:
@@ -11610,7 +11767,9 @@ components:
             - null
       allOf:
         - oneOf:
-            - properties:
+            - required:
+                - chain
+              properties:
                 chain:
                   enum:
                     - traffic
@@ -11621,7 +11780,9 @@ components:
                     - $ref: '#/components/schemas/TrafficRoutingInput'
                 dns_action:
                   type: 'null'
-            - properties:
+            - required:
+                - chain
+              properties:
                 chain:
                   const: dns_request
                 input:
@@ -11638,7 +11799,9 @@ components:
                   type: 'null'
                 mark:
                   type: 'null'
-            - properties:
+            - required:
+                - chain
+              properties:
                 chain:
                   const: dns_response
                 input:
@@ -11935,7 +12098,6 @@ components:
         - routing_source
         - routed_outbound
         - effective_outbound
-        - mode_override
         - selection_path
         - leaf_node_id
         - leaf_node_name
@@ -11979,14 +12141,6 @@ components:
           type:
             - string
             - 'null'
-        mode_override:
-          type: string
-          enum:
-            - none
-            - direct
-            - global
-            - unknown
-          description: Engine mode override observed for this outbound attempt, separate from the configured dial mode. This field does not expose a native runtime-mode setting. none means no override was applied; unknown means the recorder could not determine it.
         selection_path:
           type: array
           items:
@@ -12260,8 +12414,13 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/RuleCondition'
+    EntityTagList:
+      type: string
+      description: '`*` or a comma-separated list of entity tags, strong or weak (W/ prefix), as RFC 9110 §8.8.3 and §13.1.1 define. An entity tag contains no space, tab or inner double quote. Empty list elements are ignored, as §5.6.1.2 requires of recipients.'
+      pattern: ^(\*|((W/)?"[!#-~\u0080-\u00ff]*")?([ \t]*,[ \t]*((W/)?"[!#-~\u0080-\u00ff]*")?)*)$
     IpAddress:
-      oneOf:
+      description: An IPv4 or IPv6 address. Validators must enforce the ipv4 and ipv6 formats; without format assertion, either branch accepts any string.
+      anyOf:
         - type: string
           format: ipv4
         - type: string
@@ -13373,12 +13532,12 @@ components:
         geodata:
           $ref: '#/components/schemas/GeoDataSettingsPatch'
     RecorderMode:
-      description: The value a PATCH sets for a recorder. true pins a permitted recorder on, false forces it off, and "auto" (the startup default) lets the engine record on demand. What counts as demand, and how long it lasts, is engine-defined. GET reports the result as the string RecorderState.mode, not as this value.
-      oneOf:
-        - type: boolean
-        - type: string
-          enum:
-            - auto
+      type: string
+      enum:
+        - 'on'
+        - 'off'
+        - auto
+      description: A recorder's mode. "on" keeps a permitted recorder on without clients, "off" forces it off, and auto (the startup default) lets the engine record on demand. What counts as demand, and how long it lasts, is engine-defined. PATCH sets it, GET reports it in RecorderState.mode, and resources.flows.recording reports the effective flow policy, which can be off when recording is disallowed or sampled when the engine samples.
     RecorderState:
       type: object
       required:
@@ -13390,12 +13549,8 @@ components:
           type: boolean
           description: The configuration permits this recorder; false means never, whatever the mode.
         mode:
-          type: string
-          enum:
-            - auto
-            - 'on'
-            - 'off'
-          description: The recorder's mode as reported by GET, always a string. "on" follows a PATCH of true, "off" a PATCH of false, and auto a PATCH of "auto" or no PATCH at all.
+          $ref: '#/components/schemas/RecorderMode'
+          description: The mode last set by PATCH, or auto when none was set.
         active:
           type: boolean
           description: The recorder is capturing right now.

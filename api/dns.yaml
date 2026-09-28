@@ -2,6 +2,7 @@ paths:
   /api/v1/dns/query:
     post:
       operationId: queryDns
+      tags: [ DNS ]
       summary: Execute a routed diagnostic DNS query
       description: >-
         POST because the query has side effects: it sends live DNS traffic and,
@@ -101,6 +102,7 @@ paths:
   /api/v1/dns/cache:
     get:
       operationId: listDnsCache
+      tags: [ DNS ]
       summary: Read a paginated DNS cache snapshot
       description: |
         A page holds at most limit entries and may hold fewer while
@@ -207,6 +209,7 @@ paths:
           $ref: ./openapi.yaml#/components/responses/SnapshotUnavailable
     delete:
       operationId: deleteDnsCacheByName
+      tags: [ DNS ]
       summary: Delete cache entries for one exact name
       x-permission: control
       security:
@@ -267,6 +270,7 @@ paths:
   /api/v1/dns/cache/{entry_id}:
     delete:
       operationId: deleteDnsCacheEntry
+      tags: [ DNS ]
       summary: Delete one opaque DNS cache entry
       x-permission: control
       security:
@@ -309,6 +313,7 @@ paths:
   /api/v1/dns/cache/flush:
     post:
       operationId: flushDnsCache
+      tags: [ DNS ]
       summary: Flush the complete runtime DNS cache
       x-permission: control
       security:
@@ -358,6 +363,7 @@ paths:
   /api/v1/dns/log:
     get:
       operationId: listDnsLog
+      tags: [ DNS ]
       summary: Read the bounded ring of recent resolutions
       description: |
         Requires resources.dns_log.available. Records client DNS resolutions,
@@ -465,6 +471,7 @@ paths:
   /api/v1/dns/rules:
     get:
       operationId: listDnsRules
+      tags: [ DNS ]
       summary: Read the running generation's DNS routing rules
       description: |
         Requires resources.dns_rules.available. Return the DNS routing rules of the

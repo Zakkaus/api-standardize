@@ -2,6 +2,7 @@ paths:
   /api/v1/providers:
     get:
       operationId: listProviders
+      tags: [ Providers ]
       summary: List provider metadata
       description: |
         Read current subscription, file and inline provider metadata; never fetch a
@@ -67,6 +68,7 @@ paths:
           $ref: ./openapi.yaml#/components/responses/SnapshotUnavailable
     post:
       operationId: createProvider
+      tags: [ Providers ]
       summary: Add a subscription provider to the managed configuration
       description: |
         Requires resources.providers.can_manage; otherwise returns 404
@@ -80,7 +82,8 @@ paths:
         POST /providers/{provider_id}/refresh to load it. Otherwise the backend may fetch the
         provider during activation and returns its actual state. The response carries the
         URL in url_redacted, as written apart from listener secrets. A name already in use
-        returns 409 state_conflict. A URL that is not HTTP(S) returns 422 unsupported_value.
+        returns 409 state_conflict, as does a configuration change while the create is
+        being admitted. A URL that is not HTTP(S) returns 422 unsupported_value.
         update_interval, user_agent and cache are accepted only when named in
         resources.providers.create_options; an omitted one takes the default listed there,
         and one the backend does not list returns 422 unsupported_value.
@@ -194,7 +197,7 @@ paths:
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
         "409":
-          description: A provider with this name exists
+          description: A provider with this name exists, or the configuration changed while the create was being admitted (state_conflict)
           headers:
             Cache-Control:
               $ref: ./openapi.yaml#/components/headers/NoStore
@@ -292,6 +295,7 @@ paths:
       - $ref: ./openapi.yaml#/components/parameters/ProviderId
     get:
       operationId: getProvider
+      tags: [ Providers ]
       summary: Read one provider's current metadata
       x-permission: observe
       security:
@@ -342,6 +346,7 @@ paths:
           $ref: ./openapi.yaml#/components/responses/TooLarge
     delete:
       operationId: deleteProvider
+      tags: [ Providers ]
       summary: Remove a subscription or file provider from the managed configuration
       description: |
         Requires resources.providers.can_manage; otherwise returns 404
@@ -424,10 +429,7 @@ paths:
           $ref: ./openapi.yaml#/components/responses/NotFound
         "409":
           $ref: ./openapi.yaml#/components/responses/Conflict
-          description: The configuration still names the provider in a reference the delete would break (state_conflict); nothing is removed. Filter-matched membership is not a reference.
-        "412":
-          $ref: ./openapi.yaml#/components/responses/PreconditionFailed
-          description: The configuration changed while the delete was being admitted (stale_revision); nothing is removed. Read the provider back and retry.
+          description: The configuration still names the provider in a reference the delete would break, or the configuration changed while the delete was being admitted (state_conflict); nothing is removed. Filter-matched membership is not a reference. After a concurrent change, read the provider back and retry.
         "413":
           $ref: ./openapi.yaml#/components/responses/TooLarge
         "503":
@@ -437,6 +439,7 @@ paths:
       - $ref: ./openapi.yaml#/components/parameters/ProviderId
     post:
       operationId: refreshProvider
+      tags: [ Providers ]
       summary: Queue a provider refresh
       description: |
         Requires resources.providers.can_refresh. This action takes no request body
