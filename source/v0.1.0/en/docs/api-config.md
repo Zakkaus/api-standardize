@@ -131,28 +131,32 @@ masked a value says so where its schema has a flag, such as `secrets_redacted`.
 
 ## Outbound requests
 
-Three features make the backend fetch a URL an administrator configured: group
-health checks (`check_url`), [node checks](check-nodes.html) against configured
-check destinations, and [geodata](geodata.html) downloads. They share one
-policy against server-side request forgery (SSRF); the feature pages link
-here.
+Group health checks (`check_url`), [node checks](check-nodes.html), and
+[geodata downloads](geodata.html) follow this outbound-request policy against
+server-side request forgery (SSRF).
 
-- The URL is an absolute `http` or `https` URL without userinfo. An API caller
-  cannot name a destination the administrator did not configure and cannot
-  change the allowlists below.
-- Only the scheme's default port is allowed unless an administrator configures
-  an explicit port allowlist.
-- A request the backend sends from its own host, including one a route sends
-  direct, resolves the name and rejects loopback, link-local, multicast,
-  unspecified, private and cloud-metadata addresses unless an
-  administrator-owned destination allowlist names them. The validated address
-  is pinned for the connection.
-- A request routed through a node is resolved by the node, not the backend, so
-  the backend checks only a destination written as a literal address.
+- HTTP URLs must be absolute `http` or `https` URLs without userinfo. TCP and
+  DNS check destinations are host and port pairs and follow the address and
+  port rules below.
+- A check-execution request cannot name a destination the configuration does
+  not already hold. An authorised write can: a configuration source, a group
+  `check_url` PATCH, or a geodata source PATCH changes the configured
+  destinations. API callers cannot change the destination or port allowlists;
+  the deployment owns them.
+- Only the scheme's default port is allowed unless the deployment configures an
+  explicit port allowlist.
+- The rules apply after the final route is selected and before each dial,
+  including each retry. When the backend resolves the name itself, whether the
+  route is direct or through a node, it rejects loopback, link-local,
+  multicast, unspecified, private and cloud-metadata addresses unless the
+  destination allowlist names them, and dials the validated address it pinned.
+  When a node resolves the name, the backend checks only a destination written
+  as a literal address. A literal address is always checked. The HTTP `Host`
+  header and TLS SNI keep the name from the URL.
 - A group health check dialled through the group's own members validates a
   patched `check_url` like one written through a
-  [configuration source](configuration.html); the destination checks do not
-  apply to it.
+  [configuration source](configuration.html). The address and port rules do
+  not apply to it, including through a direct member.
 - The backend bounds response size and time. Where a feature follows
   redirects, it bounds their number and repeats these checks for each one;
   geodata downloads follow none.

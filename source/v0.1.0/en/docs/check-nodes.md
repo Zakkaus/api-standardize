@@ -43,7 +43,7 @@ physical tunnel merely because a new logical stream was opened.
 
 The request cannot specify arbitrary URLs, names, IPs or ports. Use
 administrator-configured check destinations under the
-[outbound request policy](api-config.html#Outbound-requests). `tcp_connect` and `http` take purpose `data` over
+[outbound-request policy](api-config.html#Outbound-requests). `tcp_connect` and `http` take purpose `data` over
 `tcp`; `dns` takes purpose `dns`. The request schema does not restrict these
 combinations: a request that parses but pairs them otherwise, or asks for a
 target capability the backend lacks, returns `422 unsupported_value` before

@@ -114,10 +114,8 @@ More operations than `resources.groups.max_patch_operations` returns
 `413 request_too_large` before any change is applied. A successful synchronous
 update returns the new `ETag`; a rejected patch changes nothing.
 
-When `check_url` is mutable, it accepts only absolute `http` or `https` URLs
-without userinfo. Checks against it follow the
-[outbound request policy](api-config.html#Outbound-requests), including its
-rule for checks dialled through the group's own members.
+Mutable `check_url` values follow the
+[outbound-request policy](api-config.html#Outbound-requests).
 
 ### Responses
 

@@ -95,11 +95,7 @@ The update also fails, keeping the loaded file, when the new file lacks a
 category the active configuration uses. The backend writes updated files to its
 own data directory and never overwrites files a package manager installed.
 
-Every URL is fetched under the
-[outbound request policy](api-config.html#Outbound-requests). A download the
-route sends direct gets the full destination check; one routed through a node
-is checked only when its host is a literal address, because the node resolves
-the name.
+Downloads follow the [outbound-request policy](api-config.html#Outbound-requests).
 
 A distinct update while one is queued or running returns
 `409 state_conflict`. Replaying the same accepted `Idempotency-Key` returns
