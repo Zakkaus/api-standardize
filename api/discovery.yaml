@@ -500,7 +500,8 @@ schemas:
             minimum: 1
       resources:
         type: object
-        required: [ config, config_validate, runtime, runtime_memory, runtime_outbounds, traffic_history, memory_history, datapath, nodes, providers, groups, probes, connections, flows, routing_trace, rules, events, logs, dns_query, dns_cache, dns_log, dns_rules, runtime_settings, operations, reload, suspend, resume, geodata ]
+        description: Only runtime is required. An absent resource key means the resource is unavailable, exactly as available false does, so a server that predates a resource still validates.
+        required: [ runtime ]
         properties:
           config:
             type: object

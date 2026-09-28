@@ -533,7 +533,7 @@ test("configuration capabilities require usable limits only when available", () 
     response.body.resources[resource] = { available: false };
     assertValid(validateExample(contract, response));
     delete response.body.resources[resource];
-    assertInvalid(validateExample(contract, response), "unavailable resource keys must still be present");
+    assertValid(validateExample(contract, response), "an absent resource key means unavailable");
   }
   const response = example("getCapabilities:200:available");
   for (const modes of [[], ["syntax", "syntax"], ["live"]]) {
@@ -1335,7 +1335,7 @@ test("observability capabilities require usable bounds only when available", () 
     response.body.resources[resource] = { available: false };
     assertValid(validateExample(contract, response));
     delete response.body.resources[resource];
-    assertInvalid(validateExample(contract, response), `${resource} declaration was optional`);
+    assertValid(validateExample(contract, response), `an absent ${resource} key means unavailable`);
   }
   const response = example("getCapabilities:200:available");
   for (const levels of [[], ["info", "info"], ["fatal"]]) {
@@ -1643,7 +1643,7 @@ test("DNS rules list request and response rules, each ending in one fallback", (
   advertised.body.resources.dns_rules = { available: false };
   assertValid(validateExample(contract, advertised));
   delete advertised.body.resources.dns_rules;
-  assertInvalid(validateExample(contract, advertised), "dns_rules declaration was optional");
+  assertValid(validateExample(contract, advertised), "an absent dns_rules key means unavailable");
 });
 
 test("DNS cache entries can name the root zone", () => {

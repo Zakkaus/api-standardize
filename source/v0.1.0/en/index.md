@@ -43,7 +43,8 @@ The draft native listener uses `/api/v1`, with unversioned `/api` discovery. hon
 configures its Clash-compatible listener with `experimental.clash_api`; the
 referenced dae/kdae branch currently has no general REST listener and exposes
 reload/suspend through CLI and signals. See [API Configuration](docs/api-config.html)
-for the proposed shared listener contract.
+for the proposed shared listener contract. The block below is hypothetical
+syntax for that proposal; neither honk nor dae reads it today.
 
 ```dae
 api {

@@ -131,7 +131,8 @@ headers remain mandatory.
 
 {% api_example closeConnection 204 closed http %}
 
-An unknown or already-gone ID returns `404 resource_not_found`:
+An unknown or already-gone ID returns `404 resource_not_found`; see
+[deleting what is not there](errors.html#Deleting-what-is-not-there):
 
 {% api_example closeConnection 404 gone %}
 
@@ -185,9 +186,10 @@ set; selected entries that disappear before cancellation contribute to neither c
 
 If closing any selected connection cannot be confirmed, return
 `503 temporarily_unavailable` with `Retry-After` after every selected close has
-finished. `error.details` carries the same `closed` and `skipped` counts as a
-success, covering the connections handled before the failure. Those stay
-closed; a retry selects again from current live state.
+finished. `error.details` carries `closed` and `skipped` over the whole selected
+set, as a success does; a connection whose close could not be confirmed counts
+in neither. Closed connections stay closed; a retry selects again from current
+live state.
 
 {% api_example closeConnections 503 incomplete %}
 

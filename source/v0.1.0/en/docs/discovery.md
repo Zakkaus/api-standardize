@@ -41,8 +41,11 @@ below. Other fields are withheld, not null.
 | api_major | integer | Selected wire major, currently 1; independent of document/engine version. |
 | base_path | string | Versioned native resource prefix. |
 | links | object | Stable bootstrap links. This is not a capability declaration. |
+| links.version | string | Stable `/api/v1/version` link for engine identity. |
+| links.capabilities | string | Stable `/api/v1/capabilities` link; the authoritative feature declaration. |
 | links.config | string | Stable `/api/v1/config` link; capabilities declare availability, content visibility, and source limits. |
 | links.config_validate | string | Stable `/api/v1/config/validate` link for POST; capabilities declare availability, modes, and limits. |
+| links.runtime | string | Stable `/api/v1/runtime` link for runtime status. |
 | links.runtime_outbounds | string | Stable `/api/v1/runtime/outbounds` link; availability is declared by capabilities. |
 | links.traffic_history | string | Stable `/api/v1/runtime/traffic/history` link; availability and limits are declared by capabilities. |
 | links.memory_history | string | Stable `/api/v1/runtime/memory/history` link; availability and limits are declared by capabilities. |
@@ -50,6 +53,7 @@ below. Other fields are withheld, not null.
 | links.providers | string | Stable `/api/v1/providers` link; capabilities declare refresh, management support and page size. |
 | links.geodata | string | Stable `/api/v1/geodata` link; capabilities declare update support and asset kinds. |
 | links.rules | string | Stable `/api/v1/rules` link; capabilities declare the rule limit. |
+| links.operations | string | URI template `/api/v1/operations/{id}` for reading one operation; the value is fixed on the wire. |
 | links.auth_setup | string or null | `/api/v1/auth/setup` in password mode; null otherwise. |
 | links.auth_login | string or null | `/api/v1/auth/login` in password mode; null otherwise. |
 | links.auth_logout | string or null | `/api/v1/auth/logout` in password mode; null otherwise. |

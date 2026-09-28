@@ -26,7 +26,7 @@ Request rules decide how a query is resolved; response rules decide what
 happens to the answer. A fallback the configuration does not write still
 appears, with the backend's default action and a null `source`. A rule the
 parser omitted with a diagnostic is not listed; read the diagnostics from
-[GET /config](api-config.html).
+[GET /config](configuration.html).
 
 Each entry has `rule_id`, zero-based `index`, `expression` (the rule's
 source text as written, for display), `action`, `upstream`, nullable `source`, and `kind`

@@ -100,6 +100,15 @@ A list `limit` is 1–1000 unless the resource advertises a lower
 `max_page_size`; a larger value returns `400 invalid_request`, not a shorter
 page.
 
+## Deleting what is not there
+
+Closing a connection returns `404 resource_not_found` when the ID is unknown or
+already gone. Deleting a node or provider by an unknown ID, or deleting DNS
+cache entries by an ID or filter that matches nothing, returns `200` with
+`deleted: 0`. A connection close acts on one live object and reports whether
+this call closed it, while the other deletes ask for an end state, absent,
+that already holds.
+
 ## Endpoint-specific recovery
 
 - [Connection closing](connections.html#Closing) defines unfiltered-close consent,
