@@ -82,6 +82,11 @@ paths:
         update_interval, user_agent and cache are accepted only when named in
         resources.providers.create_options; an omitted one takes the default listed there,
         and one the backend does not list returns 422 unsupported_value.
+        Returns 201 with the provider once the change is active, or 202 with a
+        provider_create operation whose result is the created provider. A
+        failure after the change is stored reports written, committed and
+        active_generation_id as defined under activation outcomes in the error
+        contract.
       x-permission: control
       security:
         - bearerAuth: []
@@ -107,8 +112,44 @@ paths:
                   user_agent: clash.meta
                   cache: false
       responses:
+        "202":
+          description: Provider creation accepted as a provider_create operation
+          headers:
+            Location:
+              description: Operation status URL; equal to body href.
+              required: true
+              schema:
+                type: string
+                pattern: ^/api/v1/operations/[^/]+$
+            Retry-After:
+              description: Positive polling floor in seconds.
+              required: true
+              schema:
+                type: integer
+                minimum: 1
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/OperationAccepted
+              examples:
+                queued:
+                  value:
+                    operation_id: op-01HZX4K8WD
+                    kind: provider_create
+                    status: queued
+                    href: /api/v1/operations/op-01HZX4K8WD
+                  x-headers:
+                    Content-Type: application/json
+                    Location: /api/v1/operations/op-01HZX4K8WD
+                    Retry-After: 1
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
         "201":
-          description: Provider written to the managed configuration
+          description: Provider written to the managed configuration and active
           headers:
             Location:
               description: The new provider's URL.
@@ -308,12 +349,52 @@ paths:
         its nodes from the running groups, advances the configuration revision and
         emits generation.changed. Idempotent: an unknown id returns deleted 0. A
         provider that is the only member source of a group is still removed; the
-        group is then empty.
+        group is then empty. Returns 200 once the change is active, or 202 with
+        a provider_delete operation whose result is the same deletion count. A
+        failure after the change is stored reports written, committed and
+        active_generation_id as defined under activation outcomes in the error
+        contract.
       x-permission: control
       security:
         - bearerAuth: []
         - {}
       responses:
+        "202":
+          description: Provider deletion accepted as a provider_delete operation
+          headers:
+            Location:
+              description: Operation status URL; equal to body href.
+              required: true
+              schema:
+                type: string
+                pattern: ^/api/v1/operations/[^/]+$
+            Retry-After:
+              description: Positive polling floor in seconds.
+              required: true
+              schema:
+                type: integer
+                minimum: 1
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/OperationAccepted
+              examples:
+                queued:
+                  value:
+                    operation_id: op-01HZX4K8WE
+                    kind: provider_delete
+                    status: queued
+                    href: /api/v1/operations/op-01HZX4K8WE
+                  x-headers:
+                    Content-Type: application/json
+                    Location: /api/v1/operations/op-01HZX4K8WE
+                    Retry-After: 1
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
         "200":
           description: Idempotent deletion result
           headers:
@@ -613,5 +694,35 @@ schemas:
             $ref: ./openapi.yaml#/components/schemas/Timestamp
           result:
             $ref: ./openapi.yaml#/components/schemas/Provider
+          error:
+            type: "null"
+  ProviderCreateSucceededOperation:
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/OperationCommon
+      - type: object
+        properties:
+          kind:
+            const: provider_create
+          status:
+            const: succeeded
+          finished_at:
+            $ref: ./openapi.yaml#/components/schemas/Timestamp
+          result:
+            $ref: ./openapi.yaml#/components/schemas/Provider
+          error:
+            type: "null"
+  ProviderDeleteSucceededOperation:
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/OperationCommon
+      - type: object
+        properties:
+          kind:
+            const: provider_delete
+          status:
+            const: succeeded
+          finished_at:
+            $ref: ./openapi.yaml#/components/schemas/Timestamp
+          result:
+            $ref: ./openapi.yaml#/components/schemas/DeleteCount
           error:
             type: "null"

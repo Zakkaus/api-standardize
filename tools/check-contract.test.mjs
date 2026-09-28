@@ -515,7 +515,7 @@ test("validation accepts unnamed and empty text candidates but closes request ob
 
 test("configuration capabilities require usable limits only when available", () => {
   for (const [resource, fields] of [
-    ["config", ["content", "writable", "max_bytes", "max_sources"]],
+    ["config", ["writable", "max_bytes", "max_sources"]],
     ["config_validate", ["modes", "max_bytes", "max_sources"]],
   ]) {
     const response = example("getCapabilities:200:available");
@@ -549,11 +549,12 @@ test("configuration examples obey visibility, runtime identity, and advertised l
   assert.equal(config.generation_id, runtime.generation.active_id);
   assert.equal(config.revision, runtime.generation.config_revision);
   assert.ok(config.sources.length <= resources.config.max_sources);
+  const limits = example("getCapabilities:200:available").body.limits;
+  const envelope = Buffer.byteLength(JSON.stringify({ path: "p".repeat(1024), content: "" }), "utf8");
+  assert.ok(resources.config.max_bytes + envelope <= limits.max_json_body_bytes,
+    "config.max_bytes leaves room for the request envelope");
   for (const source of config.sources) {
-    if (!resources.config.content) {
-      assert.equal(Object.hasOwn(source, "content"), false);
-      assert.equal(config.secrets_redacted, true);
-    }
+    assert.equal(typeof source.content, "string");
     assert.ok(Date.parse(source.loaded_at) >= Date.parse(runtime.lifecycle.started_at));
   }
   for (const value of contract.examples.values()) {
@@ -618,9 +619,11 @@ test("source replacement accepts only complete text with a single hash precondit
   }
 });
 
-test("source readback permits withheld text but never advertises writable engine output", () => {
+test("source readback always carries content and never advertises writable engine output", () => {
   const source = example("getConfigSource:200:redacted");
-  assert.equal(Object.hasOwn(source.body, "content"), false);
+  const withheld = structuredClone(source);
+  delete withheld.body.content;
+  assertInvalid(validateExample(contract, withheld));
   assertValid(validateExample(contract, source));
   for (const kind of ["subscription", "generated"]) {
     source.body.kind = kind;

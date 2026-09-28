@@ -8,8 +8,8 @@ paths:
         accepted sources and retained diagnostics for generation_id and revision,
         not a fresh read of files that may have changed since loading. The source
         set is complete and bounded by resources.config.max_sources; never truncate it.
-        Omit source content unless resources.config.content is true. Apply visibility
-        filters to paths, content and diagnostics; observe never grants raw secrets.
+        Every source carries its content. Apply visibility filters to paths,
+        content and diagnostics; observe never grants raw secrets.
       x-permission: observe
       security:
         - bearerAuth: []
@@ -28,7 +28,7 @@ paths:
                 $ref: ./openapi.yaml#/components/schemas/EffectiveConfig
               examples:
                 redacted:
-                  summary: Content withheld; the SHA-256 value is an illustrative placeholder.
+                  summary: A listener secret masked in the content; the SHA-256 value is an illustrative placeholder.
                   value:
                     generation_id: generation-42
                     revision: "17"
@@ -38,8 +38,9 @@ paths:
                         kind: main
                         content_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
                         bytes: 128
-                        writable: true
+                        writable: false
                         loaded_at: 2026-08-15T09:30:00Z
+                        content: "global {\n  log_level: info\n}\nexperimental {\n  native_api {\n    secret: '<redacted>'\n  }\n}\n"
                         line_count: 8
                     diagnostics:
                       - level: warning
@@ -55,7 +56,7 @@ paths:
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
                 editable:
-                  summary: Unredacted dae text when resources.config.content is true.
+                  summary: Unredacted dae text.
                   value:
                     generation_id: generation-42
                     revision: "17"
@@ -412,8 +413,8 @@ paths:
       summary: Read one accepted configuration source
       description: |
         Requires resources.config.available. Returns the same ConfigSource as
-        GET /config, not a fresh read of disk. Include optional content only when
-        resources.config.content is true; apply the same path and secret redaction.
+        GET /config, not a fresh read of the store, with its content; apply the
+        same path and secret redaction.
         Unknown source IDs return 404 resource_not_found. Redacted text must never
         be saved as a replacement; compare its UTF-8 SHA-256 with content_sha256
         before using returned content as an editing representation.
@@ -435,7 +436,7 @@ paths:
                 $ref: ./openapi.yaml#/components/schemas/ConfigSource
               examples:
                 editable:
-                  summary: Unredacted dae text when resources.config.content is true.
+                  summary: Unredacted dae text.
                   value:
                     id: source-main
                     path: config.dae
@@ -457,8 +458,9 @@ paths:
                     kind: main
                     content_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
                     bytes: 128
-                    writable: true
+                    writable: false
                     loaded_at: 2026-08-15T09:30:00Z
+                    content: "global {\n  log_level: info\n}\nexperimental {\n  native_api {\n    secret: '<redacted>'\n  }\n}\n"
                     line_count: 8
                   x-headers:
                     Content-Type: application/json
@@ -1029,7 +1031,7 @@ schemas:
         description: True when a listener-secret value (native_api.secret, clash_api.secret) was masked somewhere in this response. Content, paths and diagnostics are otherwise returned in the clear to an admitted request.
   ConfigSource:
     type: object
-    required: [ id, path, kind, content_sha256, bytes, writable, loaded_at, line_count ]
+    required: [ id, path, kind, content_sha256, bytes, writable, loaded_at, content, line_count ]
     properties:
       id:
         type: string
@@ -1068,7 +1070,7 @@ schemas:
         description: Time these source bytes were accepted, not the current file modification time.
       content:
         type: string
-        description: Optional dae text, only when resources.config.content is true; still subject to secret redaction. Use for editing only if its UTF-8 SHA-256 matches content_sha256.
+        description: Accepted dae text with listener-secret values masked. Use for editing only if its UTF-8 SHA-256 matches content_sha256.
       line_count:
         $ref: ./openapi.yaml#/components/schemas/SafeUInt
         description: Lines in the accepted source before redaction; empty text has zero lines, and a final newline does not add an empty line.

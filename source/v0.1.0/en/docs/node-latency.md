@@ -115,6 +115,11 @@ and delete return `404 capability_not_supported`.
 {% api_example createNode 201 created http %}
 
 `Location` names the new node; read it back with `GET /api/v1/nodes/{node_id}`.
+A backend returns ``201`` once the change is active, or `202 Accepted` with
+a ``node_create`` [operation](operations.html) when it activates the change
+asynchronously; the operation's result is the created node. A failure after the change
+is stored reports `written`, `committed` and `active_generation_id`, as for any
+[activation outcome](errors.html#Activation-outcomes).
 
 The backend parses the share link with the engine's own support, writes it
 into the `node` section of its managed main source under the given name,
@@ -139,3 +144,8 @@ refresh or delete its [provider](providers.html) instead.
 Deletion removes the node's line from the managed main source and the node
 from the running groups, advances the configuration revision and emits
 `generation.changed`. It is idempotent: an unknown id returns `deleted` 0.
+A backend returns ``200`` once the change is active, or `202 Accepted` with
+a ``node_delete`` [operation](operations.html) when it activates the change
+asynchronously; the operation's result is the same `deleted` count. A failure after the change
+is stored reports `written`, `committed` and `active_generation_id`, as for any
+[activation outcome](errors.html#Activation-outcomes).

@@ -39,10 +39,8 @@ request's `If-Match`.
 
 ### Visibility
 
-`capabilities.resources.config.content` is a visibility flag, false by default.
-When false, every source omits `content`; it must not return an empty string as a
-substitute. When true, content remains optional and must not expose secrets to
-ordinary `observe` callers. Path redaction follows the existing visibility rules
+Every source carries `content`, the accepted text with listener-secret values
+masked; `secrets_redacted` says whether anything was masked. Path redaction follows the existing visibility rules
 in [API Configuration](api-config.html#Permissions): apply privacy filters
 consistently, not only to one endpoint or detail tier. Diagnostics must not echo
 source excerpts, credentials, private paths, or raw engine errors. Hashes, byte
@@ -62,9 +60,7 @@ the accepted snapshot, not the store's current contents. An unknown ID returns
 
 {% api_example getConfigSource 200 editable %}
 
-This content-bearing example assumes `resources.config.content: true`. The
-default visibility setting withholds `content`. To use returned text for
-editing, first verify that its UTF-8 SHA-256 equals `content_sha256`. A mismatch
+To use returned text for editing, first verify that its UTF-8 SHA-256 equals `content_sha256`. A mismatch
 means the text is not the complete accepted source. Do not save redacted text.
 
 ## Editing
@@ -105,7 +101,9 @@ The body accepts only `content`. It replaces the full file as UTF-8 text, includ
 its final newline if supplied. Empty text is a validation candidate, not a
 malformed request. `resources.config.max_bytes` limits replacement UTF-8 bytes;
 `limits.max_json_body_bytes` independently limits the encoded JSON body.
-Exceeding either returns `413 request_too_large`.
+`max_bytes` is less than the body limit minus the request envelope, but JSON
+escaping can still push a body at `max_bytes` over it. Exceeding either returns
+`413 request_too_large`.
 
 `If-Match` accepts one quoted strong tag, not a wildcard, weak tag, or tag list.
 The optional `Idempotency-Key` follows the [operation rules](operations.html):

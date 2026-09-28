@@ -5,7 +5,8 @@ title: Operations
 # GET /api/v1/operations/{operation_id}
 
 > Draft endpoint. Reload, suspend, resume, probes, asynchronous group updates,
-> and provider refreshes use one operation envelope.
+> provider refreshes, and asynchronous node and provider writes use one
+> operation envelope.
 
 An operation ID is opaque, unguessable, and unique for the lifetime of the
 running adapter. Clients must not derive its kind or creation time from the ID.
@@ -40,7 +41,7 @@ too soon may return `429` with a fresh `Retry-After`.
 | Field | Type | Description |
 |-------|------|-------------|
 | operation_id | string | Opaque operation identifier. |
-| kind | string | `probe`, `reload`, `suspend`, `resume`, `group_update`, `provider_refresh`, or `geodata_update`. |
+| kind | string | `probe`, `reload`, `suspend`, `resume`, `group_update`, `provider_refresh`, `geodata_update`, `node_create`, `node_delete`, `provider_create`, or `provider_delete`. |
 | status | string | `queued`, `running`, `succeeded`, or `failed`. |
 | created_at | string | Creation timestamp (RFC3339). |
 | started_at | string or null | Execution start timestamp. |
@@ -59,6 +60,11 @@ state; the operation retains the result of that refresh.
 
 A successful `geodata_update` result is the new [GeoData](geodata.html);
 the datapath has already been reloaded with it.
+
+A successful `node_create` or `provider_create` result is the created
+[Node](node-latency.html) or [Provider](providers.html), carrying its ID. A
+successful `node_delete` or `provider_delete` result is the `deleted` count the
+synchronous `200` would have returned.
 
 `error` uses the same `code`, `message`, and optional `details` object defined
 by the [native error contract](errors.html). Raw engine errors, stack traces,

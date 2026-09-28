@@ -308,6 +308,14 @@ components:
       $ref: ./providers.yaml#/schemas/ProviderRefreshAccepted
     ProviderRefreshSucceededOperation:
       $ref: ./providers.yaml#/schemas/ProviderRefreshSucceededOperation
+    ProviderCreateSucceededOperation:
+      $ref: ./providers.yaml#/schemas/ProviderCreateSucceededOperation
+    ProviderDeleteSucceededOperation:
+      $ref: ./providers.yaml#/schemas/ProviderDeleteSucceededOperation
+    NodeCreateSucceededOperation:
+      $ref: ./nodes-groups.yaml#/schemas/NodeCreateSucceededOperation
+    NodeDeleteSucceededOperation:
+      $ref: ./nodes-groups.yaml#/schemas/NodeDeleteSucceededOperation
     ProviderCreate:
       $ref: ./providers.yaml#/schemas/ProviderCreate
     NodeCreate:
@@ -552,7 +560,7 @@ components:
       $ref: ./dns.yaml#/schemas/DeleteMatchingCount
     OperationKind:
       type: string
-      enum: [ probe, reload, suspend, resume, group_update, provider_refresh, geodata_update ]
+      enum: [ probe, reload, suspend, resume, group_update, provider_refresh, geodata_update, node_create, node_delete, provider_create, provider_delete ]
     OperationAccepted:
       $ref: ./operations-probes.yaml#/schemas/OperationAccepted
     Operation:
@@ -567,6 +575,10 @@ components:
         - $ref: ./openapi.yaml#/components/schemas/GroupUpdateSucceededOperation
         - $ref: ./openapi.yaml#/components/schemas/ProviderRefreshSucceededOperation
         - $ref: ./openapi.yaml#/components/schemas/GeoDataUpdateSucceededOperation
+        - $ref: ./openapi.yaml#/components/schemas/NodeCreateSucceededOperation
+        - $ref: ./openapi.yaml#/components/schemas/NodeDeleteSucceededOperation
+        - $ref: ./openapi.yaml#/components/schemas/ProviderCreateSucceededOperation
+        - $ref: ./openapi.yaml#/components/schemas/ProviderDeleteSucceededOperation
     QueuedOperation:
       $ref: ./operations-probes.yaml#/schemas/QueuedOperation
     RunningOperation:

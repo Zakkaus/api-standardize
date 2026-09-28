@@ -83,6 +83,10 @@ paths:
         cannot parse returns 422 unsupported_value with a sanitized reason in
         error.message. A name already in use returns 409 state_conflict. The node belongs to the
         inline provider and to every group whose filter matches it after reload.
+        Returns 201 with the node once the change is active, or 202 with a
+        node_create operation whose result is the created node. A failure after
+        the change is stored reports written, committed and active_generation_id
+        as defined under activation outcomes in the error contract.
       x-permission: control
       security:
         - bearerAuth: []
@@ -99,8 +103,44 @@ paths:
                   name: hk-03
                   link: vless://uuid@example.com:443?security=tls#hk-03
       responses:
+        "202":
+          description: Node creation accepted as a node_create operation
+          headers:
+            Location:
+              description: Operation status URL; equal to body href.
+              required: true
+              schema:
+                type: string
+                pattern: ^/api/v1/operations/[^/]+$
+            Retry-After:
+              description: Positive polling floor in seconds.
+              required: true
+              schema:
+                type: integer
+                minimum: 1
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/OperationAccepted
+              examples:
+                queued:
+                  value:
+                    operation_id: op-01HZX4K8WB
+                    kind: node_create
+                    status: queued
+                    href: /api/v1/operations/op-01HZX4K8WB
+                  x-headers:
+                    Content-Type: application/json
+                    Location: /api/v1/operations/op-01HZX4K8WB
+                    Retry-After: 1
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
         "201":
-          description: Node written to the managed configuration
+          description: Node written to the managed configuration and active
           headers:
             Location:
               description: The new node, readable with GET.
@@ -292,11 +332,51 @@ paths:
         Removes the node's line from the node section of the managed main source and
         the node from the running groups, advances the configuration revision and
         emits generation.changed. Idempotent: an unknown id returns deleted 0.
+        Returns 200 once the change is active, or 202 with a node_delete
+        operation whose result is the same deletion count. A failure after the
+        change is stored reports written, committed and active_generation_id as
+        defined under activation outcomes in the error contract.
       x-permission: control
       security:
         - bearerAuth: []
         - {}
       responses:
+        "202":
+          description: Node deletion accepted as a node_delete operation
+          headers:
+            Location:
+              description: Operation status URL; equal to body href.
+              required: true
+              schema:
+                type: string
+                pattern: ^/api/v1/operations/[^/]+$
+            Retry-After:
+              description: Positive polling floor in seconds.
+              required: true
+              schema:
+                type: integer
+                minimum: 1
+            Cache-Control:
+              $ref: ./openapi.yaml#/components/headers/NoStore
+            X-Content-Type-Options:
+              $ref: ./openapi.yaml#/components/headers/NoSniff
+          content:
+            application/json:
+              schema:
+                $ref: ./openapi.yaml#/components/schemas/OperationAccepted
+              examples:
+                queued:
+                  value:
+                    operation_id: op-01HZX4K8WC
+                    kind: node_delete
+                    status: queued
+                    href: /api/v1/operations/op-01HZX4K8WC
+                  x-headers:
+                    Content-Type: application/json
+                    Location: /api/v1/operations/op-01HZX4K8WC
+                    Retry-After: 1
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
         "200":
           description: Idempotent deletion result
           headers:
@@ -809,6 +889,36 @@ schemas:
         description: Latest observations, unique by (transport, purpose, measurement, ip_version, warmth) within this node.
         items:
           $ref: ./openapi.yaml#/components/schemas/HealthObservation
+  NodeCreateSucceededOperation:
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/OperationCommon
+      - type: object
+        properties:
+          kind:
+            const: node_create
+          status:
+            const: succeeded
+          finished_at:
+            $ref: ./openapi.yaml#/components/schemas/Timestamp
+          result:
+            $ref: ./openapi.yaml#/components/schemas/Node
+          error:
+            type: "null"
+  NodeDeleteSucceededOperation:
+    allOf:
+      - $ref: ./openapi.yaml#/components/schemas/OperationCommon
+      - type: object
+        properties:
+          kind:
+            const: node_delete
+          status:
+            const: succeeded
+          finished_at:
+            $ref: ./openapi.yaml#/components/schemas/Timestamp
+          result:
+            $ref: ./openapi.yaml#/components/schemas/DeleteCount
+          error:
+            type: "null"
   NodeCreate:
     type: object
     additionalProperties: false
