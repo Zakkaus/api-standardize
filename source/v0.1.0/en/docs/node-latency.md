@@ -38,7 +38,7 @@ Cursors follow the [paging rule](errors.html#Page-cursors). If the server cannot
 | nodes[].id | string | Opaque stable node identifier. |
 | nodes[].name | string | Engine-visible node name. |
 | nodes[].protocol | string or null | Protocol label when safely available. |
-| nodes[].subscription_tag | string or null | Current subscription provenance, using the engine's `subtag(...)` name; null for manual nodes or unavailable provenance. Never expose subscription URLs or credentials. |
+| nodes[].subscription_tag | string or null | Current subscription provenance, using the engine's `subtag(...)` name; null for manual nodes or unavailable provenance. |
 | nodes[].provider_id | string or null, optional | Identity from [providers](providers.html), for grouping nodes. Omitted or null when provenance is unavailable; never infer it from names or URLs. |
 | nodes[].group_ids | array | Direct group memberships. |
 | nodes[].health | array | Latest observations keyed by transport, purpose, measurement, destination IP family, and warmth. |
@@ -123,7 +123,7 @@ For failed activations, see [activation outcomes](errors.html#Activation-outcome
 The backend parses the share link with the engine's own support, writes it
 into the `node` section of its managed main source under the given name,
 advances the configuration revision and emits `generation.changed`. The link
-is stored and never returned. A link the engine cannot parse returns
+is not echoed; the source text returns it as written. A link the engine cannot parse returns
 `422 unsupported_value` with a sanitized explanation in `error.message`; never
 echo the share link or raw parser output. A name already in use returns
 `409 state_conflict`. The node belongs to the inline provider

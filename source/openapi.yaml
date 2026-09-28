@@ -90,7 +90,7 @@ paths:
     get:
       operationId: getVersion
       summary: Read native and engine version identity
-      description: Requires bearer authentication when the listener has a deployment secret. Anonymous access is permitted only on an explicitly secretless loopback listener. No resource permission is required.
+      description: Requires bearer authentication when the listener has a deployment secret or runs in password mode. Anonymous access is permitted only on an explicitly secretless loopback listener. No resource permission is required.
       security:
         - bearerAuth: []
         - {}
@@ -136,7 +136,7 @@ paths:
     get:
       operationId: getCapabilities
       summary: Negotiate resources, visibility, and limits
-      description: Requires bearer authentication when the listener has a deployment secret. Anonymous access is permitted only on an explicitly secretless loopback listener. No resource permission is required.
+      description: Requires bearer authentication when the listener has a deployment secret or runs in password mode. Anonymous access is permitted only on an explicitly secretless loopback listener. No resource permission is required.
       security:
         - bearerAuth: []
         - {}
@@ -343,6 +343,15 @@ paths:
                           - geosite
                           - geoip
                         configurable_sources: true
+                        max_urls: 4
+                        interval_hours:
+                          min: 6
+                          max: 168
+                          default: 24
+                        checksum: sha256sum
+                        lifecycle:
+                          file_values: start
+                          overrides_persist: true
                       operations:
                         available: true
                         retention_seconds: 300
@@ -369,7 +378,7 @@ paths:
     post:
       operationId: setupAdministrator
       summary: Create the administrator account and open a session
-      description: 'Available only while discovery reports `auth.mode: password` with `setup_required: true`. The peer must be loopback, RFC 1918, RFC 4193 or link-local; any other peer is refused with `permission_denied` before the account state is read. Authorization must be absent: a request that carries it is authenticated first, and before setup no session exists, so it gets 401 `authentication_required`.'
+      description: 'Available only while discovery reports `auth.mode: password` with `setup_required: true`. Checks run in this order: the Authorization header, the peer, the account state, the body. A header that does not carry a live session gets 401 `authentication_required`; before setup no session exists. The peer must be loopback, RFC 1918, RFC 4193 or link-local; any other peer is refused with `permission_denied` before the account state is read. After setup, the answer is 409 `setup_already_completed`, with or without a live session.'
       security: []
       requestBody:
         required: true
@@ -425,7 +434,7 @@ paths:
     post:
       operationId: login
       summary: Exchange the administrator credentials for a session
-      description: Available only in password mode after setup. A wrong username or password is `invalid_credentials`; before setup the answer is `setup_required`. Authorization must be absent.
+      description: 'Available only in password mode after setup. Checks run in this order: the Authorization header, the account state, the body. A header that does not carry a live session gets 401 `authentication_required`; a live session does not replace the body, which is still validated. Before setup the answer is `setup_required`; a wrong username or password is `invalid_credentials`. The engine may end a session before `expires_at`, for example to stay within its session limit.'
       security: []
       requestBody:
         required: true
@@ -515,8 +524,8 @@ paths:
         accepted sources and retained diagnostics for generation_id and revision,
         not a fresh read of files that may have changed since loading. The source
         set is complete and bounded by resources.config.max_sources; never truncate it.
-        Every source carries its content. Apply visibility filters to paths,
-        content and diagnostics; observe never grants raw secrets.
+        Every source carries its content. Paths, content and diagnostics follow
+        the visibility table in api-config: only listener-secret values are masked.
       x-permission: observe
       security:
         - bearerAuth: []
@@ -714,7 +723,7 @@ paths:
         including locally resolved source text in full mode; exceeding either returns
         413. Geodata assets do not count toward the byte limit.
         The shared max_json_body_bytes limit applies independently to the HTTP body.
-        Never echo candidate text, secrets, or private paths in diagnostics or errors.
+        Never echo candidate text or listener secrets in diagnostics or errors.
       x-permission: control
       security:
         - bearerAuth: []
@@ -1248,8 +1257,8 @@ paths:
       summary: Read one accepted configuration source
       description: |
         Requires resources.config.available. Returns the same ConfigSource as
-        GET /config, not a fresh read of the store, with its content; apply the
-        same path and secret redaction.
+        GET /config, not a fresh read of the store, with its content; mask listener
+        secrets as in GET /config.
         Unknown source IDs return 404 resource_not_found. Redacted text must never
         be saved as a replacement; compare its UTF-8 SHA-256 with content_sha256
         before using returned content as an editing representation.
@@ -2181,7 +2190,8 @@ paths:
         capability_not_supported. The backend parses the link with the engine's own
         share-link support, writes it into the node section of its managed main
         source under the given name, advances the configuration revision and emits
-        generation.changed. The link is stored, never returned. A link the engine
+        generation.changed. The response does not echo the link; the source text
+        returns it as written (see Visibility in API Configuration). A link the engine
         cannot parse returns 422 unsupported_value with a sanitized reason in
         error.message. A name already in use returns 409 state_conflict. The node belongs to the
         inline provider and to every group whose filter matches it after reload.
@@ -2379,7 +2389,7 @@ paths:
   /api/v1/providers:
     get:
       operationId: listProviders
-      summary: List provider metadata without credentials
+      summary: List provider metadata
       description: |
         Read current subscription, file and inline provider metadata; never fetch a
         subscription while serving a GET. Use the shared snapshot cursor semantics.
@@ -2412,7 +2422,7 @@ paths:
                       - id: provider-a
                         name: provider-a
                         kind: subscription
-                        url_redacted: https://subscriptions.example.com/[redacted]
+                        url_redacted: https://subscriptions.example.com/a/sub?token=secret-a
                         node_count: 1
                         updated_at: '2026-08-15T10:00:00Z'
                         expires_at: '2026-10-01T00:00:00Z'
@@ -2457,8 +2467,8 @@ paths:
         412 stale_revision. When resources.providers.create_unfetched is true, the provider is
         created unfetched: node_count 0, updated_at null and status stale; call
         POST /providers/{provider_id}/refresh to load it. Otherwise the backend may fetch the
-        provider during activation and returns its actual state. The URL is stored,
-        never returned; the response carries url_redacted. A name already in use
+        provider during activation and returns its actual state. The response carries the
+        URL in url_redacted, as written apart from listener secrets. A name already in use
         returns 409 state_conflict. A URL that is not HTTP(S) returns 422 unsupported_value.
         update_interval, user_agent and cache are accepted only when named in
         resources.providers.create_options; an omitted one takes the default listed there,
@@ -2515,7 +2525,7 @@ paths:
                     id: provider-b
                     name: provider-b
                     kind: subscription
-                    url_redacted: https://subscriptions.example.com/[redacted]
+                    url_redacted: https://subscriptions.example.com/sub?token=secret
                     node_count: 0
                     updated_at: null
                     expires_at: null
@@ -2696,7 +2706,7 @@ paths:
                     id: provider-a
                     name: provider-a
                     kind: subscription
-                    url_redacted: https://subscriptions.example.com/[redacted]
+                    url_redacted: https://subscriptions.example.com/a/sub?token=secret-a
                     node_count: 1
                     updated_at: '2026-08-15T10:00:00Z'
                     expires_at: '2026-10-01T00:00:00Z'
@@ -3105,7 +3115,8 @@ paths:
         capability_not_supported. One entry per asset kind in
         resources.geodata.assets, describing the file the running datapath was
         built from: its digest, size and modification time, and the download source
-        POST /geodata/update tries first, redacted like a provider URL. When
+        POST /geodata/update tries first, in the display form described in
+        Geodata. When
         resources.geodata.configurable_sources is true, the response also reports
         where each loaded file was downloaded from and through which route, whether
         its checksum was verified, the update schedule and outcome, and
@@ -3229,11 +3240,13 @@ paths:
         or parse leaves the loaded file in place and fails the operation. With
         several URLs for an asset, the backend tries them in order and moves to the
         next only when one fails: a connection error, a status other than 200
-        (redirects are not followed), the per-URL deadline, or a sha256 mismatch
-        against a checksum published at the URL with .sha256sum appended. The
-        checksum goes through the same route as its file. With
-        GeoDataSettings.verify_checksum false, no checksum is requested and the
-        file is accepted unverified. Every request leaves
+        (redirects are not followed), the per-URL deadline, or a failed checksum
+        by the resources.geodata.checksum method. With sha256sum, a 404 for the
+        checksum URL means none is published and the file is accepted unverified;
+        a mismatch, another status or a connection error fails the URL. A
+        fetched checksum goes through the same route as its file. With
+        GeoDataSettings.verify_checksum false, or a null checksum method, no
+        checksum is checked and the file is accepted unverified. Every request leaves
         through the route in GeoDataSettings.download; a URL the route cannot reach,
         because a group has no usable member or the routing rules block it, fails like
         a connection error and the next URL is tried. The backend never falls back to
@@ -4936,8 +4949,8 @@ paths:
         There is no paginated snapshot and no 410 snapshot_expired response. If a coherent
         generation cannot be pinned, return 503 snapshot_unavailable. If the complete
         dictionary exceeds resources.rules.max_rules, return 503 temporarily_unavailable
-        rather than silently truncate it. Redact local paths and secret-bearing expression
-        values without changing rule identities or order; never expose raw configuration.
+        rather than silently truncate it. Mask listener secrets in expression values without
+        changing rule identities or order; other values follow the visibility table in api-config.
       x-permission: observe
       security:
         - bearerAuth: []
@@ -4965,7 +4978,7 @@ paths:
                         outbound: direct
                         must: false
                         source:
-                          file: '[redacted]/routing.dae'
+                          file: routing.dae
                           source_id: source-routing
                           line: 12
                           column: 5
@@ -4976,7 +4989,7 @@ paths:
                         outbound: proxy
                         must: false
                         source:
-                          file: '[redacted]/routing.dae'
+                          file: routing.dae
                           source_id: source-routing
                           line: 13
                           column: 5
@@ -5211,9 +5224,8 @@ paths:
         capability ceilings. source is config when values come from the activated
         configuration and runtime after a runtime override. geodata appears when
         resources.geodata.configurable_sources is true and carries its own source.
-        GET needs only observe, so geodata URLs are returned as written only to an
-        authenticated caller with control, which may edit them, and redacted like
-        GeoAsset.source_redacted for everyone else.
+        Its URLs are returned as written, with only listener-secret values masked,
+        to every admitted caller; see the visibility table in api-config.
       x-permission: observe
       security:
         - bearerAuth: []
@@ -5322,21 +5334,21 @@ paths:
         until the process restarts or the next configuration activation resets it; it
         is not written to the configuration file.
 
-        geodata is the exception. It requires resources.geodata.configurable_sources
-        and an authenticated caller; the anonymous loopback principal gets 403
-        permission_denied. The backend stores it and does not change the top-level
-        source. A geodata patch merges into the stored settings. Patching geosite or
-        geoip stores both URL lists (geodata.source becomes db); auto_update,
-        download and verify_checksum are each stored on their own; null deletes
-        everything stored. It never downloads; POST
-        /geodata/update does. The stored settings are the only ones in force. At
-        startup, the backend writes each geodata download URL the configuration file
-        names into the stored settings, replacing a list a patch stored, and deletes
-        a stored list that an earlier file wrote but the file no longer names.
-        Activations never change them, so patched URLs last until the next startup.
-        download follows the same startup rule as the URLs, and a download with
-        route group whose group_id is not a current group returns 409
-        state_conflict and changes nothing.
+        geodata is the exception. It requires resources.geodata.configurable_sources,
+        control and a credential; an anonymous loopback caller gets 403
+        permission_denied. The backend keeps a geodata patch as an override for as
+        long as resources.geodata.lifecycle advertises and does not change the
+        top-level source. Patching geosite or geoip overrides only that URL list
+        (geodata.source becomes override); auto_update, download and verify_checksum
+        are each overridden on their own; null removes every override and every
+        value taken from the configuration file, so the built-in sources and
+        defaults apply until the backend next takes file values. When it takes file
+        values, a URL list or download route the configuration file names replaces
+        the override for that field. Geodata URLs are fetched under the
+        outbound-request policy in api-config. More URLs than resources.geodata.max_urls or an interval outside
+        resources.geodata.interval_hours returns 400. A patch never downloads; POST
+        /geodata/update does. A download with route group whose group_id is not a
+        current group returns 409 state_conflict and changes nothing.
       x-permission: control
       security:
         - bearerAuth: []
@@ -5431,7 +5443,7 @@ paths:
                       max_flows: 10000
                       retention_seconds: 300
                     geodata:
-                      source: db
+                      source: override
                       geosite:
                         urls:
                           - https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat
@@ -6076,7 +6088,7 @@ paths:
                         action: upstream
                         upstream: alidns
                         source:
-                          file: '[redacted]/config.dae'
+                          file: config.dae
                           source_id: source-main
                           line: 40
                           column: 7
@@ -6087,7 +6099,7 @@ paths:
                         action: reject
                         upstream: null
                         source:
-                          file: '[redacted]/config.dae'
+                          file: config.dae
                           source_id: source-main
                           line: 41
                           column: 7
@@ -6098,7 +6110,7 @@ paths:
                         action: upstream
                         upstream: googledns
                         source:
-                          file: '[redacted]/config.dae'
+                          file: config.dae
                           source_id: source-main
                           line: 42
                           column: 7
@@ -6110,7 +6122,7 @@ paths:
                         action: requery
                         upstream: alidns
                         source:
-                          file: '[redacted]/config.dae'
+                          file: config.dae
                           source_id: source-main
                           line: 45
                           column: 7
@@ -8092,14 +8104,36 @@ components:
               type: object
               required:
                 - available
-              if:
-                properties:
-                  available:
-                    const: true
-              then:
-                required:
-                  - can_update
-                  - assets
+              allOf:
+                - if:
+                    properties:
+                      available:
+                        const: true
+                  then:
+                    required:
+                      - can_update
+                      - assets
+                - if:
+                    required:
+                      - can_update
+                    properties:
+                      can_update:
+                        const: true
+                  then:
+                    required:
+                      - checksum
+                - if:
+                    required:
+                      - configurable_sources
+                    properties:
+                      configurable_sources:
+                        const: true
+                  then:
+                    required:
+                      - max_urls
+                      - interval_hours
+                      - checksum
+                      - lifecycle
               properties:
                 available:
                   type: boolean
@@ -8115,6 +8149,54 @@ components:
                 configurable_sources:
                   type: boolean
                   description: Download URLs and automatic updates are managed through geodata in GET and PATCH /runtime/settings, and GET /geodata reports update status and required_codes. Requires runtime_settings.available with geodata in its fields. Absent means false.
+                max_urls:
+                  type: integer
+                  minimum: 1
+                  description: Most download URLs per asset a geodata patch may set. Required when configurable_sources is true.
+                interval_hours:
+                  type: object
+                  additionalProperties: false
+                  required:
+                    - min
+                    - max
+                    - default
+                  description: Bounds and default of geodata auto_update.interval_hours. Required when configurable_sources is true. min <= default <= max is required; JSON Schema cannot express this ordering, so validators check it separately.
+                  properties:
+                    min:
+                      type: integer
+                      minimum: 1
+                    max:
+                      type: integer
+                      minimum: 1
+                    default:
+                      type: integer
+                      minimum: 1
+                checksum:
+                  type:
+                    - string
+                    - 'null'
+                  enum:
+                    - sha256sum
+                    - pinned
+                    - null
+                  description: How the backend verifies a download when verify_checksum is true. sha256sum appends .sha256sum to the URL path, keeping any query, and compares the SHA-256 the response names; a 404 means none is published. pinned compares with a SHA-256 the backend holds for the URL. Null means downloads are unverified. Required when can_update or configurable_sources is true.
+                lifecycle:
+                  type: object
+                  additionalProperties: false
+                  required:
+                    - file_values
+                    - overrides_persist
+                  description: When geodata settings take configuration-file values and how long overrides last; see Geodata. Required when configurable_sources is true.
+                  properties:
+                    file_values:
+                      type: string
+                      enum:
+                        - start
+                        - activation
+                      description: start takes file values at process start only; activation also takes them at each configuration activation.
+                    overrides_persist:
+                      type: boolean
+                      description: True when a PATCH override lasts across restarts; false when it lasts until the process exits.
             operations:
               type: object
               required:
@@ -8300,7 +8382,7 @@ components:
         message:
           type: string
           minLength: 1
-          description: Safe operator-facing description; never source excerpts, credentials, private paths, or raw engine errors.
+          description: Safe operator-facing description; never source excerpts, listener secrets or raw engine errors. See the visibility table in api-config.
     ConfigDiagnosticSpan:
       type: object
       required:
@@ -8406,7 +8488,7 @@ components:
           description: True when validation completes without error diagnostics. Successful validation does not guarantee a later apply will succeed.
         diagnostics:
           type: array
-          description: Source IDs identify submitted sources. Attribute a dependency failure to the referring submitted source and its include/subscription location, not an undisclosed local path.
+          description: Source IDs identify submitted sources. Attribute a dependency failure to the referring submitted source and its include/subscription location.
           items:
             $ref: '#/components/schemas/ConfigDiagnostic'
         generation_id:
@@ -9300,7 +9382,7 @@ components:
             - string
             - 'null'
           minLength: 1
-          description: The configured source URL as written, with only listener-secret values (native_api.secret, clash_api.secret) masked. Null for file/inline sources. The wire name is kept for compatibility.
+          description: The configured source URL as written, with only listener-secret values masked; subscription credentials in it are returned. Null for file/inline sources. The wire name is kept for compatibility.
         node_count:
           $ref: '#/components/schemas/SafeUInt'
         updated_at:
@@ -9330,7 +9412,7 @@ components:
           oneOf:
             - type: 'null'
             - $ref: '#/components/schemas/GeoDataDownload'
-      description: Safe metadata only. Names, URLs and last_error must not contain secrets, raw configuration or unredacted local paths.
+      description: Provider metadata, visible as the visibility table in api-config describes. url_redacted is the configured URL with only listener-secret values masked; last_error is safe text without raw configuration.
     ProviderTraffic:
       type: object
       required:
@@ -9465,7 +9547,7 @@ components:
           minLength: 1
           maxLength: 4096
           pattern: ^https?://
-          description: Fetched by the engine on refresh; stored in the managed main source and never returned.
+          description: Fetched by the engine on refresh and stored in the managed main source; returned in url_redacted as written, apart from listener secrets.
         update_interval:
           type: integer
           minimum: 0
@@ -9496,7 +9578,7 @@ components:
           type: string
           minLength: 1
           maxLength: 8192
-          description: A share link in a scheme the engine parses (for example vless, vmess, trojan, ss); stored in the managed main source and never returned.
+          description: A share link in a scheme the engine parses (for example vless, vmess, trojan, ss); stored in the managed main source, whose text returns it as written.
     GeoAssetKind:
       type: string
       enum:
@@ -9527,16 +9609,16 @@ components:
             - string
             - 'null'
           minLength: 1
-          description: Display-only download source with userinfo, query, fragment, and secret-bearing path segments removed or redacted. With several configured URLs, the first. Null when no source is configured or safe display is impossible.
+          description: Display-only download source, in the display form described in Geodata; query removed and credential-shaped path segments replaced with [redacted]. With several configured URLs, the first. Null when no source is configured or the URL does not parse, including a URL with userinfo or a fragment.
         fetched_url_redacted:
           type:
             - string
             - 'null'
           minLength: 1
-          description: Display-only URL the loaded file was downloaded from, redacted like source_redacted. Null when the backend did not download the loaded file, for example a file installed by a package. Reported when resources.geodata.configurable_sources is true.
+          description: Display-only URL the loaded file was downloaded from, in the same display form as source_redacted and null under the same conditions. Null when the backend did not download the loaded file, for example a file installed by a package. Reported when resources.geodata.configurable_sources is true.
         verified:
           type: boolean
-          description: The loaded file was downloaded and matched the sha256 published at the download URL with .sha256sum appended. False when no checksum was published, verification was off, or the backend did not download the file. Reported when resources.geodata.configurable_sources is true.
+          description: The loaded file was downloaded and matched the checksum found by the resources.geodata.checksum method for its download URL. False when no checksum was found, the method is null, verification was off, or the backend did not download the file. Reported when resources.geodata.configurable_sources is true.
         download_route:
           description: The route the loaded file was downloaded through. route is the GeoDataSettings.download route in force for that download. group_id is the group the request went through, the one the routing rules chose for route routing, and null for direct, for routing rules that chose direct or a single node, and for a group that no longer exists. Null when the backend did not download the loaded file. Reported when resources.geodata.configurable_sources is true.
           oneOf:
@@ -9628,15 +9710,15 @@ components:
       type: string
       enum:
         - config
-        - db
+        - override
         - default
-      description: Where the stored URL lists came from. config when the backend wrote every stored list from the configuration file at startup. db when a PATCH stored any of them. default when no list is stored and the backend's built-in URLs apply. An asset without a stored list uses its built-in URLs under any source. A PATCH may set URLs under any source.
+      description: Where the effective URL lists came from. config when every list that is not built in comes from the configuration file. override when a PATCH set at least one list that is still in force, even to the URLs the file names. default when both assets use the backend's built-in URLs. An asset with neither a file value nor an override uses its built-in URLs under any source. A PATCH may set URLs under any source.
     GeoDataUrl:
       type: string
       format: uri
       maxLength: 4096
       pattern: ^https?://(?![^/?#]*@)[^#]*$
-      description: Absolute HTTP(S) URL without userinfo or fragment; server also enforces administrator SSRF policy. The backend does not follow redirects.
+      description: Absolute HTTP(S) URL without userinfo or fragment, fetched under the outbound-request policy in api-config. The backend does not follow redirects.
     GeoDataSources:
       type: object
       required:
@@ -9645,9 +9727,8 @@ components:
         urls:
           type: array
           minItems: 1
-          maxItems: 4
           uniqueItems: true
-          description: Download URLs in fallback order. As written, with only listener-secret values masked, for an authenticated caller with control; for any other caller, redacted like GeoAsset.source_redacted.
+          description: Download URLs in fallback order, at most resources.geodata.max_urls. Returned as written, with only listener-secret values masked, to every admitted caller; see the visibility table in api-config.
           items:
             $ref: '#/components/schemas/GeoDataUrl'
     GeoDataAutoUpdate:
@@ -9662,10 +9743,8 @@ components:
           description: Update on a schedule. On by default.
         interval_hours:
           type: integer
-          minimum: 6
-          maximum: 168
-          default: 24
-          description: Hours between automatic updates, before a random delay of up to 60 minutes.
+          minimum: 1
+          description: Hours between automatic updates, within resources.geodata.interval_hours, whose default applies when nothing is set. The backend may add a random delay; next_check_at reports the result.
     GeoDataDownloadRoute:
       type: string
       enum:
@@ -9733,10 +9812,10 @@ components:
           default:
             route: routing
             group_id: null
-          description: The route every geodata request takes. routing when nothing is stored, as for every download the backend makes itself. At startup, a route the configuration file names replaces a stored one, and a route an earlier file wrote is deleted when the file names none, as for the URLs; it does not affect source. A group that has no usable member when an update runs, for example just after startup before its health checks finish, fails that URL like a connection error; the backend tries the next URL and reports last_error, and never falls back to direct.
+          description: The route every geodata request takes. routing when nothing is stored, as for every download the backend makes itself. When the backend takes file values (resources.geodata.lifecycle.file_values), a route the configuration file names replaces a stored one, and a route an earlier file set returns to routing when the file names none; a patched route is kept. It does not affect source. A group that has no usable member when an update runs, for example just after startup before its health checks finish, fails that URL like a connection error; the backend tries the next URL and reports last_error, and never falls back to direct.
         verify_checksum:
           type: boolean
-          description: Whether an update fetches each URL with .sha256sum appended and rejects a file that does not match it. true when nothing is stored, and a backend that omits the field behaves as true. false sends no checksum request and accepts the file unverified, with verified false, for a mirror that answers the checksum URL with an error page or a status other than 404. The configuration file never sets it.
+          description: Whether an update verifies each file by the resources.geodata.checksum method and rejects a file that does not match. true when nothing is set, and a backend that omits the field behaves as true. false sends no checksum request and accepts the file unverified, with verified false, for a mirror that answers the checksum URL with an error page or a status other than 404. honk's configuration file never sets it.
     GeoDataSourcesPatch:
       type: object
       additionalProperties: false
@@ -9746,13 +9825,12 @@ components:
         urls:
           type: array
           minItems: 1
-          maxItems: 4
           uniqueItems: true
-          description: Replaces the whole list; order is fallback order.
+          description: Replaces the whole list; order is fallback order. At most resources.geodata.max_urls; a longer list returns 400.
           items:
             $ref: '#/components/schemas/GeoDataUrl'
     GeoDataSettingsPatch:
-      description: Merged into the stored settings. A patch with geosite or geoip stores both URL lists, so source becomes db, under any source. auto_update, download and verify_checksum are each stored on their own. null deletes everything stored.
+      description: Merged into the current settings as overrides. A patch with geosite or geoip overrides only that list, so source becomes override, under any source; the other list is unchanged. auto_update, download and verify_checksum are each overridden on their own. null removes every override and every value taken from the configuration file until the backend next takes file values.
       oneOf:
         - type: 'null'
         - type: object
@@ -9776,8 +9854,8 @@ components:
                   type: boolean
                 interval_hours:
                   type: integer
-                  minimum: 6
-                  maximum: 168
+                  minimum: 1
+                  description: Within resources.geodata.interval_hours; a value outside it returns 400.
     GroupPolicy:
       type: object
       required:
@@ -9880,7 +9958,7 @@ components:
       type: string
       format: uri
       pattern: ^https?://(?![^/?#]*@)
-      description: Absolute HTTP(S) URL without userinfo; server also enforces administrator SSRF policy.
+      description: Absolute HTTP(S) URL without userinfo, checked under the outbound-request policy in api-config.
     GroupSelection:
       type: object
       required:
@@ -10717,7 +10795,7 @@ components:
           type:
             - string
             - 'null'
-          description: Sanitized display expression for that rule, or null when unavailable.
+          description: Display expression for that rule, or null when unavailable.
         rule_source:
           type: string
           enum:
@@ -11082,7 +11160,7 @@ components:
           type:
             - string
             - 'null'
-          description: Sanitized display expression for that rule, or null when unavailable.
+          description: Display expression for that rule, or null when unavailable.
         rule_source:
           type: string
           enum:
@@ -12243,7 +12321,7 @@ components:
             file:
               type: string
               minLength: 1
-              description: Redacted source label; never an absolute local path or credential-bearing URL.
+              description: Source path or URL as written, apart from listener secrets.
             source_id:
               type: string
               minLength: 1
@@ -12257,7 +12335,7 @@ components:
               $ref: '#/components/schemas/NullableSafeUInt'
               minimum: 1
               description: One-based UTF-8 byte column of the rule's first token, or null if unknown.
-      description: Source location, or null when unavailable or unsafe to disclose. Coordinates refer to the original source before redaction.
+      description: Source location, or null when unavailable. Coordinates refer to the original source before listener secrets are masked.
     RoutingRule:
       type: object
       required:
@@ -13100,7 +13178,7 @@ components:
               description: Seconds left before the automatic log and DNS-log recorders stop, 0 while a stream is open or nothing is attached. The flow-demand grace is not reported.
         geodata:
           $ref: '#/components/schemas/GeoDataSettings'
-          description: Geodata download sources and automatic updates. Present when resources.geodata.configurable_sources is true. URLs are returned as written only to an authenticated caller with control and redacted for everyone else.
+          description: Geodata download sources and automatic updates. Present when resources.geodata.configurable_sources is true. URLs are returned as written, with only listener-secret values masked, to every admitted caller.
     RuntimeSettingsPatch:
       type: object
       additionalProperties: false

@@ -43,7 +43,7 @@ dae guarantee.
 | Engine logs | Add read-only `/logs` SSE with typed, sanitized records, minimum-level/module-prefix filters and bounded cursor replay. Logs are not recorded-flow evidence; redact before buffering rather than forwarding raw engine output. |
 | DNS log | `GET /dns/log`: record each client resolution (question, source, upstream or cache, answers, routing decision, elapsed) into a bounded ring in the DNS layer; filters and cursor paging over the ring. |
 | Runtime settings | `GET`/`PATCH /runtime/settings`: one place for the tracing filter level, the log and DNS log ring capacities and flow retention; a PATCH reloads the filter handle and resizes the rings at runtime without writing the configuration file. Ceilings are the capability values. |
-| Providers | Add paginated provider metadata, optional `Node.provider_id`, and a control-only refresh operation. Preserve native subscription/file/inline provenance, redact source URLs, and keep provider usage separate from runtime counters. |
+| Providers | Add paginated provider metadata, optional `Node.provider_id`, and a control-only refresh operation. Preserve native subscription/file/inline provenance, return source URLs as written apart from listener secrets, and keep provider usage separate from runtime counters. |
 | Running rules | Expose a read-only, generation-scoped dictionary using the same rule IDs as routing simulation and flow summaries. Edit rules through their configuration sources; there is no rule-level write endpoint. Expressions and file labels are display data, not editable source text. |
 
 ## Evidence from the pinned honk revision
@@ -179,3 +179,42 @@ joining the current registry after a reload renames or removes a node/group.
 4. Pass the recorded-flow acceptance scenarios before advertising
    `full_transparency`. A useful partial adapter may advertise `base` meanwhile,
    but is not completion of the full per-flow objective.
+
+## Password sessions in honk
+
+This section is not part of the contract. honk's password mode keeps at most
+32 sessions; a login beyond that ends the oldest. Each session lasts 12 hours.
+Another engine chooses its own limit and lifetime and reports the end in
+`expires_at`.
+
+## Geodata sources in honk
+
+This section is not part of the contract. It records how honk implements the
+[geodata lifecycle](geodata.html#Effective-value-and-lifetime) on the current
+`feat/native-api` branch; another engine may reach the same effective values
+another way.
+
+- honk keeps the geodata settings in its state database. Each stored URL list
+  and the download route carry a mark saying whether the configuration file
+  wrote them.
+- At startup, before anything reads the settings, honk writes
+  `geosite_download_url`, `geoip_download_url` and `geodata_download_detour`
+  from the configuration file over the stored values. A list or route an
+  earlier file wrote and the file no longer names is deleted, so the built-in
+  value applies; a patched one is kept.
+- `source` is `config` while every stored list carries the file mark, `db`
+  once a stored list does not, and `default` when no list is stored. A planned
+  honk change renames `db` to `override`.
+- A patch that sets one asset's URLs currently stores both lists as patched,
+  freezing the other list at its effective value. A planned honk change stores
+  only the patched list, as the contract requires.
+- honk enforces 4 URLs per asset, an interval of 6 to 168 hours with a default
+  of 24, and the `sha256sum` checksum method. A planned honk change advertises
+  them as `max_urls`, `interval_hours` and `checksum`, with
+  `lifecycle: {file_values: start, overrides_persist: true}`.
+- The checksum URL is the file URL with `.sha256sum` appended to its path. A
+  `404` accepts the file unverified; any other failure moves to the next URL.
+- The next automatic attempt is due at the end of the last attempt, or, before
+  the first, at process start or the latest `auto_update` change, plus the wait
+  and a random delay of up to 60 minutes. After a failed attempt the wait is a backoff that starts at one
+  hour, doubles on each further failure, and never exceeds the interval.

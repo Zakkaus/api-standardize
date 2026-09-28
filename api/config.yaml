@@ -8,8 +8,8 @@ paths:
         accepted sources and retained diagnostics for generation_id and revision,
         not a fresh read of files that may have changed since loading. The source
         set is complete and bounded by resources.config.max_sources; never truncate it.
-        Every source carries its content. Apply visibility filters to paths,
-        content and diagnostics; observe never grants raw secrets.
+        Every source carries its content. Paths, content and diagnostics follow
+        the visibility table in api-config: only listener-secret values are masked.
       x-permission: observe
       security:
         - bearerAuth: []
@@ -420,8 +420,8 @@ paths:
       summary: Read one accepted configuration source
       description: |
         Requires resources.config.available. Returns the same ConfigSource as
-        GET /config, not a fresh read of the store, with its content; apply the
-        same path and secret redaction.
+        GET /config, not a fresh read of the store, with its content; mask listener
+        secrets as in GET /config.
         Unknown source IDs return 404 resource_not_found. Redacted text must never
         be saved as a replacement; compare its UTF-8 SHA-256 with content_sha256
         before using returned content as an editing representation.
@@ -777,7 +777,7 @@ paths:
         including locally resolved source text in full mode; exceeding either returns
         413. Geodata assets do not count toward the byte limit.
         The shared max_json_body_bytes limit applies independently to the HTTP body.
-        Never echo candidate text, secrets, or private paths in diagnostics or errors.
+        Never echo candidate text or listener secrets in diagnostics or errors.
       x-permission: control
       security:
         - bearerAuth: []
@@ -1179,7 +1179,7 @@ schemas:
         description: True when validation completes without error diagnostics. Successful validation does not guarantee a later apply will succeed.
       diagnostics:
         type: array
-        description: Source IDs identify submitted sources. Attribute a dependency failure to the referring submitted source and its include/subscription location, not an undisclosed local path.
+        description: Source IDs identify submitted sources. Attribute a dependency failure to the referring submitted source and its include/subscription location.
         items:
           $ref: ./openapi.yaml#/components/schemas/ConfigDiagnostic
       generation_id:

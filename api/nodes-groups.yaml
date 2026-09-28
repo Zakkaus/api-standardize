@@ -79,7 +79,8 @@ paths:
         capability_not_supported. The backend parses the link with the engine's own
         share-link support, writes it into the node section of its managed main
         source under the given name, advances the configuration revision and emits
-        generation.changed. The link is stored, never returned. A link the engine
+        generation.changed. The response does not echo the link; the source text
+        returns it as written (see Visibility in API Configuration). A link the engine
         cannot parse returns 422 unsupported_value with a sanitized reason in
         error.message. A name already in use returns 409 state_conflict. The node belongs to the
         inline provider and to every group whose filter matches it after reload.
@@ -933,7 +934,7 @@ schemas:
         type: string
         minLength: 1
         maxLength: 8192
-        description: A share link in a scheme the engine parses (for example vless, vmess, trojan, ss); stored in the managed main source and never returned.
+        description: A share link in a scheme the engine parses (for example vless, vmess, trojan, ss); stored in the managed main source, whose text returns it as written.
   NodeList:
     type: object
     required: [ observed_at, nodes, next_cursor ]
@@ -1010,7 +1011,7 @@ schemas:
     type: string
     format: uri
     pattern: ^https?://(?![^/?#]*@)
-    description: Absolute HTTP(S) URL without userinfo; server also enforces administrator SSRF policy.
+    description: Absolute HTTP(S) URL without userinfo, checked under the outbound-request policy in api-config.
   GroupSelection:
     type: object
     required: [ member_id, source ]

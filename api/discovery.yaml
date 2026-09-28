@@ -85,7 +85,7 @@ paths:
     get:
       operationId: getVersion
       summary: Read native and engine version identity
-      description: Requires bearer authentication when the listener has a deployment secret. Anonymous access is permitted only on an explicitly secretless loopback listener. No resource permission is required.
+      description: Requires bearer authentication when the listener has a deployment secret or runs in password mode. Anonymous access is permitted only on an explicitly secretless loopback listener. No resource permission is required.
       security:
         - bearerAuth: []
         - {}
@@ -131,7 +131,7 @@ paths:
     get:
       operationId: getCapabilities
       summary: Negotiate resources, visibility, and limits
-      description: Requires bearer authentication when the listener has a deployment secret. Anonymous access is permitted only on an explicitly secretless loopback listener. No resource permission is required.
+      description: Requires bearer authentication when the listener has a deployment secret or runs in password mode. Anonymous access is permitted only on an explicitly secretless loopback listener. No resource permission is required.
       security:
         - bearerAuth: []
         - {}
@@ -288,6 +288,10 @@ paths:
                         can_update: true
                         assets: [ geosite, geoip ]
                         configurable_sources: true
+                        max_urls: 4
+                        interval_hours: { min: 6, max: 168, default: 24 }
+                        checksum: sha256sum
+                        lifecycle: { file_values: start, overrides_persist: true }
                       operations:
                         available: true
                         retention_seconds: 300
@@ -1033,12 +1037,27 @@ schemas:
           geodata:
             type: object
             required: [ available ]
-            if:
-              properties:
-                available:
-                  const: true
-            then:
-              required: [ can_update, assets ]
+            allOf:
+              - if:
+                  properties:
+                    available:
+                      const: true
+                then:
+                  required: [ can_update, assets ]
+              - if:
+                  required: [ can_update ]
+                  properties:
+                    can_update:
+                      const: true
+                then:
+                  required: [ checksum ]
+              - if:
+                  required: [ configurable_sources ]
+                  properties:
+                    configurable_sources:
+                      const: true
+                then:
+                  required: [ max_urls, interval_hours, checksum, lifecycle ]
             properties:
               available:
                 type: boolean
@@ -1054,6 +1073,42 @@ schemas:
               configurable_sources:
                 type: boolean
                 description: Download URLs and automatic updates are managed through geodata in GET and PATCH /runtime/settings, and GET /geodata reports update status and required_codes. Requires runtime_settings.available with geodata in its fields. Absent means false.
+              max_urls:
+                type: integer
+                minimum: 1
+                description: Most download URLs per asset a geodata patch may set. Required when configurable_sources is true.
+              interval_hours:
+                type: object
+                additionalProperties: false
+                required: [ min, max, default ]
+                description: Bounds and default of geodata auto_update.interval_hours. Required when configurable_sources is true. min <= default <= max is required; JSON Schema cannot express this ordering, so validators check it separately.
+                properties:
+                  min:
+                    type: integer
+                    minimum: 1
+                  max:
+                    type: integer
+                    minimum: 1
+                  default:
+                    type: integer
+                    minimum: 1
+              checksum:
+                type: [ string, "null" ]
+                enum: [ sha256sum, pinned, null ]
+                description: How the backend verifies a download when verify_checksum is true. sha256sum appends .sha256sum to the URL path, keeping any query, and compares the SHA-256 the response names; a 404 means none is published. pinned compares with a SHA-256 the backend holds for the URL. Null means downloads are unverified. Required when can_update or configurable_sources is true.
+              lifecycle:
+                type: object
+                additionalProperties: false
+                required: [ file_values, overrides_persist ]
+                description: When geodata settings take configuration-file values and how long overrides last; see Geodata. Required when configurable_sources is true.
+                properties:
+                  file_values:
+                    type: string
+                    enum: [ start, activation ]
+                    description: start takes file values at process start only; activation also takes them at each configuration activation.
+                  overrides_persist:
+                    type: boolean
+                    description: True when a PATCH override lasts across restarts; false when it lasts until the process exits.
           operations:
             type: object
             required: [ available ]

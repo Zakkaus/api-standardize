@@ -84,7 +84,8 @@ Both detail tiers include the [shared list-view evidence](flows.html#List-view-f
 and `domain_source`. These describe the application decision, not a DNS helper's
 path or today's group selection. Fetch the retained flow for the decision
 timeline. All connection details require `observe`; summary is a payload-size
-tier, not a privacy boundary.
+tier, not a privacy boundary. See the
+[visibility table](api-config.html#Visibility).
 
 The excluded transport has a total of zero. Absence from this live snapshot does
 not prove a clean close; [Recorded Flows](flows.html) retains failed, blocked, and

@@ -40,10 +40,10 @@ request's `If-Match`.
 ### Visibility
 
 Every source carries `content`, the accepted text with listener-secret values
-masked; `secrets_redacted` says whether anything was masked. Path redaction follows the existing visibility rules
-in [API Configuration](api-config.html#Permissions): apply privacy filters
-consistently, not only to one endpoint or detail tier. Diagnostics must not echo
-source excerpts, credentials, private paths, or raw engine errors. Hashes, byte
+masked; `secrets_redacted` says whether anything was masked. Source text, paths
+and diagnostics follow the [visibility table](api-config.html#Visibility): only
+listener-secret values are masked, in every endpoint and detail tier.
+Diagnostic messages must not quote source excerpts or raw engine errors. Hashes, byte
 counts, line counts, and positions describe the accepted source before redaction;
 they need not match displayed text. Redacted text is not an editing representation.
 Never save it over the source.
