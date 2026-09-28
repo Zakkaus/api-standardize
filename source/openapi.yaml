@@ -11637,14 +11637,9 @@ components:
             - userspace
         action:
           type: string
-          enum:
-            - pass
-            - redirect
-            - hold
-            - arm_direct
-            - activate_direct
-            - activate_proxy
-            - drop
+          pattern: ^[a-z][a-z0-9_]*$
+          maxLength: 64
+          description: pass lets the packet continue without the proxy, redirect hands it to the userspace proxy, hold keeps it until a pending decision completes, and drop discards it. Any other value is an engine-defined step documented with that engine; clients show an unknown value as it is.
         reason:
           type: string
           minLength: 1
@@ -11935,7 +11930,7 @@ components:
             - direct
             - global
             - unknown
-          description: Clash-mode override observed for this outbound attempt, separate from the configured dial mode. This field does not expose a native runtime-mode setting. none means no override was applied; unknown means the recorder could not determine it.
+          description: Engine mode override observed for this outbound attempt, such as honk's Clash mode, separate from the configured dial mode. This field does not expose a native runtime-mode setting. none means no override was applied; unknown means the recorder could not determine it.
         selection_path:
           type: array
           items:

@@ -246,3 +246,16 @@ recorders on the current `feat/native-api` branch.
 - `grace_remaining_seconds` counts the attachment grace only, not the
   flow-demand grace. Event capture runs while a client is attached or any
   permitted recorder is pinned on.
+
+## Flow steps in honk
+
+This section is not part of the contract. It records honk-specific detail
+behind the [flow record](flows.html) rules.
+
+- honk hands UDP decisions between the kernel and userspace through NFQUEUE.
+  Its `datapath` steps record the hold, arm, verdict and publication order,
+  and may use the engine-defined actions `arm_direct`, `activate_direct` and
+  `activate_proxy` alongside the core values.
+- honk's UDP decision token is not a flow ID, and the persisted UDP token
+  allocator is not changed to produce flow IDs.
+- `mode_override` reports honk's Clash-mode override (`direct` or `global`).

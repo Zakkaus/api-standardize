@@ -21,7 +21,7 @@ resolve DNS, probe nodes, or dial anything.
 - `id` is an opaque, instance-scoped flow ID, allocated at the first decision
   hook, before sniffing, DNS, or dialing can fail. Together with `instance_id`
   it is never reused. Neither a five-tuple, PID, socket cookie, outbound index,
-  nor honk's UDP decision token alone is an API identity.
+  nor an engine-internal decision token alone is an API identity.
 - Kernel and userspace observations join only through an incarnation-safe
   handoff. If correlation cannot be proved, return separate partial records;
   never join by IP, name, five-tuple, or a nearby timestamp alone.
@@ -33,7 +33,7 @@ resolve DNS, probe nodes, or dial anything.
   relabel old steps with the current generation, group name, or selected leaf.
   `rule_id` is meaningful only with that generation and rule chain.
 - A new engine process gets a new `instance_id`. API IDs are not BPF map ABI;
-  do not change the persisted UDP token allocator to implement them.
+  implementing them must not change identifiers the datapath persists.
 
 ## GET /api/v1/flows
 
@@ -177,8 +177,10 @@ configured UDP DNS carried over TCP through a proxy).
 
 A kernel `drop` used to complete proxy handoff is not a policy `block`.
 Likewise direct activation ends userspace setup, not the native connection.
-Record NFQUEUE hold/arm/verdict/publication order in `datapath` steps without
-exposing mutable verdict tokens. Static port-53 interception and early
+Record the order of datapath decisions in `datapath` steps without exposing
+mutable verdict tokens. A step's `action` is `pass`, `redirect`, `hold`,
+`drop`, or an engine-defined value; clients show an unknown value as it is.
+honk's NFQUEUE steps are in the [honk notes](honk-mapping.html#Flow-steps-in-honk). Static port-53 interception and early
 bypasses are enforcement reasons, not invented configured rule matches.
 
 `server_addr` is the physical proxy server/socket peer if observed; `dial_ip`

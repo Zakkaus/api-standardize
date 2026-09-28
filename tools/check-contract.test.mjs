@@ -1921,3 +1921,15 @@ test("eBPF attachments are interface or cgroup attachments", () => {
     assertInvalid(contract.validate(schema, value), label);
   }
 });
+
+test("datapath step actions have a core set and accept engine-defined values", () => {
+  const schema = { $ref: "#/components/schemas/DatapathStepData" };
+  const data = { plane: "kernel", action: "pass", reason: "bypass", error: null };
+  for (const action of ["pass", "redirect", "hold", "drop", "arm_direct", "sk_assign"]) {
+    assertValid(contract.validate(schema, { ...data, action }), action);
+  }
+  for (const action of ["", "Redirect", "x y", "1drop", "a".repeat(65)]) {
+    assertInvalid(contract.validate(schema, { ...data, action }), `action ${JSON.stringify(action)} passed`);
+  }
+  assertInvalid(contract.validate(schema, (({ action, ...rest }) => rest)(data)), "action is required");
+});
