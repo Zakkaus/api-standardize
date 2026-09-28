@@ -57,7 +57,7 @@ paths:
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
                 editable:
-                  summary: Unredacted dae text.
+                  summary: Unredacted engine-native text.
                   value:
                     generation_id: generation-42
                     revision: "17"
@@ -435,7 +435,7 @@ paths:
                 $ref: ./openapi.yaml#/components/schemas/ConfigSourceContent
               examples:
                 editable:
-                  summary: Unredacted dae text.
+                  summary: Unredacted engine-native text.
                   value:
                     id: source-main
                     path: config.dae
@@ -535,7 +535,7 @@ paths:
               properties:
                 content:
                   type: string
-                  description: Complete UTF-8 dae source text; empty text is validated, not rejected as malformed.
+                  description: Complete UTF-8 engine-native text; empty text is validated, not rejected as malformed.
             examples:
               replacement:
                 value:
@@ -707,7 +707,7 @@ paths:
         Requires resources.config_validate.available and control because the body
         may contain secrets. Syntax mode parses only submitted text. Full mode also
         checks semantics and resolves includes/subscriptions from submitted sources
-        or adapter-authorized local files and cached data, never from the network.
+        or engine-authorized local files and cached data, never from the network.
         Missing or inaccessible required local dependencies produce error diagnostics.
         An unfetched subscription produces a subscription-not-fetched warning and
         does not by itself invalidate the candidate; validation does not fetch it.
@@ -966,7 +966,7 @@ schemas:
           $ref: ./openapi.yaml#/components/schemas/ConfigDiagnostic
       secrets_redacted:
         type: boolean
-        description: True when a listener-secret value (the deployment secret of an API listener, such as honk's native_api.secret and clash_api.secret) was masked somewhere in this response. Content, paths and diagnostics are otherwise returned in the clear to an admitted request.
+        description: True when a listener-secret value (the deployment secret of an API listener) was masked somewhere in this response. Content, paths and diagnostics are otherwise returned in the clear to an admitted request.
   ConfigSourceContent:
     type: object
     description: One accepted source's identity and content, the representation GET /config/sources/{source_id} returns. Every field stays the same while the source bytes do, so content_sha256 can serve as its entity tag.
@@ -998,7 +998,7 @@ schemas:
         description: Accepted source size in bytes before redaction.
       content:
         type: string
-        description: Accepted dae text with listener-secret values masked. Use for editing only if its UTF-8 SHA-256 matches content_sha256.
+        description: Accepted engine-native text with listener-secret values masked. Use for editing only if its UTF-8 SHA-256 matches content_sha256.
       line_count:
         $ref: ./openapi.yaml#/components/schemas/SafeUInt
         description: Lines in the accepted source before redaction; empty text has zero lines, and a final newline does not add an empty line.
@@ -1042,7 +1042,7 @@ schemas:
         description: New file path relative to the main source's directory, as ConfigSource.path reports it. Normal segments only, ending in .dae, at most 1024 UTF-8 bytes, no control characters. An include pattern of the resulting source set must match it.
       content:
         type: string
-        description: Complete UTF-8 dae source text; empty text is validated, not rejected as malformed.
+        description: Complete UTF-8 engine-native text; empty text is validated, not rejected as malformed.
   ConfigDiagnosticsErrorResponse:
     description: unsupported_value error whose details.diagnostics holds at least one error-level diagnostic.
     allOf:
@@ -1086,7 +1086,7 @@ schemas:
       path:
         type: string
         minLength: 1
-        description: Optional engine-native source name and include-resolution base within the adapter's authorized local roots; never grants arbitrary file access.
+        description: Optional engine-native source name and include-resolution base within the engine's authorized local roots; never grants arbitrary file access.
       content:
         type: string
         description: Candidate engine-native source text; empty text is a candidate, not a malformed request.

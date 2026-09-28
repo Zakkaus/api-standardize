@@ -140,7 +140,7 @@ paths:
         - {}
       responses:
         "200":
-          description: Adapter capabilities
+          description: Engine capabilities
           headers:
             Cache-Control:
               $ref: ./openapi.yaml#/components/headers/NoStore
@@ -572,7 +572,7 @@ schemas:
               max_sources:
                 $ref: ./openapi.yaml#/components/schemas/SafeUInt
                 minimum: 1
-                description: Maximum complete effective source set the adapter can expose; never silently truncate it.
+                description: Maximum complete effective source set the engine can expose; never silently truncate it.
           config_validate:
             type: object
             required: [ available ]
@@ -698,7 +698,7 @@ schemas:
                 type: boolean
               can_manage:
                 type: boolean
-                description: POST /nodes and DELETE /nodes/{node_id} are implemented for inline nodes; the backend owns a writable main source.
+                description: POST /nodes and DELETE /nodes/{node_id} are implemented for inline nodes; the engine owns a writable main source.
           providers:
             type: object
             required: [ available ]
@@ -719,11 +719,11 @@ schemas:
                 description: Supports creating subscription providers and deleting subscription or file providers from a writable managed main source.
               create_unfetched:
                 type: boolean
-                description: A created provider is not fetched until POST /providers/{provider_id}/refresh; it starts with node_count 0, updated_at null and status stale. False or absent means the backend may fetch it during activation and reports its actual state.
+                description: A created provider is not fetched until POST /providers/{provider_id}/refresh; it starts with node_count 0, updated_at null and status stale. False or absent means the engine may fetch it during activation and reports its actual state.
               create_options:
                 type: object
                 additionalProperties: false
-                description: Optional ProviderCreate fields the backend accepts, each with the value it applies when the field is omitted. A field not listed is unsupported. Absent means none are supported.
+                description: Optional ProviderCreate fields the engine accepts, each with the value it applies when the field is omitted. A field not listed is unsupported. Absent means none are supported.
                 properties:
                   update_interval:
                     type: integer
@@ -1072,7 +1072,7 @@ schemas:
               fields:
                 type: array
                 uniqueItems: true
-                description: The settings PATCH /runtime/settings accepts on this backend; another field the schema defines returns 422.
+                description: The settings PATCH /runtime/settings accepts on this engine; another field the schema defines returns 422.
                 items:
                   $ref: ./openapi.yaml#/components/schemas/RuntimeSettingField
           geodata:
@@ -1108,7 +1108,7 @@ schemas:
               assets:
                 type: array
                 uniqueItems: true
-                description: The asset kinds GET /geodata reports on this backend.
+                description: The asset kinds GET /geodata reports on this engine.
                 items:
                   $ref: ./openapi.yaml#/components/schemas/GeoAssetKind
               configurable_sources:
@@ -1136,7 +1136,7 @@ schemas:
               checksum:
                 type: [ string, "null" ]
                 enum: [ sha256sum, pinned, null ]
-                description: How the backend verifies a download when verify_checksum is true. sha256sum appends .sha256sum to the URL path, keeping any query, and compares the SHA-256 the response names; a 404 means none is published. pinned compares with a SHA-256 the backend holds for the URL. Null means downloads are unverified. Required when can_update or configurable_sources is true.
+                description: How the engine verifies a download when verify_checksum is true. sha256sum appends .sha256sum to the URL path, keeping any query, and compares the SHA-256 the response names; a 404 means none is published. pinned compares with a SHA-256 the engine holds for the URL. Null means downloads are unverified. Required when can_update or configurable_sources is true.
               lifecycle:
                 type: object
                 additionalProperties: false

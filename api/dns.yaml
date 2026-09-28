@@ -479,7 +479,7 @@ paths:
         request rules pick how a query is resolved, and response rules decide whether
         an answer is accepted, rejected or re-queried. Each list is in evaluation order
         and ends with exactly one fallback entry. A fallback the configuration does not
-        write still appears, with the backend's default action and a null source.
+        write still appears, with the engine's default action and a null source.
         A rule the configuration parser omitted with a diagnostic is not listed.
         This resource is read-only. Rules are edited by replacing the source that holds
         them with PUT /api/v1/config/sources/{source_id}, the same as traffic rules;

@@ -528,8 +528,8 @@ schemas:
     description: >-
       Closed catalogue of HTTP error codes. Adding a code changes the contract.
       Embedded errors such as operation.error, datapath.errors, last_reload.error,
-      and provider.last_error use SafeError with adapter-defined codes, except
-      the shared activation outcome codes an adapter uses for a failed
+      and provider.last_error use SafeError with engine-defined codes, except
+      the shared activation outcome codes an engine uses for a failed
       configuration change when the case applies: reload_rejected,
       reload_degraded, supervisor_reconciliation_failed, activation_unconfirmed
       and store_unavailable.
@@ -615,7 +615,7 @@ schemas:
       code:
         type: string
         minLength: 1
-        description: Adapter-defined diagnostic code, independent of the HTTP ErrorCode catalogue.
+        description: Engine-defined diagnostic code, independent of the HTTP ErrorCode catalogue.
       message:
         type: string
         minLength: 1

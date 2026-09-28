@@ -73,20 +73,20 @@ paths:
       description: |
         Requires resources.providers.can_manage; otherwise returns 404
         capability_not_supported. Only kind subscription can be created here: file and
-        inline providers are authored in the configuration sources. The backend writes
+        inline providers are authored in the configuration sources. The engine writes
         the provider into the subscription section of its managed main source,
         advances the configuration revision, and emits generation.changed. A later
         replacement of that main source using its previous content_sha256 returns
         412 stale_revision. When resources.providers.create_unfetched is true, the provider is
         created unfetched: node_count 0, updated_at null and status stale; call
-        POST /providers/{provider_id}/refresh to load it. Otherwise the backend may fetch the
+        POST /providers/{provider_id}/refresh to load it. Otherwise the engine may fetch the
         provider during activation and returns its actual state. The response carries the
         URL in url_redacted, as written apart from listener secrets. A name already in use
         returns 409 state_conflict, as does a configuration change while the create is
         being admitted. A URL that is not HTTP(S) returns 422 unsupported_value.
         update_interval, user_agent and cache are accepted only when named in
         resources.providers.create_options; an omitted one takes the default listed there,
-        and one the backend does not list returns 422 unsupported_value.
+        and one the engine does not list returns 422 unsupported_value.
         Returns 201 with the provider once the change is active, or 202 with a
         provider_create operation whose result is the created provider. A
         failed activation reports its outcome as defined under activation
@@ -615,7 +615,7 @@ schemas:
           - $ref: ./openapi.yaml#/components/schemas/SafeError
         description: The last failure, or null. A subscription fetch whose download route has no usable node yet reports code route_unavailable; other fetch failures report fetch_failed.
       download:
-        description: The route a subscription's fetches take, with the values of the geodata download route. routing follows the routing rules like user traffic, group always goes through the group in group_id, and direct connects straight to the host. group_id is null for routing and direct and for a group that no longer exists. Null for file and inline providers. Backends that fetch subscriptions only directly omit it.
+        description: The route a subscription's fetches take, with the values of the geodata download route. routing follows the routing rules like user traffic, group always goes through the group in group_id, and direct connects straight to the host. group_id is null for routing and direct and for a group that no longer exists. Null for file and inline providers. Engines that fetch subscriptions only directly omit it.
         oneOf:
           - type: "null"
           - $ref: ./openapi.yaml#/components/schemas/GeoDataDownload

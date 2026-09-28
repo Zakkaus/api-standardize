@@ -116,11 +116,11 @@ paths:
       description: |
         Requires resources.geodata.can_update; otherwise returns 404
         capability_not_supported. Takes no request body and never changes the
-        configured sources. The backend downloads every asset from its source into a
+        configured sources. The engine downloads every asset from its source into a
         temporary file, verifies it parses, replaces the loaded file and reloads the
         datapath once, emitting generation.changed; an asset that fails to download
         or parse leaves the loaded file in place and fails the operation. With
-        several URLs for an asset, the backend tries them in order and moves to the
+        several URLs for an asset, the engine tries them in order and moves to the
         next only when one fails: a connection error, a status other than 200
         (redirects are not followed), the per-URL deadline, or a failed checksum
         by the resources.geodata.checksum method. With sha256sum, a 404 for the
@@ -131,7 +131,7 @@ paths:
         checksum is checked and the file is accepted unverified. Every request leaves
         through the route in GeoDataSettings.download; a URL the route cannot reach,
         because a group has no usable member or the routing rules block it, fails like
-        a connection error and the next URL is tried. The backend never falls back to
+        a connection error and the next URL is tried. The engine never falls back to
         direct. The update fails when the new file lacks a category the active
         configuration uses.
         Identical bytes leave the loaded file and generation unchanged. An automatic
@@ -248,12 +248,12 @@ schemas:
       fetched_url_redacted:
         type: [ string, "null" ]
         minLength: 1
-        description: Display-only URL the loaded file was downloaded from, in the same display form as source_redacted and null under the same conditions. Null when the backend did not download the loaded file, for example a file installed by a package. Reported when resources.geodata.configurable_sources is true.
+        description: Display-only URL the loaded file was downloaded from, in the same display form as source_redacted and null under the same conditions. Null when the engine did not download the loaded file, for example a file installed by a package. Reported when resources.geodata.configurable_sources is true.
       verified:
         type: boolean
-        description: The loaded file was downloaded and matched the checksum found by the resources.geodata.checksum method for its download URL. False when no checksum was found, the method is null, verification was off, or the backend did not download the file. Reported when resources.geodata.configurable_sources is true.
+        description: The loaded file was downloaded and matched the checksum found by the resources.geodata.checksum method for its download URL. False when no checksum was found, the method is null, verification was off, or the engine did not download the file. Reported when resources.geodata.configurable_sources is true.
       download_route:
-        description: The route the loaded file was downloaded through. route is the GeoDataSettings.download route in force for that download. group_id is the group the request went through, the one the routing rules chose for route routing, and null for direct, for routing rules that chose direct or a single node, and for a group that no longer exists. Null when the backend did not download the loaded file. Reported when resources.geodata.configurable_sources is true.
+        description: The route the loaded file was downloaded through. route is the GeoDataSettings.download route in force for that download. group_id is the group the request went through, the one the routing rules chose for route routing, and null for direct, for routing rules that chose direct or a single node, and for a group that no longer exists. Null when the engine did not download the loaded file. Reported when resources.geodata.configurable_sources is true.
         oneOf:
           - type: "null"
           - $ref: ./openapi.yaml#/components/schemas/GeoDataDownload
@@ -281,7 +281,7 @@ schemas:
         $ref: ./openapi.yaml#/components/schemas/NullableTimestamp
         description: When the next automatic update is due, including its random delay and any failure backoff. Null while automatic updates are off.
       last_error:
-        description: Why the last attempt failed after every URL was tried, with an adapter-defined code. Null after a successful or unchanged attempt, and before the first.
+        description: Why the last attempt failed after every URL was tried, with an engine-defined code. Null after a successful or unchanged attempt, and before the first.
         oneOf:
           - type: "null"
           - $ref: ./openapi.yaml#/components/schemas/SafeError
@@ -306,13 +306,13 @@ schemas:
   GeoDataSettingsSource:
     type: string
     enum: [ config, override, default ]
-    description: Where the effective URL lists came from. config when every list that is not built in comes from the configuration file. override when a PATCH set at least one list that is still in force, even to the URLs the file names. default when both assets use the backend's built-in URLs. An asset with neither a file value nor an override uses its built-in URLs under any source. A PATCH may set URLs under any source.
+    description: Where the effective URL lists came from. config when every list that is not built in comes from the configuration file. override when a PATCH set at least one list that is still in force, even to the URLs the file names. default when both assets use the engine's built-in URLs. An asset with neither a file value nor an override uses its built-in URLs under any source. A PATCH may set URLs under any source.
   GeoDataUrl:
     type: string
     format: uri
     maxLength: 4096
     pattern: ^https?://(?![^/?#]*@)[^#]*$
-    description: Absolute HTTP(S) URL without userinfo or fragment, fetched under the outbound-request policy in api-config. The backend does not follow redirects.
+    description: Absolute HTTP(S) URL without userinfo or fragment, fetched under the outbound-request policy in api-config. The engine does not follow redirects.
   GeoDataSources:
     type: object
     required: [ urls ]
@@ -335,7 +335,7 @@ schemas:
       interval_hours:
         type: integer
         minimum: 1
-        description: Hours between automatic updates, within resources.geodata.interval_hours, whose default applies when nothing is set. The backend may add a random delay; next_check_at reports the result.
+        description: Hours between automatic updates, within resources.geodata.interval_hours, whose default applies when nothing is set. The engine may add a random delay; next_check_at reports the result.
   GeoDataDownloadRoute:
     type: string
     enum: [ routing, group, direct ]
@@ -386,10 +386,10 @@ schemas:
       download:
         $ref: ./openapi.yaml#/components/schemas/GeoDataDownload
         default: { route: routing, group_id: null }
-        description: The route every geodata request takes. routing when nothing is stored, as for every download the backend makes itself. When the backend takes file values (resources.geodata.lifecycle.file_values), a route the configuration file names replaces a stored one, and a route an earlier file set returns to routing when the file names none; a patched route is kept. It does not affect source. A group that has no usable member when an update runs, for example just after startup before its health checks finish, fails that URL like a connection error; the backend tries the next URL and reports last_error, and never falls back to direct.
+        description: The route every geodata request takes. routing when nothing is stored, as for every download the engine makes itself. When the engine takes file values (resources.geodata.lifecycle.file_values), a route the configuration file names replaces a stored one, and a route an earlier file set returns to routing when the file names none; a patched route is kept. It does not affect source. A group that has no usable member when an update runs, for example just after startup before its health checks finish, fails that URL like a connection error; the engine tries the next URL and reports last_error, and never falls back to direct.
       verify_checksum:
         type: boolean
-        description: Whether an update verifies each file by the resources.geodata.checksum method and rejects a file that does not match. true when nothing is set, and a backend that omits the field behaves as true. false sends no checksum request and accepts the file unverified, with verified false, for a mirror that answers the checksum URL with an error page or a status other than 404. honk's configuration file never sets it.
+        description: Whether an update verifies each file by the resources.geodata.checksum method and rejects a file that does not match. true when nothing is set, and an engine that omits the field behaves as true. false sends no checksum request and accepts the file unverified, with verified false, for a mirror that answers the checksum URL with an error page or a status other than 404.
   GeoDataSourcesPatch:
     type: object
     additionalProperties: false
@@ -403,7 +403,7 @@ schemas:
         items:
           $ref: ./openapi.yaml#/components/schemas/GeoDataUrl
   GeoDataSettingsPatch:
-    description: Merged into the current settings as overrides. A patch with geosite or geoip overrides only that list, so source becomes override, under any source; the other list is unchanged. auto_update, download and verify_checksum are each overridden on their own. null removes every override and every value taken from the configuration file until the backend next takes file values.
+    description: Merged into the current settings as overrides. A patch with geosite or geoip overrides only that list, so source becomes override, under any source; the other list is unchanged. auto_update, download and verify_checksum are each overridden on their own. null removes every override and every value taken from the configuration file until the engine next takes file values.
     oneOf:
       - type: "null"
       - type: object
