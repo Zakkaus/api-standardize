@@ -307,7 +307,7 @@ schemas:
     format: uri
     maxLength: 4096
     pattern: ^https?://(?![^/?#]*@)[^#]*$
-    description: Absolute HTTP(S) URL without userinfo or fragment; server also enforces administrator SSRF policy. The backend does not follow redirects.
+    description: Absolute HTTP(S) URL without userinfo or fragment, fetched under the outbound request policy in api-config. The backend does not follow redirects.
   GeoDataSources:
     type: object
     required: [ urls ]

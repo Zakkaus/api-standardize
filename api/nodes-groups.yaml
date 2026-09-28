@@ -1010,7 +1010,7 @@ schemas:
     type: string
     format: uri
     pattern: ^https?://(?![^/?#]*@)
-    description: Absolute HTTP(S) URL without userinfo; server also enforces administrator SSRF policy.
+    description: Absolute HTTP(S) URL without userinfo, checked under the outbound request policy in api-config.
   GroupSelection:
     type: object
     required: [ member_id, source ]

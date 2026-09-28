@@ -121,3 +121,31 @@ an administrator and sees the same data, whatever its permission, auth mode or
 
 A trace is marked partial when a mask hid required evidence. A response that
 masked a value says so where its schema has a flag, such as `secrets_redacted`.
+
+## Outbound requests
+
+Three features make the backend fetch a URL an administrator configured: group
+health checks (`check_url`), [node checks](check-nodes.html) against configured
+check destinations, and [geodata](geodata.html) downloads. They share one
+policy against server-side request forgery (SSRF); the feature pages link
+here.
+
+- The URL is an absolute `http` or `https` URL without userinfo. An API caller
+  cannot name a destination the administrator did not configure and cannot
+  change the allowlists below.
+- Only the scheme's default port is allowed unless an administrator configures
+  an explicit port allowlist.
+- A request the backend sends from its own host, including one a route sends
+  direct, resolves the name and rejects loopback, link-local, multicast,
+  unspecified, private and cloud-metadata addresses unless an
+  administrator-owned destination allowlist names them. The validated address
+  is pinned for the connection.
+- A request routed through a node is resolved by the node, not the backend, so
+  the backend checks only a destination written as a literal address.
+- A group health check dialled through the group's own members validates a
+  patched `check_url` like one written through a
+  [configuration source](configuration.html); the destination checks do not
+  apply to it.
+- The backend bounds response size and time. Where a feature follows
+  redirects, it bounds their number and repeats these checks for each one;
+  geodata downloads follow none.
