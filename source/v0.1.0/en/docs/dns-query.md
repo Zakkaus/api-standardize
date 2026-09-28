@@ -4,8 +4,9 @@ title: DNS Query
 
 # POST /api/v1/dns/query
 
-Requires `control` and `resources.dns_query.available`. This POST performs a
-live diagnostic query through the configured DNS module. It returns a separate
+Requires `control` and `resources.dns_query.available`; when the capability is
+unavailable the request returns `404 capability_not_supported`. This POST
+performs a live diagnostic query through the configured DNS module. It returns a separate
 DNS result for each requested record type and uses `Cache-Control: no-store`.
 
 The method is POST because the request is not safe in the RFC 9110 sense: it

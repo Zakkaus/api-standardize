@@ -7,7 +7,8 @@ paths:
         POST because the query has side effects: it sends live DNS traffic and,
         with cache_mode normal, writes the runtime cache. The name, types and
         upstream travel in the JSON body, not in the URL. Requires
-        resources.dns_query.available.
+        resources.dns_query.available; without it the request returns 404
+        capability_not_supported.
       x-permission: control
       security:
         - bearerAuth: []

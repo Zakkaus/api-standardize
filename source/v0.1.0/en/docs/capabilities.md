@@ -119,10 +119,11 @@ never takes a shared name, so a later shared resource cannot collide with it
 and a client can tell it apart without knowing the engine. `<engine>` below is
 `engine.name` from [version](version.html).
 
-- Routes live under `/api/v1/x-<engine>/`.
+- An engine-only route MUST be under `/api/v1/x-<engine>/`.
 - Capability entries live in `resources["x-<engine>"]`, an object keyed by
   extension name whose entries follow the resource-key rules above.
-- Discovery links live in `links["x-<engine>"]`.
+- Discovery links live in `links["x-<engine>"]` of the admitted view only; the
+  public view's links stay closed.
 - An engine-only field of a shared resource lives in an `x-<engine>` member of
   that object, and only where its schema does not forbid additional members.
 

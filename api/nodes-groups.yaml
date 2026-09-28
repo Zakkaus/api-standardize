@@ -573,7 +573,9 @@ paths:
         effective write against the policy after the patch: one patch may set
         policy to urltest and add tolerance. When the resulting policy is not
         URLTest, a tolerance left non-null and changed returns 422 unsupported_value.
-        Requires resources.groups.config_patch. If-Match carries the
+        A change to a field absent from mutable_config, such as
+        interrupt_connections on an engine without that option, returns 422
+        unsupported_value. Requires resources.groups.config_patch. If-Match carries the
         configuration-wide revision, so an accepted change anywhere in the
         configuration makes an older revision fail with 412.
       x-permission: control
@@ -989,8 +991,13 @@ schemas:
         enum: [ node, group ]
   GroupConfig:
     type: object
-    description: The group's own configured options, the target of PATCH. Null means the group sets no value of its own and the engine's inheritance and defaults apply. Engine-only options go in an x-<engine> member, such as dae's x-dae.check_addresses.
+    description: The group's own configured options, the target of PATCH. For an option the engine supports, null means the group sets no value of its own and the engine's inheritance and defaults apply. Engine-only options go in a nested x-<engine> member, for example config["x-dae"].check_addresses; GET reports these members and they are not patch targets. Other unlisted keys are not allowed.
     required: [ default_member_id, final_outbound, check_url, check_interval, tolerance, idle_timeout, interrupt_connections ]
+    additionalProperties: false
+    patternProperties:
+      ^x-[a-z][a-z0-9]*$:
+        type: object
+        description: The engine's own group options, keyed by name. GET reports them; PATCH does not address them.
     properties:
       default_member_id:
         type: [ string, "null" ]
@@ -1004,7 +1011,7 @@ schemas:
       check_interval:
         type: [ integer, "null" ]
         minimum: 1
-        description: Configured health-check interval in seconds. A backend that runs checks on one global interval may keep this value without applying it; see its mapping notes.
+        description: Configured health-check interval in seconds. A backend that runs checks on one global interval may keep this value without applying it.
       tolerance:
         type: [ integer, "null" ]
         minimum: 0
@@ -1015,7 +1022,7 @@ schemas:
         description: Inactivity in seconds after which a URLTest group counts as idle.
       interrupt_connections:
         type: [ boolean, "null" ]
-        description: Whether changing the selection closes connections through the previous member. Null when the engine has no such option.
+        description: Whether changing the selection closes connections through the previous member. Null means the group sets no value of its own, or the engine has no such option.
   SafeHttpUrl:
     type: string
     format: uri
@@ -1296,7 +1303,7 @@ schemas:
         type: string
         const: /config/interrupt_connections
       value:
-        type: boolean
+        type: [ boolean, "null" ]
   MutableGroupPath:
     type: string
     enum: [ /policy, /config/default_member_id, /config/final_outbound, /config/check_url, /config/check_interval, /config/tolerance, /config/idle_timeout, /config/interrupt_connections ]

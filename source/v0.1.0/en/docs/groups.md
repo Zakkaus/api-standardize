@@ -28,12 +28,12 @@ The group API separates these responsibilities:
 | name | string | Engine-visible group name. |
 | icon | string or null | Icon the configuration names for the group (absolute http(s) URL or data URI), shown beside the name. `null` when none is configured; a client may keep its own local override. |
 | config_revision | string | Configuration-wide revision, the same value as `revision` in [GET /config](configuration.html); PATCH sends it in `If-Match`. Any accepted configuration change advances it, not only a change to this group. |
-| policy.kind | string | Canonical behavior: `selector`, `urltest`, `loadbalance`, `fallback`, `random`, `score`, or `fixed` (always the first usable member, as dae's `fixed` policy). |
+| policy.kind | string | Canonical behavior: `selector`, `urltest`, `loadbalance`, `fallback`, `random`, `score`, or `fixed`. A `fixed` group always uses its configured member, even when that member fails its check; dae's `fixed(index)` maps to it, with the index naming the member. |
 | policy.native | string | Effective engine policy, not a configuration alias that the runtime implements differently. |
 | members | array | Direct group members, in declaration order. |
 | members[].id | string | Opaque node or group member identifier. |
 | members[].kind | string | `node` or `group`. |
-| config | object | The group's own configured options, separate from runtime state. `null` means the group sets no value and the engine's inheritance and defaults apply; `interrupt_connections` is null when the engine has no such option. |
+| config | object | The group's own configured options, separate from runtime state. For an option the engine supports, `null` means the group sets no value and the engine's inheritance and defaults apply. `interrupt_connections: null` can also mean the engine has no such option. Engine-only options go in a nested `x-<engine>` member, for example `config["x-dae"].check_addresses`; `GET` reports these members and they are not patch targets. |
 | runtime.selection | object | Current selection by transport. A value may be `null`. |
 | runtime.health | array | Member-context observations using the shared node health dimensions and metrics. Unknown latency is null; zero is never a failure sentinel. |
 | capabilities | object | Operations and fields supported by the current engine. |
@@ -110,7 +110,10 @@ the effective write: the fields whose values the patch changes, checked against
 the group's policy after the patch. One patch may therefore set `policy` to
 `urltest` and add `tolerance`. When the policy after the patch is not URLTest,
 `tolerance` returns `422 unsupported_value` only if the patch leaves it non-null
-and changed. Group
+and changed. A field the engine does not list in `mutable_config` returns
+`422 unsupported_value` when the patch changes it, as for any field the schema
+defines and the capabilities do not advertise; an engine without an
+`interrupt_connections` option omits it from the list. Group
 membership sources are intentionally not part of this operation:
 `members`, `filters`, and nested group relationships require an engine-owned
 configuration reload and must not be silently changed at runtime.

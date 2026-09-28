@@ -1980,10 +1980,17 @@ test("group config admits dae's fixed policy, a missing interrupt option and eng
   response.body.config.interrupt_connections = null;
   response.body.config["x-dae"] = { check_addresses: ["192.0.2.1"] };
   assertValid(validateExample(contract, response));
+  response.body.config.check_addresses = ["192.0.2.1"];
+  assertInvalid(validateExample(contract, response), "engine-only options go in an x-<engine> member");
+  delete response.body.config.check_addresses;
+  response.body.config["x-dae"] = ["192.0.2.1"];
+  assertInvalid(validateExample(contract, response), "an x-<engine> member is an object");
+  response.body.config["x-dae"] = { check_addresses: ["192.0.2.1"] };
   const patch = { $ref: "#/components/schemas/JsonPatch" };
   assertValid(contract.validate(patch, [{ op: "remove", path: "/config/check_url" }, { op: "add", path: "/config/check_url", value: null }]));
   assertValid(contract.validate(patch, [{ op: "copy", from: "/config/tolerance", path: "/config/idle_timeout" }]));
-  assertInvalid(contract.validate(patch, [{ op: "replace", path: "/config/interrupt_connections", value: null }]), "null only where the schema allows it");
+  assertValid(contract.validate(patch, [{ op: "replace", path: "/config/interrupt_connections", value: null }]));
+  assertInvalid(contract.validate(patch, [{ op: "replace", path: "/config/interrupt_connections", value: "on" }]), "interrupt_connections is a boolean or null");
   assertInvalid(contract.validate(patch, [{ op: "remove", path: "/config/check_url", value: null }]), "remove carries no value");
   assertInvalid(contract.validate(patch, [{ op: "replace", path: "/config/x-dae", value: {} }]), "extension members are not patch targets");
 });
