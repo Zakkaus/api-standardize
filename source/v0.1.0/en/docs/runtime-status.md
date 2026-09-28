@@ -83,8 +83,10 @@ truncated, and unobserved connections; it is not a usage total.
 
 During reload, the old active generation remains reported until the new
 generation has passed configuration validation and datapath publication. A
-failed reload therefore leaves `generation.active_id` unchanged and is exposed
-through `last_reload`.
+reload that fails before publication therefore leaves `generation.active_id`
+unchanged and is exposed through `last_reload`. A failure after publication can
+leave the new generation active; see
+[activation outcomes](errors.html#Activation-outcomes).
 
 Generation identifiers are engine-owned, instance-scoped opaque references
 with distinct namespaces for runtime commits and kernel policy publications.

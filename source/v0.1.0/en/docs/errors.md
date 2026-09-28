@@ -134,6 +134,11 @@ the retained snapshot or record, the filters, and `limit`.
   cursor.
 - A server never continues a walk against a different snapshot.
 
+An expired page cursor is `410` because the snapshot it names is gone for good,
+while an expired [event or log cursor](events.html#Replay-and-recovery) is `409`
+because the stream still exists and the client recovers by reopening it without
+a cursor and fetching new baselines.
+
 A list `limit` is 1–1000 unless the resource advertises a lower
 `max_page_size`; a larger value returns `400 invalid_request`, not a shorter
 page.

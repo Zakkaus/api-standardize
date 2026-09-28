@@ -144,6 +144,8 @@ check URL. dae's `tcp_check_url` may list the URL host's addresses after the
 URL; dae reports them in `config["x-dae"].check_addresses`, an
 [engine extension](capabilities.html#Engine-extensions), and drops them when
 a patch changes `check_url`, after which it resolves the new host itself.
+dae's other check options have no shared field; dae reports them under their
+own names in `config["x-dae"]`: `tcp_check_http_method` and `udp_check_dns`.
 
 ### Patch semantics
 
