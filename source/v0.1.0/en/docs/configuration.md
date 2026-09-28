@@ -11,7 +11,7 @@ complete dae file, not a partial patch or a multi-source write.
 ## GET /api/v1/config
 
 Requires `observe` and `capabilities.resources.config.available`. Returns the
-accepted configuration, not a fresh read of files that may have changed on disk.
+accepted configuration, not a fresh read of sources that may have changed in the store.
 Sources, diagnostics, `generation_id`, and `revision` belong to one coherent
 snapshot. The source set is complete, not silently truncated to `max_sources`.
 
@@ -54,7 +54,7 @@ Never save it over the source.
 
 Requires `observe` and `resources.config.available`. Returns one `ConfigSource`
 with the same fields and visibility rules as an entry in `GET /config`. It reads
-the accepted snapshot, not current disk contents. An unknown ID returns
+the accepted snapshot, not the store's current contents. An unknown ID returns
 `404 resource_not_found`; unavailable readback returns
 `404 capability_not_supported`.
 
@@ -84,13 +84,15 @@ source writable. Includes and subscriptions written by the engine, including
 2. Edit the complete dae text.
 3. Optionally call `POST /config/validate` in `full` mode with the resulting
    source set, if the adapter advertises that mode. The server repeats the same checks
-   before writing; a successful dry run does not bypass them or pin disk state.
+   before storing; a successful dry run does not bypass them or pin the store's state.
 4. PUT `{content: string}` as `application/json`, with the retained SHA-256
    enclosed in double quotes in `If-Match`. This precondition uses source bytes,
    not the top-level configuration `revision`.
 5. Poll the operation at `Location`, respecting the positive `Retry-After`
-   polling floor, until it succeeds or fails. A `202` means the server wrote the
-   file and queued reload, not that the new configuration is active.
+   polling floor, until it succeeds or fails. A `202` means the server accepted
+   the replacement and queued its activation, not that the new configuration is
+   active. A failed operation reports whether the replacement was stored and
+   whether it became active; see [activation outcomes](errors.html#Activation-outcomes).
 6. After successful reload, refetch `GET /config` for the accepted generation and
    `content_sha256`. If reload publishes a new generation and events are available,
    `generation.changed` announces it; the event does not waive the polling floor.
@@ -111,41 +113,62 @@ within the running instance's retention window, the same caller, method, path,
 key, and body return the original operation without another write or hash
 check. Reusing the key with a different body returns `409 idempotency_conflict`.
 
-### Validation and atomic write
+### Validation and commit
 
-For a new write, the server checks `If-Match` against the current on-disk content
-hash, then validates the resulting source set in `full` mode with the replacement
+The configuration store holds the authoritative copy of every source: files for
+a file-backed engine, records for a database-backed one. For a new write, the
+server checks `If-Match` against the content hash of the source in the store,
+then validates the resulting source set in `full` mode with the replacement
 substituted for the selected source. The check includes syntax, semantics, and
 dependencies, using authorized local files and cached data only. The dependency
 rules are the same as for [dry-run validation](#POST-api-v1-config-validate), including
 the unfetched-subscription warning. Validation performs no network access or cache refresh.
 
-If diagnostics contain any `error`, the server never writes a file or starts a
+If diagnostics contain any `error`, the server stores nothing and starts no
 reload. It returns `422 unsupported_value` in the shared `{error, request_id}`
 envelope, with `ConfigDiagnostic` entries in `error.details.diagnostics`.
 Warnings and info alone do not prevent a write.
 
-Otherwise, the server writes a temporary file in the source directory and
-atomically renames it over the source, preserving the file mode. Concurrent API
-writes serialize the hash check, validation, and replacement. The server checks
-the on-disk hash again before replacement and rejects a changed hash with `412`.
-After writing, it starts a reload operation with `kind: reload`.
+Two changes that a reload would reject are refused the same way, before
+anything is stored:
+
+- A replacement that sets or changes API listener settings or secrets returns
+  `403 permission_denied`.
+- A change to a setting the running engine applies only at startup returns
+  `422 unsupported_value` with one `restart-required` error diagnostic per
+  setting. Dry-run validation reports the same settings as `restart-required`
+  warnings, because the candidate itself is valid.
+
+Otherwise the server commits the replacement to the store as one transaction:
+a reader of the store sees the old bytes or the new bytes, never a mix.
+Concurrent API writes serialize the hash check, validation, and commit. The
+server checks the stored hash again at commit and rejects a changed hash with
+`412`. It then starts a reload operation with `kind: reload`. A store may
+instead record the replacement only after the new generation is active; the
+operation's `written` detail then says whether it did.
+
+A file store commits by writing a temporary file in the source's directory and
+renaming it over the source, preserving the file mode.
 
 {% api_example replaceConfigSource 202 queued http %}
 
-Reload failure leaves the previous generation active, but does not roll back
-the file write. Until successful reload, readback still describes the previously
-accepted bytes, not the newly written file. Inspect the operation error and
-reconcile disk state before retrying.
+A failed reload does not undo the stored replacement. The failed operation
+reports `written` and `committed` as described in
+[activation outcomes](errors.html#Activation-outcomes). With
+`committed: false` the previous generation stays active, and readback still
+describes the previously accepted bytes. With `committed: true` the new
+generation is active although the operation failed. With `committed: null`,
+read `GET /runtime` back before acting. Reconcile the stored source before
+retrying.
 
 ### Errors
 
 | Status and code | Meaning and action |
 |-----------------|--------------------|
-| `403 permission_denied` | Missing `control`, disabled server-wide editing, or a read-only source. Do not offer writes for that source. |
+| `403 permission_denied` | Missing `control`, disabled server-wide editing, a read-only source, a replacement that sets or changes API listener settings or secrets, or, in a file store, a source path that is no longer a regular file. Do not offer writes for that source. |
 | `404 resource_not_found` | Unknown source ID. Refetch the accepted source set. |
-| `412 stale_revision` | The on-disk hash differs from `If-Match`; the server writes nothing. Reconcile the changed file before retrying. Refetching the accepted snapshot alone may still return the old hash. |
-| `422 unsupported_value` | Full validation found error diagnostics; the server writes nothing and starts no reload. Display diagnostics and correct the candidate. |
+| `412 stale_revision` | The stored content hash differs from `If-Match`; the server stores nothing. Reconcile the changed source before retrying. Refetching the accepted snapshot alone may still return the old hash. |
+| `422 unsupported_value` | Full validation found error diagnostics, including `restart-required`; the server stores nothing and starts no reload. Display diagnostics and correct the candidate. |
 | `428 precondition_required` | `If-Match` is missing; the server writes nothing. Supply the retained source hash. |
 
 {% api_example replaceConfigSource 422 invalid %}
@@ -192,21 +215,26 @@ be loaded by an include pattern of that source set, for example
 `include { config.d/*.dae }` in the main source for `config.d/proxies.dae`. If
 no pattern matches, validation reports a `source-not-included` error diagnostic
 on the main source. Any error diagnostic returns `422 unsupported_value` with
-`error.details.diagnostics`; the server creates no file and starts no reload.
+`error.details.diagnostics`; the server creates nothing and starts no reload.
+The listener-settings and `restart-required` refusals of
+[replacement](#Validation-and-commit) apply as well.
 
 {% api_example createConfigSource 422 not_included %}
 
-Otherwise the server writes a temporary file in the target directory and renames
-it into place with a rename that fails if `path` exists, using the main
-source's file mode. It then starts a reload operation with `kind: reload`.
+Otherwise the server commits the new source to the store without replacing
+anything that appeared at `path` meanwhile, and starts a reload operation with
+`kind: reload`. A file store writes a temporary file in the target directory
+and renames it into place with a rename that fails if `path` exists, using the
+main source's file mode.
 
 {% api_example createConfigSource 202 queued http %}
 
-If the reload fails, the previous generation stays active and the server
-removes the file it created, unless the file at `path` is no longer the one it
-wrote. The failed operation's `error.details.written` is `false` when the file
-was removed and `true` when it remains on disk; reconcile a remaining file
-before retrying. After a successful reload, `GET /config` lists the new source
+A failure before the source is stored creates nothing. Once stored, the source
+stays: no later failure removes it, whether the reload could not start or did
+not complete. The failed operation reports `written` and `committed` as for a
+replacement. `written: true` means the new source is in the store and the next
+reload loads it; correct or remove it before retrying, because a second create
+for the same `path` returns `409 state_conflict`. After a successful reload, `GET /config` lists the new source
 with `path` as given, and it can be edited through
 `PUT /config/sources/{source_id}`.
 

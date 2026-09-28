@@ -322,7 +322,7 @@ responses:
               Cache-Control: no-store
               X-Content-Type-Options: nosniff
   PreconditionFailed:
-    description: If-Match does not equal the current configuration revision or on-disk source content hash
+    description: If-Match does not equal the current configuration revision or stored source content hash
     headers:
       Cache-Control:
         $ref: ./openapi.yaml#/components/headers/NoStore
@@ -536,7 +536,10 @@ schemas:
     description: >-
       Closed catalogue of HTTP error codes. Adding a code changes the contract.
       Embedded errors such as operation.error, datapath.errors, last_reload.error,
-      and provider.last_error use SafeError with adapter-defined codes.
+      and provider.last_error use SafeError with adapter-defined codes, except
+      the activation outcome codes every adapter uses for a failed configuration
+      change: reload_rejected, reload_degraded, supervisor_reconciliation_failed,
+      activation_unconfirmed and store_unavailable.
     enum:
       - invalid_request
       - authentication_required

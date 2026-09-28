@@ -20,7 +20,9 @@ All native API errors use one JSON envelope:
 The `ErrorCode` schema in the OpenAPI document enumerates exactly the codes below
 for HTTP error bodies (`ApiError`); adding one is a contract change. Errors embedded
 in resources (`operation.error`, `datapath.errors`, `last_reload.error`,
-`provider.last_error`) carry an adapter-defined code.
+`provider.last_error`) carry an adapter-defined code, except the shared codes
+for a failed configuration change listed under
+[activation outcomes](#Activation-outcomes).
 
 | Status | Typical code | Meaning |
 |--------|--------------|---------|
@@ -37,7 +39,7 @@ in resources (`operation.error`, `datapath.errors`, `last_reload.error`,
 | 409 | `setup_already_completed` | Administrator setup was requested after an administrator was created. |
 | 410 | `snapshot_expired` | A page cursor is no longer usable; restart the page walk. |
 | 410 | `flow_expired` | Flow evidence was evicted/expired and a tombstone still exists. |
-| 412 | `stale_revision` | `If-Match` does not match the current resource revision or on-disk source content hash, or the configuration changed while a delete was being admitted. |
+| 412 | `stale_revision` | `If-Match` does not match the current resource revision or stored source content hash, or the configuration changed while a delete was being admitted. |
 | 413 | `request_too_large` | Request or requested fan-out exceeds an advertised limit. |
 | 415 | `unsupported_media_type` | Request `Content-Type` is unsupported. |
 | 422 | `unsupported_value` | The request is well-formed but the engine does not support its meaning, or full validation of a configuration candidate found error diagnostics. |
@@ -107,6 +109,47 @@ cache entries by an ID or filter that matches nothing, returns `200` with
 `deleted: 0`. A connection close acts on one live object and reports whether
 this call closed it, while the other deletes ask for an end state, absent,
 that already holds.
+
+## Activation outcomes
+
+A configuration change is stored and then activated as a new runtime
+generation. This applies to a reload, a source replacement or creation, a node
+or provider create or delete, and a group patch that edits the configuration.
+Storing and activating are separate steps, so every activation failure reports
+both in `error.details`:
+
+| Detail | Type | Meaning |
+|--------|------|---------|
+| `written` | boolean | The store holds the change after the failure. A plain reload stores nothing and omits it. |
+| `committed` | boolean or null | Whether the new generation is active. Present on every activation failure. |
+| `active_generation_id` | string or null | Present when `committed` is `true`: the active generation, or `null` when the server cannot name it. |
+
+- `committed: false`: the change never became active, and the previous
+  generation is still active.
+- `committed: true`: the new generation is active, but activation did not
+  complete cleanly. The request still fails. Treat the change as applied and
+  refetch the configuration and runtime.
+- `committed: null`: the server cannot tell. Read `GET /runtime` back and
+  compare `generation.active_id` before retrying.
+
+`written` and `committed` are independent: a change can be stored without being
+active, or active without being stored.
+
+A failed operation carries the outcome in `error.code`. A synchronous response,
+such as a node or provider write that would have returned `201` or `200`, keeps
+its HTTP code, usually `503 temporarily_unavailable`, and carries the outcome in
+`error.details.stage`. Every adapter uses these outcome codes:
+
+| Code | `committed` | Meaning |
+|------|-------------|---------|
+| `reload_rejected` | `false` | The engine refused the new configuration. |
+| `reload_degraded` | `true` | The new generation is active, but part of the datapath did not load. |
+| `supervisor_reconciliation_failed` | `true` | The new generation is active, but the engine could not bring its workers in line with it. |
+| `activation_unconfirmed` | `null` | Activation started and the server lost track of it, for example because the engine stopped. |
+| `store_unavailable` | `true` | The new generation is active, but the store could not record it. `written` is `false`, and a restart loads the previously stored configuration. |
+
+A failure before activation starts, such as an unavailable engine, has
+`committed: false` and may use another adapter-defined code.
 
 ## Endpoint-specific recovery
 
