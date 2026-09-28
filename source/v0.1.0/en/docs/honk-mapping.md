@@ -228,8 +228,10 @@ recorders on the current `feat/native-api` branch.
 - A PATCH accepts `log.buffered_records` and `dns_log.max_records` from 64 to
   512, `flows.max_flows` from 64 to 1024, and `flows.retention_seconds` from 1
   to 300. The startup values are 512, 512, 1024 and 300.
-- honk lists `log.level` and `log.buffered_records` only when the log recorder
-  is permitted, and reports every settings section whether or not it is listed.
+- `resources.runtime_settings.fields` lists `log.level` and
+  `log.buffered_records` only when the log recorder is permitted. GET
+  `/runtime/settings` reports every settings section, including values absent
+  from that list.
 - A client is attached while an admitted GET SSE stream on `/events` or
   `/logs` is open, and for 60 seconds after the last one closed or after a
   successful GET on `/flows`, `/flows/{flow_id}` or `/dns/log`. Settings reads,
@@ -243,6 +245,12 @@ recorders on the current `feat/native-api` branch.
   seconds after the last one closed or after a successful GET on `/flows` or
   `/flows/{flow_id}`. Event streams without `kinds`, `/logs` streams and
   `/dns/log` reads do not create demand, and attachment does not extend it.
+- honk currently reports `resources.flows.recording` as `on` or `off` from
+  whether the flow recorder is capturing, advertises the current `max_flows`
+  and `retention_seconds` rather than its maxima, and omits `min_flows`,
+  `logs.min_buffered_records`, `dns_log.min_records`, `logs.filters` and the
+  eBPF attachment `kind`. A planned honk change reports all of them as the
+  contract requires, with `on_demand` in `auto` mode.
 - `grace_remaining_seconds` counts the attachment grace only, not the
   flow-demand grace. Event capture runs while a client is attached or any
   permitted recorder is pinned on.

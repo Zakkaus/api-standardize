@@ -328,12 +328,11 @@ admission) must be declared even where no connection exists.
 
 Capabilities advertise `recording` (`off`, `on`, `sampled`, `on_demand`),
 `scopes`, the optional `min_flows`, `max_flows`, `max_steps_per_flow`,
-`retention_seconds`, `snapshot_ttl_seconds`, and `max_page_size`. `on_demand` records only while
-clients read or follow flows (see
-[runtime settings](runtime-status.html#GET-api-v1-runtime-settings)).
-`max_flows` and `retention_seconds` are the engine's limits, the most a
-runtime-settings PATCH may set; the current values are in
-`GET /runtime/settings`. Retention is a **maximum age after termination**, not a
+`retention_seconds`, `snapshot_ttl_seconds`, and `max_page_size`.
+`on_demand` follows the
+[runtime settings](runtime-status.html#GET-api-v1-runtime-settings) demand
+rules. `max_flows` and `retention_seconds` are supported maxima, not active
+values; that endpoint reports the active values. Retention is a **maximum age after termination**, not a
 durable guarantee under the bounded memory limit. Eviction, recording toggles,
 and losses produce `flow.gap` events; per-flow loss also marks the retained
 record partial. Known expired IDs return `410 flow_expired` while a bounded

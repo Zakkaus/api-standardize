@@ -203,11 +203,11 @@ recorders.
 
 {% api_example getRuntimeSettings 200 current %}
 
-Only `observed_at` and `source` are always present. Every other section is
-optional: a value appears when `resources.runtime_settings.fields` lists it,
-and an engine may also report a value it cannot change. Inside `log`,
-`level` and `buffered_records` are independent, so an engine whose only
-setting is the log level reports `log.level` alone:
+Only `observed_at` and `source` are always present. Values listed in
+`resources.runtime_settings.fields` appear in GET; the engine may also report
+read-only values. Within `log`, `level` and `buffered_records` are
+independent, so an engine whose only setting is the log level reports
+`log.level` alone:
 
 {% api_example getRuntimeSettings 200 level_only %}
 

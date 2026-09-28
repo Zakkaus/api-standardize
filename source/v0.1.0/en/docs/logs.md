@@ -14,7 +14,7 @@ title: Logs
 | Parameter | Default | Meaning |
 |-----------|---------|---------|
 | level | all advertised levels | Minimum severity: `trace`, `debug`, `info`, `warn`, `error`, in ascending order. |
-| target | absent | Case-sensitive literal prefix of a record's `target`. Requires `target` in `filters`. |
+| target | absent | Case-sensitive literal prefix of a record's `target`. |
 | Last-Event-ID | absent | Header containing the last processed opaque cursor. |
 
 A level outside the five above returns `400 invalid_request`; one of them that
