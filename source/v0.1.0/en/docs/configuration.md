@@ -147,7 +147,7 @@ The server refuses the following changes before storing anything:
 After validation, the server commits the replacement atomically, either before
 activation or after the new generation becomes active: store readers see the
 old bytes or the new bytes, never a mix. Concurrent API writes serialize the
-hash check, validation, and commit. The server starts a reload operation with `kind: reload`; on failure,
+hash check, validation, and commit. The server then starts a reload operation with `kind: reload`; on failure,
 `written` reports whether the store holds the replacement. The operation
 succeeds only after both the commit and the activation finish; a `202` means
 the server accepted the replacement, not that it is stored.
@@ -160,13 +160,13 @@ waits until the previous activation finishes; a server that does not queue
 writes returns `409 state_conflict` instead. An edit made after the commit is
 not part of this activation; it takes effect at a later reload.
 
-The stored source can still change before the commit, through an edit outside
-the API. At commit the server evaluates the request's own `If-Match` again
-against the stored hash. If the condition no longer matches, the commit fails
+The stored source can change before the commit if it is edited outside the
+API. At commit the server evaluates the request's `If-Match` again against the
+stored hash. If the condition no longer matches, the commit fails
 with `412 stale_revision`. If the stored hash changed but the condition still
 matches, as `*` or a list containing the new hash does, the commit fails with
-`409 state_conflict`, because the validated candidate is stale. Either way
-nothing is stored.
+`409 state_conflict`, because the validated candidate is stale. Either way the
+replacement is not stored.
 
 {% api_example replaceConfigSource 202 queued http %}
 

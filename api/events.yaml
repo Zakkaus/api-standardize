@@ -5,8 +5,8 @@ paths:
       tags: [ Events ]
       summary: Follow bounded resumable invalidation events
       description: |
-        Starts with stream.ready on every connection, then replays retained events
-        after Last-Event-ID; see [Replay and recovery](/v0.1.0/en/docs/events.html#Replay-and-recovery).
+        Every connection begins with stream.ready; a resumed connection then replays
+        retained events after Last-Event-ID; see [Replay and recovery](/v0.1.0/en/docs/events.html#Replay-and-recovery).
       x-permission: observe
       security:
         - bearerAuth: []

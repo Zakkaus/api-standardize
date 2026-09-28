@@ -33,7 +33,7 @@ for a failed configuration change listed under
 | 404 | `resource_not_found` | The requested resource does not exist. |
 | 404 | `capability_not_supported` | The running engine does not expose the resource or action. |
 | 405 | `method_not_allowed` | The path exists, but not with this method ([RFC 9110 §15.5.6](https://www.rfc-editor.org/rfc/rfc9110#section-15.5.6)); the response lists the supported methods in `Allow`. An unknown path is `404`. |
-| 409 | `state_conflict` | The request is supported, but the current state prevents it: a name already in use, a referenced object that is not current, a transition the current state does not allow, a configuration change while a write without `If-Match` was being admitted, or a stored change before a conditional write's commit that its `If-Match` still matches. The same request can succeed after the state changes. |
+| 409 | `state_conflict` | The request is supported, but the current state prevents it: a name already in use, a referenced object that is not current, a transition the current state does not allow, a configuration change while a write without `If-Match` was being admitted, or a change between validation and a conditional write's commit that its `If-Match` still matches. The same request can succeed after the state changes. |
 | 409 | `idempotency_conflict` | An idempotency key was reused with a different request body. |
 | 409 | `event_cursor_expired` | Event or log SSE cursor cannot be replayed; open a fresh stream and establish a new baseline. |
 | 409 | `setup_required` | Password login was requested before an administrator was created. |

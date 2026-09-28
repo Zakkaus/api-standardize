@@ -51,10 +51,10 @@ parameters:
     name: cursor
     in: query
     description: |
-      Opaque cursor from the previous page's next_cursor, bound to that walk's
-      snapshot, filters and limit. An unrecognised cursor returns 410 snapshot_expired;
-      see [Page cursors](/v0.1.0/en/docs/errors.html#Page-cursors).
-      The server never continues a walk against a different snapshot.
+      Opaque cursor from the previous page's next_cursor, bound to the walk that
+      issued it (its snapshot or retained records, filters and limit). An unrecognised
+      cursor returns 410 snapshot_expired; see
+      [Page cursors](/v0.1.0/en/docs/errors.html#Page-cursors).
     schema:
       type: string
       minLength: 1
@@ -109,7 +109,7 @@ parameters:
   IfMatchOptional:
     name: If-Match
     in: header
-    description: Evaluated as RFC 9110 §13.1.1 defines; see Conditional requests in the error contract. For when a replay may omit it, see [Choosing the status](/v0.1.0/en/docs/errors.html#Choosing-the-status).
+    description: Evaluated as RFC 9110 §13.1.1 defines; see Conditional requests in the error contract. For when a retained idempotent replay may omit it, see [Choosing the status](/v0.1.0/en/docs/errors.html#Choosing-the-status).
     schema:
       $ref: ./openapi.yaml#/components/schemas/EntityTagList
     example: '"17"'
