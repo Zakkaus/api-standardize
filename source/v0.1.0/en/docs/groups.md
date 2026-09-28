@@ -135,11 +135,12 @@ group's `policy` and `config` as `GET` returns them. The server applies the
 operations in order, as RFC 6902 requires, to that document; the whole patch
 succeeds or nothing changes.
 
-- `remove` makes a member absent. Absent means the group drops its own value:
-  the engine applies its inheritance and defaults, which in dae include the
-  global group options such as `tcp_check_url` and `check_interval`. Within
-  the same patch, `replace`, `remove` or `test` on an absent member, or `copy`
-  or `move` from it, returns `400 invalid_request`, and `add` sets it again.
+- `remove` makes the targeted property absent. Absent means the group drops
+  its own value: the engine applies its inheritance and defaults, which in dae
+  include the global group options such as `tcp_check_url` and
+  `check_interval`. Within the same patch, `replace`, `remove` or `test` on an
+  absent property, or `copy` or `move` from it, returns `400 invalid_request`,
+  and `add` sets it again.
 - `null` is a value, accepted only where the schema allows it. It likewise
   means the group sets no value of its own when the patch is committed.
 - `copy` and `move` validate the copied value against the destination exactly

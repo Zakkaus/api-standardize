@@ -11,8 +11,9 @@ DNS result for each requested record type and uses `Cache-Control: no-store`.
 
 The method is POST because the request is not safe in the RFC 9110 sense: it
 sends DNS traffic and, with `cache_mode: normal`, writes the runtime cache. As
-with the [routing trace](routing-trace.html), the queried name travels in the
-JSON body rather than in the URL, so it is not copied into access logs.
+with the [routing trace](routing-trace.html), the queried name is in the JSON
+body rather than the URL, which keeps it out of URL-based access logs; servers
+or proxies that log request bodies may still record it.
 
 ## Request
 

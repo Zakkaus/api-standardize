@@ -48,7 +48,8 @@ name. Request conditions are `qname`, `qtype` and `sip`; response rules may also
 use `upstream` and `ip`.
 
 `upstream` is the name as the engine resolved it and may differ in case from
-the source text; `expression` keeps the text as written.
+the source text; `expression` is the text as written only when the engine
+retains it.
 
 `rule_id` is stable within a generation, unique across both lists, and
 addresses the rule. Address a rule by `(generation_id, rule_id)`, never by

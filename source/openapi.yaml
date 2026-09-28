@@ -1775,9 +1775,10 @@ paths:
       operationId: getRuntimeOutbounds
       summary: Read per-outbound cumulative counters
       description: |
-        Cumulative per-outbound counters for visible traffic, kept by the engine
-        and including closed connections, not a sum of live connections. All rows share counter_since; restart or
-        counter reset starts a new interval. Requires resources.runtime_outbounds.available.
+        The engine keeps cumulative per-outbound counters for visible traffic,
+        including closed connections; they are not sums of live connections.
+        All rows share counter_since; a restart or counter reset starts a new
+        interval. Requires resources.runtime_outbounds.available.
       x-permission: observe
       security:
         - bearerAuth: []
@@ -11294,7 +11295,7 @@ components:
           type:
             - string
             - 'null'
-          description: Generation that rule_id belongs to, the generation_id of GET /rules to join against; null when rule_id is null or the generation is unavailable.
+          description: Generation containing rule_id. Join to GET /rules only when this matches its generation_id; null when rule_id or its generation is unavailable.
         rule_expression:
           type:
             - string

@@ -4,21 +4,21 @@ title: honk Notes
 
 # honk notes
 
-This page is not part of the contract. It records how honk, on its current
+This page is not part of the contract. It records how honk, on its
 `feat/native-api` branch, implements rules that the contract leaves to the
 engine. Another engine may make different choices within the same rules.
 
 ## Password sessions in honk
 
-This section is not part of the contract. honk's password mode keeps at most
-32 sessions; a login beyond that ends the oldest. Each session lasts 12 hours.
+honk's password mode keeps at most 32 sessions; creating another expires the
+oldest. Each session lasts 12 hours.
 Another engine chooses its own limit and lifetime and reports the end in
 `expires_at`.
 
 ## Geodata sources in honk
 
-This section is not part of the contract. It records how honk implements the
-[geodata lifecycle](geodata.html#Effective-value-and-lifetime) on the current
+This section records how honk implements the
+[geodata lifecycle](geodata.html#Effective-value-and-lifetime) on the
 `feat/native-api` branch; another engine may reach the same effective values
 another way.
 
@@ -44,14 +44,15 @@ another way.
   `404` accepts the file unverified; any other failure moves to the next URL.
 - The next automatic attempt is due at the end of the last attempt, or, before
   the first, at process start or the latest `auto_update` change, plus the wait
-  and a random delay of up to 60 minutes. After a failed attempt the wait is a backoff that starts at one
-  hour, doubles on each further failure, and never exceeds the interval.
+  and a random delay of up to 60 minutes. After a failed attempt, the wait
+  starts at one hour, doubles after each further failure, and is capped at the
+  configured interval.
 
 ## Runtime settings in honk
 
-This section is not part of the contract. It records how honk implements
+This section records how honk implements
 [runtime settings](runtime-status.html#GET-api-v1-runtime-settings) and the
-recorders on the current `feat/native-api` branch.
+recorders on the `feat/native-api` branch.
 
 - A PATCH accepts `log.buffered_records` and `dns_log.max_records` from 64 to
   512, `flows.max_flows` from 64 to 1024, and `flows.retention_seconds` from 1
@@ -85,8 +86,8 @@ recorders on the current `feat/native-api` branch.
 
 ## Flow steps in honk
 
-This section is not part of the contract. It records honk-specific detail
-behind the [flow record](flows.html) rules.
+This section records honk-specific detail behind the
+[flow record](flows.html) rules.
 
 - honk hands UDP decisions between the kernel and userspace through NFQUEUE.
   Its `datapath` steps currently use the core action `drop` and the

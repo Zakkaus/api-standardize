@@ -57,9 +57,9 @@ generation. A generation change alone is not an expired snapshot.
 ## Rule expressions
 
 `expression` in this list and in [DNS rules](dns-rules.html) is display text,
-produced the same way for both. It is the rule's source text as written when
-the engine has it, and otherwise the engine's own rendering of the parsed
-rule. Listener secrets in it are masked (see
+produced the same way for both. When the engine retains the source text,
+`expression` is that text; otherwise it is the engine's rendering of the
+parsed rule. Listener secrets in it are masked (see
 [Visibility](api-config.html#Visibility)); nothing else is removed. It is never
 an editable or executable source representation; edit the source instead.
 

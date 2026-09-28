@@ -57,13 +57,13 @@ Each named event has one JSON `data` object. Unknown kinds/fields are ignored.
 | `generation.changed` | `instance_id`, `observed_at`, `previous_generation_id`, `generation_id`. Sent only after successful publication/promotion, never just on reload acceptance. | Every generation-scoped resource: capabilities, configuration, nodes, groups, providers, geodata, rules, DNS rules, the datapath, runtime status and runtime settings. |
 
 A server sends `runtime.updated` after any change to a resource in its row. It
-may coalesce changes or send the event on a periodic sampling tick, provided
-no change waits longer than one tick. Every activation, including one that
-keeps the current generation, is followed by `runtime.updated` once its
-runtime-settings reset is visible; an activation that publishes a new
-generation also sends `generation.changed`. A client that refetches the
-resources in the Invalidates column therefore needs no other refresh rule and
-no per-resource events.
+may coalesce changes and send one event at the next sampling tick. Every
+activation, including one that keeps the current generation, is followed by
+`runtime.updated` once its runtime-settings reset is visible; an activation
+that publishes a new generation also sends `generation.changed`. Clients
+subscribed to the relevant event kinds can use the Invalidates column to
+refresh the listed resources. Resources not listed there keep their own
+refresh rules.
 
 All advertised events use the same instance and generation identities as
 GET resources. The stream publishes only IDs, state, and safe reason codes;

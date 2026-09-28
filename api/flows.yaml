@@ -1095,7 +1095,7 @@ schemas:
         description: Generation-scoped traffic rule ID, or null when unavailable.
       rule_generation_id:
         type: [ string, "null" ]
-        description: Generation that rule_id belongs to, the generation_id of GET /rules to join against; null when rule_id is null or the generation is unavailable.
+        description: Generation containing rule_id. Join to GET /rules only when this matches its generation_id; null when rule_id or its generation is unavailable.
       rule_expression:
         type: [ string, "null" ]
         description: Display expression for that rule, or null when unavailable.
