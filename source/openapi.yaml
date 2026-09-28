@@ -3281,6 +3281,11 @@ paths:
     patch:
       operationId: patchGroup
       summary: Patch mutable group configuration
+      description: |
+        Only fields in capabilities.mutable_config may change, judged by the
+        effective write against the policy after the patch: one patch may set
+        policy to urltest and add tolerance. When the resulting policy is not
+        URLTest, a tolerance left non-null and changed returns 422 unsupported_value.
       x-permission: control
       security:
         - bearerAuth: []
@@ -4036,6 +4041,10 @@ paths:
     get:
       operationId: listFlows
       summary: List active and retained terminal flow decisions
+      description: |
+        The cursor binds the filters and limit. A cursor sent with a different
+        limit returns 410 snapshot_expired; to change the page size, restart
+        the walk without a cursor.
       x-permission: observe
       security:
         - bearerAuth: []
@@ -5421,7 +5430,9 @@ paths:
         excluding diagnostic /dns/query calls, in a bounded in-memory ring.
         Results are newest first. The ring holds at most
         resources.dns_log.max_records and is cleared on restart.
-        A limit above resources.dns_log.max_page_size returns 400 invalid_request.
+        A limit above resources.dns_log.max_page_size returns 400 invalid_request,
+        as does a cursor whose record has left the ring; restart from the newest
+        page without a cursor.
         A page may hold fewer than limit records while next_cursor is
         non-null, for example when the server's response size limit ends it
         early. Only a null next_cursor ends the walk. A record whose answers
@@ -10159,6 +10170,7 @@ components:
             minLength: 1
     ProbeRequest:
       type: object
+      description: The schema does not restrict kind, purpose and transport combinations. tcp_connect and http take purpose data over tcp; dns takes purpose dns. Any other combination parses and returns 422 unsupported_value.
       additionalProperties: false
       required:
         - target
@@ -10211,34 +10223,6 @@ components:
             not:
               required:
                 - members
-        - oneOf:
-            - properties:
-                kind:
-                  const: tcp_connect
-                purpose:
-                  const: data
-                transport:
-                  type: array
-                  minItems: 1
-                  maxItems: 1
-                  items:
-                    const: tcp
-            - properties:
-                kind:
-                  const: http
-                purpose:
-                  const: data
-                transport:
-                  type: array
-                  minItems: 1
-                  maxItems: 1
-                  items:
-                    const: tcp
-            - properties:
-                kind:
-                  const: dns
-                purpose:
-                  const: dns
     ProbeResultItem:
       type: object
       required:

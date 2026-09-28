@@ -482,6 +482,11 @@ paths:
     patch:
       operationId: patchGroup
       summary: Patch mutable group configuration
+      description: |
+        Only fields in capabilities.mutable_config may change, judged by the
+        effective write against the policy after the patch: one patch may set
+        policy to urltest and add tolerance. When the resulting policy is not
+        URLTest, a tolerance left non-null and changed returns 422 unsupported_value.
       x-permission: control
       security:
         - bearerAuth: []

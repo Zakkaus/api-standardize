@@ -83,6 +83,11 @@ method, and path. Reusing it with the same body returns the original operation;
 reusing it with a different body returns `409 idempotency_conflict`. Without a
 key, a retried POST may create another operation.
 
+A key outlives its operation's early eviction: a replay can return an operation
+whose `GET` is already `404`. Retained keys are bounded too; past 1024, the
+oldest can be lost before the window ends, and replaying it may start a new
+operation.
+
 Operation idempotency is scoped to the running instance; it is not a durable
 retry guarantee across process restart. A client with an uncertain result
 must re-observe runtime state rather than replay a mutation blindly.

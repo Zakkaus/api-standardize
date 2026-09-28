@@ -101,7 +101,12 @@ Use RFC 6902 JSON Patch and send the revision returned by `GET` in
 
 {% api_example patchGroup request tolerance http %}
 
-Only fields listed in `capabilities.mutable_config` may be patched. Group
+Only fields listed in `capabilities.mutable_config` may be patched, judged by
+the effective write: the fields whose values the patch changes, checked against
+the group's policy after the patch. One patch may therefore set `policy` to
+`urltest` and add `tolerance`. When the policy after the patch is not URLTest,
+`tolerance` returns `422 unsupported_value` only if the patch leaves it non-null
+and changed. Group
 membership sources are intentionally not part of this operation:
 `members`, `filters`, and nested group relationships require an engine-owned
 configuration reload and must not be silently changed at runtime.

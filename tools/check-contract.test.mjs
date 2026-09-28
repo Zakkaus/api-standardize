@@ -1002,13 +1002,18 @@ test("request targets stay closed while response targets remain additive", () =>
   Object.assign(tcp.body, { kind: "tcp_connect", purpose: "data", transport: ["tcp"] });
   assertValid(validateExample(contract, tcp));
 
+  // An unsupported kind, purpose and transport pairing parses; the server answers 422.
   const wrongPurpose = structuredClone(tcp);
   wrongPurpose.body.purpose = "dns";
-  assertInvalid(validateExample(contract, wrongPurpose));
+  assertValid(validateExample(contract, wrongPurpose));
 
   const wrongTransport = structuredClone(tcp);
   wrongTransport.body.transport = ["udp"];
-  assertInvalid(validateExample(contract, wrongTransport));
+  assertValid(validateExample(contract, wrongTransport));
+
+  const emptyTransport = structuredClone(tcp);
+  emptyTransport.body.transport = [];
+  assertInvalid(validateExample(contract, emptyTransport));
 });
 
 test("runtime counters preserve nullable and numeric connection semantics", () => {

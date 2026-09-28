@@ -385,6 +385,10 @@ paths:
     get:
       operationId: listFlows
       summary: List active and retained terminal flow decisions
+      description: |
+        The cursor binds the filters and limit. A cursor sent with a different
+        limit returns 410 snapshot_expired; to change the page size, restart
+        the walk without a cursor.
       x-permission: observe
       security:
         - bearerAuth: []

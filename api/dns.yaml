@@ -375,7 +375,9 @@ paths:
         excluding diagnostic /dns/query calls, in a bounded in-memory ring.
         Results are newest first. The ring holds at most
         resources.dns_log.max_records and is cleared on restart.
-        A limit above resources.dns_log.max_page_size returns 400 invalid_request.
+        A limit above resources.dns_log.max_page_size returns 400 invalid_request,
+        as does a cursor whose record has left the ring; restart from the newest
+        page without a cursor.
         A page may hold fewer than limit records while next_cursor is
         non-null, for example when the server's response size limit ends it
         early. Only a null next_cursor ends the walk. A record whose answers
