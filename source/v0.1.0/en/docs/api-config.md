@@ -124,7 +124,7 @@ masked a value says so where its schema has a flag, such as `secrets_redacted`.
 
 ## Outbound requests
 
-Group health checks (`check_url`), [node checks](check-nodes.html), and
+Group health checks (`check_url`), [node checks](probes.html), and
 [geodata downloads](geodata.html) follow this outbound-request policy against
 server-side request forgery (SSRF).
 

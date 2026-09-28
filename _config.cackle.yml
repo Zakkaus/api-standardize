@@ -6,26 +6,26 @@ menu:
     file: docs/discovery
   - title: Authentication
     file: docs/auth
+  - title: API Configuration
+    file: docs/api-config
   - title: Version
     file: docs/version
   - title: Capabilities
     file: docs/capabilities
-  - title: API Configuration
-    file: docs/api-config
+  - title: Runtime
+    file: docs/runtime-status
   - title: Errors
     file: docs/errors
   - title: Operations
     file: docs/operations
-  - title: Runtime
-    file: docs/runtime-status
   - title: Runtime Memory
     file: docs/runtime-memory
   - title: Datapath
     file: docs/datapath
   - title: Nodes
-    file: docs/node-latency
+    file: docs/nodes
   - title: Probes
-    file: docs/check-nodes
+    file: docs/probes
   - title: Groups
     file: docs/groups
   - title: Connections
@@ -36,20 +36,28 @@ menu:
     file: docs/routing-trace
   - title: Events
     file: docs/events
-  - title: honk Notes
-    file: docs/honk-notes
+  - title: Logs
+    file: docs/logs
   - title: DNS Query
     file: docs/dns-query
   - title: DNS Cache
     file: docs/dns-cache
   - title: DNS Rules
     file: docs/dns-rules
-  - title: Configuration (Deferred)
+  - title: Providers
+    file: docs/providers
+  - title: Geodata
+    file: docs/geodata
+  - title: Rules
+    file: docs/rules
+  - title: Configuration
     file: docs/configuration
   - title: Reload
     file: docs/reload
   - title: Suspend
     file: docs/suspend
+  - title: honk Notes
+    file: docs/honk-notes
 
 # 是否启用客户端搜索
 search: true

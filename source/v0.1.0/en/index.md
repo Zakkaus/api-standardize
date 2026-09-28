@@ -50,8 +50,8 @@ resource in step 4 is optional and advertised in the capabilities.
    [Operations](docs/operations.html), which are required once any advertised
    action is asynchronous.
 4. Optional resources, in any order: [Runtime Memory](docs/runtime-memory.html),
-   [Datapath](docs/datapath.html), [Nodes](docs/node-latency.html),
-   [Probes](docs/check-nodes.html), [Groups](docs/groups.html),
+   [Datapath](docs/datapath.html), [Nodes](docs/nodes.html),
+   [Probes](docs/probes.html), [Groups](docs/groups.html),
    [Connections](docs/connections.html), [Recorded Flows](docs/flows.html),
    [Routing Simulation](docs/routing-trace.html), [Events](docs/events.html),
    [Logs](docs/logs.html), [DNS Query](docs/dns-query.html),

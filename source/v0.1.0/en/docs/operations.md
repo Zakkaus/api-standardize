@@ -62,7 +62,7 @@ A successful `geodata_update` result is the new [GeoData](geodata.html);
 the datapath has already been reloaded with it.
 
 A successful `node_create` or `provider_create` result is the created
-[Node](node-latency.html) or [Provider](providers.html), carrying its ID. A
+[Node](nodes.html) or [Provider](providers.html), carrying its ID. A
 successful `node_delete` or `provider_delete` result is the `deleted` count the
 synchronous `200` would have returned.
 

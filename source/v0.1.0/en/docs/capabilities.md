@@ -72,7 +72,7 @@ including the fallback entry, for a complete running-generation dictionary.
 Reads of logs, providers, nodes, geodata, and rules require `observe`. Available
 resources must include their required capability fields; buffer and rule limits
 are positive safe integers. See [Logs](logs.html), [Providers](providers.html),
-[Nodes](node-latency.html), [Geodata](geodata.html), and [Rules](rules.html).
+[Nodes](nodes.html), [Geodata](geodata.html), and [Rules](rules.html).
 
 `runtime_settings.available` declares `GET`/`PATCH /api/v1/runtime/settings`;
 when true, `fields` lists which settings the PATCH accepts on this engine.

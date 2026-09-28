@@ -61,7 +61,7 @@ group offset. It is not defined for random/selector or non-latency Score
 ranking. Nullable `ranking` describes `metric` (native metric name),
 `recovery_penalty_ms`, `group_offset_ms`, `score`, and a safe `reason`.
 Unknown components are null; do not reverse-engineer them from a group winner.
-Health fields use [Nodes](node-latency.html)'s raw metric definitions.
+Health fields use [Nodes](nodes.html)'s raw metric definitions.
 
 `tolerance` is path-dependent switching hysteresis in whole milliseconds, not an
 additive latency. `check_interval` and `idle_timeout` are whole seconds.
@@ -228,7 +228,7 @@ current selection is returned unchanged. A selector group returns `409 state_con
 
 ## Group probes
 
-Use [`POST /api/v1/probes`](check-nodes.html) with a group target. Results preserve
+Use [`POST /api/v1/probes`](probes.html) with a group target. Results preserve
 the requested direct `member_id` separately from the actual `resolved_leaf_node_id`.
 The probe contract defines nested resolution, `direct` and `leaves` scopes,
 deduplication, health effects, and failed measurements.

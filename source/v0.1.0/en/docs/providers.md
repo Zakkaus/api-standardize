@@ -129,7 +129,7 @@ value an omitted field takes. Sending one it does not name returns
 
 `DELETE /api/v1/providers/{provider_id}` requires `resources.providers.can_manage`. An
 inline provider returns `404 capability_not_supported`: it is the `node`
-section itself and is edited through [nodes](node-latency.html) or the
+section itself and is edited through [nodes](nodes.html) or the
 configuration sources.
 
 {% api_request deleteProvider %}
