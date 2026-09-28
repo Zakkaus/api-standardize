@@ -686,7 +686,10 @@ test("source editing examples preserve exact bytes and use the accepted hash as 
   const snapshot = example("getConfig:200:editable").body;
   const source = example("getConfigSource:200:editable").body;
   const request = example("replaceConfigSource:request:replacement");
-  assert.deepEqual(source, snapshot.sources.find(({ id }) => id === source.id));
+  const { writable, loaded_at, ...listed } = snapshot.sources.find(({ id }) => id === source.id);
+  assert.equal(typeof writable, "boolean");
+  assert.equal(typeof loaded_at, "string");
+  assert.deepEqual(source, listed);
   assert.equal(createHash("sha256").update(source.content, "utf8").digest("hex"), source.content_sha256);
   assert.equal(Buffer.byteLength(source.content, "utf8"), source.bytes);
   assert.equal(request.parameters.find(({ definition }) => definition.name === "source_id").value, source.id);
@@ -698,6 +701,21 @@ test("source editing examples preserve exact bytes and use the accepted hash as 
   assert.ok(Buffer.byteLength(request.body.content, "utf8") <=
     example("getCapabilities:200:available").body.resources.config.max_bytes);
   assert.match(renderExample(request, "http"), /^PUT \/api\/v1\/config\/sources\/source-main HTTP\/1\.1/m);
+});
+
+test("single-source readback is a content representation that the content hash can tag", () => {
+  const reference = spec.paths["/api/v1/config/sources/{source_id}"].get.responses["200"]
+    .content["application/json"].schema;
+  assert.equal(reference.$ref, "#/components/schemas/ConfigSourceContent");
+  const schema = spec.components.schemas.ConfigSourceContent;
+  for (const field of ["writable", "loaded_at"]) {
+    assert.equal(schema.properties[field], undefined, `${field} changes without the bytes changing`);
+  }
+  const editable = example("getConfigSource:200:editable");
+  assert.equal(editable.headers.ETag, `"${editable.body.content_sha256}"`);
+  const redacted = example("getConfigSource:200:redacted");
+  assert.equal(redacted.headers.ETag, undefined, "masked content is not the representation PUT replaces");
+  assertValid(validateExample(contract, redacted));
 });
 
 test("source replacement accepts only complete text with an RFC 9110 If-Match precondition", () => {
@@ -714,13 +732,16 @@ test("source replacement accepts only complete text with an RFC 9110 If-Match pr
   delete missing.headers["If-Match"];
   assertInvalid(validateExample(contract, missing));
   // Wildcards, weak tags and lists are well-formed; they fail to match with 412, not 400.
+  // RFC 9110 §5.6.1.2: recipients ignore empty list elements.
   for (const value of ["*", `W/${request.headers["If-Match"]}`, '"17"',
-    `${request.headers["If-Match"]}, W/"17"`]) {
+    `${request.headers["If-Match"]}, W/"17"`, '"17", , "18"', ',"17",', 'W/"a" ,\t"b"', '""']) {
     const changed = structuredClone(request);
     changed.headers["If-Match"] = value;
     assertValid(validateExample(contract, changed));
   }
-  for (const value of [request.headers["If-Match"].slice(1, -1), '"a" "b"', "*, \"17\""]) {
+  // §8.8.3: no space, tab or double quote inside an entity tag; the weak prefix is case-sensitive.
+  for (const value of [request.headers["If-Match"].slice(1, -1), '"a" "b"', "*, \"17\"",
+    '"a b"', '"a\tb"', 'w/"17"', 'W/ "17"', '"17"x']) {
     const changed = structuredClone(request);
     changed.headers["If-Match"] = value;
     assertInvalid(validateExample(contract, changed), `${value} is not If-Match syntax`);
@@ -733,15 +754,16 @@ test("source readback always carries content and never advertises writable engin
   delete withheld.body.content;
   assertInvalid(validateExample(contract, withheld));
   assertValid(validateExample(contract, source));
+  const listed = example("getConfig:200:redacted");
   for (const kind of ["subscription", "generated"]) {
-    source.body.kind = kind;
-    source.body.writable = false;
-    assertValid(validateExample(contract, source));
-    source.body.writable = true;
-    assertInvalid(validateExample(contract, source));
+    listed.body.sources[0].kind = kind;
+    listed.body.sources[0].writable = false;
+    assertValid(validateExample(contract, listed));
+    listed.body.sources[0].writable = true;
+    assertInvalid(validateExample(contract, listed));
   }
-  delete source.body.writable;
-  assertInvalid(validateExample(contract, source));
+  delete listed.body.sources[0].writable;
+  assertInvalid(validateExample(contract, listed));
   const unavailable = example("getConfigSource:404:resource_not_found");
   assert.equal(unavailable.body.error.code, "resource_not_found");
   assertValid(validateExample(contract, unavailable));

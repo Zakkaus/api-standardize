@@ -654,8 +654,8 @@ schemas:
     enum: [ ipv4, ipv6 ]
   EntityTagList:
     type: string
-    description: "`*` or a comma-separated list of entity tags, strong or weak (W/ prefix)."
-    pattern: '^(\*|(W/)?"[^"]*"([ \t]*,[ \t]*(W/)?"[^"]*")*)$'
+    description: "`*` or a comma-separated list of entity tags, strong or weak (W/ prefix), as RFC 9110 §8.8.3 and §13.1.1 define. An entity tag contains no space, tab or inner double quote. Empty list elements are ignored, as §5.6.1.2 requires of recipients."
+    pattern: '^(\*|((W/)?"[!#-~\u0080-\u00ff]*")?([ \t]*,[ \t]*((W/)?"[!#-~\u0080-\u00ff]*")?)*)$'
   IpAddress:
     description: An IPv4 or IPv6 address. The two branches differ only by format, so validating this value requires asserting the ipv4 and ipv6 formats.
     anyOf:

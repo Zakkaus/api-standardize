@@ -262,6 +262,8 @@ components:
       $ref: ./discovery.yaml#/schemas/Capabilities
     EffectiveConfig:
       $ref: ./config.yaml#/schemas/EffectiveConfig
+    ConfigSourceContent:
+      $ref: ./config.yaml#/schemas/ConfigSourceContent
     ConfigSource:
       $ref: ./config.yaml#/schemas/ConfigSource
     ConfigSourceCreate:

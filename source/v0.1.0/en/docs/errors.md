@@ -112,7 +112,7 @@ Two resources carry a strong `ETag` that a write compares in `If-Match`:
 
 | Read | `ETag` | Conditional write |
 |------|--------|-------------------|
-| `GET /config/sources/{source_id}` | the source's `content_sha256` | `PUT /config/sources/{source_id}` |
+| `GET /config/sources/{source_id}` | the source's `content_sha256`, sent only when no listener-secret value is masked | `PUT /config/sources/{source_id}` |
 | `GET /groups/{group_id}/config` | the configuration-wide `revision` | `PATCH /groups/{group_id}/config` |
 
 The server evaluates `If-Match` as
