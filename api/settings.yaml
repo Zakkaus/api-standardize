@@ -5,8 +5,12 @@ paths:
       summary: Read the runtime-adjustable settings
       description: |
         Requires resources.runtime_settings.available. Returns the current
-        runtime-adjustable settings. Numeric values cannot exceed their corresponding
-        capability ceilings. source is config when values come from the activated
+        runtime-adjustable settings. Only observed_at and source are always present:
+        a value appears when resources.runtime_settings.fields lists it, and
+        recording.flows, recording.logs and recording.dns_log appear when
+        record_flows, record_logs and record_dns_log are listed. An engine may
+        report other values it cannot change. Numeric values stay inside their
+        capability bounds. source is config when values come from the activated
         configuration and runtime after a runtime override. geodata appears when
         resources.geodata.configurable_sources is true and carries its own source.
         Its URLs are returned as written, with only listener-secret values masked,
@@ -73,6 +77,16 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+                level_only:
+                  summary: An engine whose only runtime setting is the log level
+                  value:
+                    observed_at: 2026-08-15T10:00:00Z
+                    source: config
+                    log: { level: info }
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
         "400":
           $ref: ./openapi.yaml#/components/responses/BadRequest
         "401":
@@ -90,7 +104,7 @@ paths:
         Requires control and resources.runtime_settings.available. The body is a
         merge: an absent field keeps its value. Every value is checked before
         anything changes, and a rejected patch changes nothing. A field the schema
-        does not define, a ring below 64 records, or a value above its ceiling
+        does not define, or a value outside its schema range or advertised bounds,
         returns 400 invalid_request. A field not listed in
         resources.runtime_settings.fields, a log level not in
         resources.logs.levels, or pinning a recorder whose allowed is false returns
@@ -129,6 +143,10 @@ paths:
                 value:
                   log: { level: debug }
                   dns_log: { max_records: 1024 }
+              level_only:
+                summary: Change only the log level
+                value:
+                  log: { level: info }
               geodata_sources:
                 summary: Use a mirror first
                 value:
@@ -209,7 +227,7 @@ paths:
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
         "400":
-          description: A field the schema does not define, or a value outside its range or advertised ceiling
+          description: A field the schema does not define, or a value outside its schema range or advertised bounds
           headers:
             Cache-Control:
               $ref: ./openapi.yaml#/components/headers/NoStore
@@ -294,7 +312,7 @@ schemas:
     type: string
     enum: [ log.level, log.buffered_records, dns_log.max_records, flows.max_flows, flows.retention_seconds, record_flows, record_logs, record_dns_log, geodata ]
   RecorderMode:
-    description: true pins a permitted recorder on, false forces it off, auto (the startup default) follows flow demand for record_flows and client attachment for the other recorders.
+    description: true pins a permitted recorder on, false forces it off, and auto (the startup default) lets the engine record on demand, while clients read or follow what the recorder captures. What counts as demand, and how long it lasts, is engine-defined.
     oneOf:
       - type: boolean
       - type: string
@@ -314,7 +332,8 @@ schemas:
         description: The recorder is capturing right now.
   RuntimeSettings:
     type: object
-    required: [ observed_at, source, log, dns_log, flows ]
+    required: [ observed_at, source ]
+    description: Every section is optional. A value appears when resources.runtime_settings.fields lists it; an engine may also report a value it cannot change.
     properties:
       observed_at:
         $ref: ./openapi.yaml#/components/schemas/Timestamp
@@ -324,50 +343,43 @@ schemas:
         description: config while every value comes from the activated configuration; runtime once any PATCH overrode one. geodata has its own source and does not affect this one.
       log:
         type: object
-        required: [ level, buffered_records ]
+        minProperties: 1
         properties:
           level:
             $ref: ./openapi.yaml#/components/schemas/LogLevel
             description: Minimum severity the engine emits. A lower stream level cannot recover records the engine did not emit.
           buffered_records:
             $ref: ./openapi.yaml#/components/schemas/SafeUInt
-            minimum: 64
-            description: Log replay ring capacity, at most logs.max_buffered_records.
+            minimum: 1
+            description: Log replay ring capacity, within logs.min_buffered_records and logs.max_buffered_records. Independent of level.
       dns_log:
         type: object
         required: [ max_records ]
         properties:
           max_records:
             $ref: ./openapi.yaml#/components/schemas/SafeUInt
-            minimum: 64
-            description: DNS log ring capacity, at most dns_log.max_records.
+            minimum: 1
+            description: DNS log ring capacity, within dns_log.min_records and dns_log.max_records.
       flows:
         type: object
-        required: [ max_flows, retention_seconds ]
+        minProperties: 1
         properties:
           max_flows:
             $ref: ./openapi.yaml#/components/schemas/SafeUInt
-            minimum: 64
-            description: Retained flows, at most flows.max_flows.
+            minimum: 1
+            description: Retained flows, within flows.min_flows and flows.max_flows.
           retention_seconds:
             $ref: ./openapi.yaml#/components/schemas/SafeUInt
             minimum: 1
             description: Maximum age of a retained terminal flow, in seconds, bounded by resources.flows.retention_seconds. Capacity pressure may evict it earlier.
       recording:
         type: object
-        required: [ flows, logs, dns_log, events, grace_remaining_seconds ]
+        minProperties: 1
         description: |
-          Read-only recorder state. A client is attached while an admitted GET SSE stream on
-          /events or /logs is open, or for 60 seconds after the last stream closed or a successful
-          GET on /flows, /flows/{flow_id} or /dns/log; other requests, including settings reads, do not
-          renew attachment. Automatic log and DNS-log recorders follow attachment. The automatic
-          flow recorder follows flow demand instead, so that an open panel does not record full
-          flow traces for every connection: an admitted GET /events stream whose kinds include
-          flow.updated or flow.gap, or that sets a nonblank flow_id with a flow kind in its
-          effective kinds, holds demand while open and for 60 seconds after the last one closed,
-          and a successful GET on /flows or /flows/{flow_id} renews it for 60 seconds. Event streams
-          without kinds, /logs streams and /dns/log reads do not create flow demand. Recording
-          starts on attachment or demand, so the first history a client reads may be empty.
+          Read-only recorder state. Each recorder appears when its record_* field is listed in
+          resources.runtime_settings.fields. In auto mode a recorder captures on demand, so the
+          first history a client reads may be empty. Engine-specific demand rules are
+          documented with the engine; see the honk notes.
         properties:
           flows:
             $ref: ./openapi.yaml#/components/schemas/RecorderState
@@ -381,10 +393,10 @@ schemas:
             properties:
               active:
                 type: boolean
-                description: Event capture runs while a client is attached or any permitted recorder is pinned on.
+                description: Event capture is running.
           grace_remaining_seconds:
             $ref: ./openapi.yaml#/components/schemas/SafeUInt
-            description: Seconds left before the automatic log and DNS-log recorders stop, 0 while a stream is open or nothing is attached. The flow-demand grace is not reported.
+            description: Seconds left before automatic recorders stop after the last client left, 0 while a client is attached or nothing is recording. Absent when the engine keeps no such grace.
       geodata:
         $ref: ./openapi.yaml#/components/schemas/GeoDataSettings
         description: Geodata download sources and automatic updates. Present when resources.geodata.configurable_sources is true. URLs are returned as written, with only listener-secret values masked, to every admitted caller.
@@ -408,7 +420,7 @@ schemas:
             $ref: ./openapi.yaml#/components/schemas/LogLevel
           buffered_records:
             $ref: ./openapi.yaml#/components/schemas/SafeUInt
-            minimum: 64
+            minimum: 1
       dns_log:
         type: object
         additionalProperties: false
@@ -416,7 +428,7 @@ schemas:
         properties:
           max_records:
             $ref: ./openapi.yaml#/components/schemas/SafeUInt
-            minimum: 64
+            minimum: 1
       flows:
         type: object
         additionalProperties: false
@@ -424,7 +436,7 @@ schemas:
         properties:
           max_flows:
             $ref: ./openapi.yaml#/components/schemas/SafeUInt
-            minimum: 64
+            minimum: 1
           retention_seconds:
             $ref: ./openapi.yaml#/components/schemas/SafeUInt
             minimum: 1

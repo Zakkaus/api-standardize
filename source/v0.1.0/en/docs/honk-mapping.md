@@ -218,3 +218,31 @@ another way.
   the first, at process start or the latest `auto_update` change, plus the wait
   and a random delay of up to 60 minutes. After a failed attempt the wait is a backoff that starts at one
   hour, doubles on each further failure, and never exceeds the interval.
+
+## Runtime settings in honk
+
+This section is not part of the contract. It records how honk implements
+[runtime settings](runtime-status.html#GET-api-v1-runtime-settings) and the
+recorders on the current `feat/native-api` branch.
+
+- A PATCH accepts `log.buffered_records` and `dns_log.max_records` from 64 to
+  512, `flows.max_flows` from 64 to 1024, and `flows.retention_seconds` from 1
+  to 300. The startup values are 512, 512, 1024 and 300.
+- honk lists `log.level` and `log.buffered_records` only when the log recorder
+  is permitted, and reports every settings section whether or not it is listed.
+- A client is attached while an admitted GET SSE stream on `/events` or
+  `/logs` is open, and for 60 seconds after the last one closed or after a
+  successful GET on `/flows`, `/flows/{flow_id}` or `/dns/log`. Settings reads,
+  HEAD and rejected requests do not renew attachment. In `auto` mode the log
+  and DNS-log recorders capture while a client is attached.
+- The automatic flow recorder follows flow demand instead, so that an open
+  panel does not record full traces for every connection. An admitted GET
+  `/events` stream creates demand when its `kinds` include `flow.updated` or
+  `flow.gap`, or when it sets a nonblank `flow_id` and its effective kinds
+  include a flow kind. Demand lasts while such a stream is open, and for 60
+  seconds after the last one closed or after a successful GET on `/flows` or
+  `/flows/{flow_id}`. Event streams without `kinds`, `/logs` streams and
+  `/dns/log` reads do not create demand, and attachment does not extend it.
+- `grace_remaining_seconds` counts the attachment grace only, not the
+  flow-demand grace. Event capture runs while a client is attached or any
+  permitted recorder is pinned on.

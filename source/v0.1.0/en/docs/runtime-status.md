@@ -198,51 +198,55 @@ first open or reconnect rather than treating invalidations as samples.
 
 Requires `observe` and `resources.runtime_settings.available`. Reports the
 values the running engine uses for what a panel may tune without a reload:
-the log level and replay ring, the DNS log ring, and flow retention.
+the log level and replay ring, the DNS log ring, flow retention and the
+recorders.
 
 {% api_example getRuntimeSettings 200 current %}
 
-| Field | Ceiling | Meaning |
-|-------|---------|---------|
+Only `observed_at` and `source` are always present. Every other section is
+optional: a value appears when `resources.runtime_settings.fields` lists it,
+and an engine may also report a value it cannot change. Inside `log`,
+`level` and `buffered_records` are independent, so an engine whose only
+setting is the log level reports `log.level` alone:
+
+{% api_example getRuntimeSettings 200 level_only %}
+
+| Field | Bounds | Meaning |
+|-------|--------|---------|
 | log.level | `logs.levels` | Minimum severity the engine emits. |
-| log.buffered_records | `logs.max_buffered_records` | Log replay ring capacity, at least 64. |
-| dns_log.max_records | `dns_log.max_records` | DNS log ring capacity, at least 64. |
-| flows.max_flows | `flows.max_flows` | Retained flows, at least 64. |
-| flows.retention_seconds | `flows.retention_seconds` | Maximum age after termination; capacity pressure may evict a flow sooner. |
+| log.buffered_records | `logs.min_buffered_records` to `logs.max_buffered_records` | Log replay ring capacity. |
+| dns_log.max_records | `dns_log.min_records` to `dns_log.max_records` | DNS log ring capacity. |
+| flows.max_flows | `flows.min_flows` to `flows.max_flows` | Retained flows. |
+| flows.retention_seconds | 1 to `flows.retention_seconds` | Maximum age after termination; capacity pressure may evict a flow sooner. |
 | source | | `config` while every value comes from the activated configuration, `runtime` once a PATCH overrode one. |
 | geodata | | Geodata download URLs, download route, automatic updates and checksum verification, with their own read-only `source` for the URLs; URLs are returned as written, with only listener-secret values masked. Present when `resources.geodata.configurable_sources` is true. See [Geodata](geodata.html#Configure-the-sources). |
-| recording | | Read-only recorder state: `flows`, `logs` and `dns_log` each report `allowed`, `mode` (`auto`, `on`, `off`) and `active`; `events.active` reports event capture; `grace_remaining_seconds` counts down after the last attached client left and does not report the flow-demand grace. |
+| recording | | Read-only recorder state. `flows`, `logs` and `dns_log` each report `allowed`, `mode` (`auto`, `on`, `off`) and `active`, and appear when `record_flows`, `record_logs` and `record_dns_log` are listed in `fields`. `events.active` reports event capture. `grace_remaining_seconds`, when present, counts down before automatic recorders stop after the last client left. |
 
-A client is attached while an admitted GET SSE stream on `/events` or `/logs`
-is open, or for 60 seconds after the last stream closed or a successful GET on
-`/flows`, `/flows/{flow_id}` or `/dns/log`. Settings reads, HEAD and rejected
-requests do not renew attachment. In `auto` mode the log and DNS-log recorders
-capture only while a client is attached.
+The capability bounds are the engine's own limits, not the current values.
+An absent minimum means 1.
 
-In `auto` mode the flow recorder follows flow demand instead, so that an open
-panel does not record full flow traces for every connection. An admitted GET
-`/events` stream creates flow demand when its `kinds` include `flow.updated` or
-`flow.gap`, or when it sets a nonblank `flow_id` and its effective kinds include
-a flow kind. Demand lasts while such a stream is open, and for 60 seconds after
-the last one closed or after a successful GET on `/flows` or `/flows/{flow_id}`.
-Event streams without `kinds`, `/logs` streams and `/dns/log` reads do not
-create demand, and general attachment does not extend the flow grace. Recording
-starts on attachment or demand, so the first history a panel reads may be empty.
+In `auto` mode a recorder captures on demand: while clients read or follow
+what it records. What counts as demand and how long it lasts after the last
+client left is engine-defined; `resources.flows.recording` reports
+`on_demand` while the flow recorder is in `auto` mode. Recording starts on
+demand, so the first history a panel reads may be empty. honk's rules are in
+the [honk notes](honk-mapping.html#Runtime-settings-in-honk).
 
 ## PATCH /api/v1/runtime/settings
 
 Requires `control`. Only the fields listed in `resources.runtime_settings.fields`
 may appear; the body merges, an absent field keeps its value. `record_flows`,
 `record_logs` and `record_dns_log` take `true` (keep the recorder on without
-clients), `false` (force it off) or `"auto"` (the startup default: flows follow
-flow demand, logs and DNS logs follow attachment); pinning a recorder the configuration forbids rejects the whole patch.
+clients), `false` (force it off) or `"auto"` (the startup default: record on
+demand); pinning a recorder the configuration forbids rejects the whole patch.
+`{"log": {"level": "info"}}` is a complete request.
 
 {% api_request patchRuntimeSettings debug %}
 
 {% api_example patchRuntimeSettings 200 changed %}
 
 Every value is checked before anything changes, and a rejected patch changes
-nothing. A ring below 64 records or a value above its ceiling returns
+nothing. A value outside its schema range or advertised bounds returns
 `400 invalid_request`; a field not in `resources.runtime_settings.fields`, an
 unadvertised level, or pinning a recorder whose `allowed` is false returns
 `422 unsupported_value` (see [errors](errors.html#Choosing-the-status)). Shrinking a ring drops its

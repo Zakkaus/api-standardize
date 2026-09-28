@@ -227,8 +227,9 @@ paths:
                         max_bulk_close: 1000
                       flows:
                         available: true
-                        recording: on
+                        recording: on_demand
                         scopes: [ userspace_tcp, userspace_udp ]
+                        min_flows: 64
                         max_flows: 10000
                         max_steps_per_flow: 256
                         retention_seconds: 300
@@ -256,6 +257,7 @@ paths:
                         available: true
                         levels: [ trace, debug, info, warn, error ]
                         retention_seconds: 60
+                        min_buffered_records: 64
                         max_buffered_records: 4096
                       dns_query:
                         available: true
@@ -275,6 +277,7 @@ paths:
                         entry_kinds: [ positive, negative ]
                       dns_log:
                         available: true
+                        min_records: 64
                         max_records: 2048
                         max_page_size: 500
                       dns_rules:
@@ -809,21 +812,28 @@ schemas:
                 type: boolean
               recording:
                 type: string
-                enum: [ off, on, sampled ]
+                enum: [ off, on, sampled, on_demand ]
+                description: How the engine records flows right now. off records none; on records every flow in scopes; sampled records a subset; on_demand records only while clients read or follow flows, which is recording.flows.mode auto in GET /runtime/settings.
               scopes:
                 type: array
                 uniqueItems: true
                 items:
                   $ref: ./openapi.yaml#/components/schemas/FlowScope
+              min_flows:
+                $ref: ./openapi.yaml#/components/schemas/SafeUInt
+                minimum: 1
+                description: Smallest flows.max_flows a runtime-settings PATCH may set. Absent means 1.
               max_flows:
                 type: integer
                 minimum: 1
+                description: The largest flow capacity the engine supports, which is the most a runtime-settings PATCH may set, not the current value. The current value is flows.max_flows in GET /runtime/settings.
               max_steps_per_flow:
                 type: integer
                 minimum: 1
               retention_seconds:
                 type: integer
                 minimum: 0
+                description: The longest terminal-flow retention the engine supports, which is the most a runtime-settings PATCH may set, not the current value. The current value is flows.retention_seconds in GET /runtime/settings.
               snapshot_ttl_seconds:
                 type: integer
                 minimum: 1
@@ -932,6 +942,10 @@ schemas:
                 type: integer
                 minimum: 1
                 description: Maximum age of a replayable record, in seconds. A resume cursor older than this returns 409 event_cursor_expired even when the ring has room.
+              min_buffered_records:
+                $ref: ./openapi.yaml#/components/schemas/SafeUInt
+                minimum: 1
+                description: Smallest log.buffered_records a runtime-settings PATCH may set. Absent means 1.
               max_buffered_records:
                 $ref: ./openapi.yaml#/components/schemas/SafeUInt
                 minimum: 1
@@ -993,6 +1007,10 @@ schemas:
             properties:
               available:
                 type: boolean
+              min_records:
+                $ref: ./openapi.yaml#/components/schemas/SafeUInt
+                minimum: 1
+                description: Smallest dns_log.max_records a runtime-settings PATCH may set. Absent means 1.
               max_records:
                 $ref: ./openapi.yaml#/components/schemas/SafeUInt
                 minimum: 1
