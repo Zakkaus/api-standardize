@@ -1698,3 +1698,15 @@ test("config source creation takes a relative include path and needs writable", 
   delete request.body.path;
   assertInvalid(validateExample(contract, request), "missing path passed");
 });
+
+test("every operation lists the request-boundary 400 and 413", () => {
+  const methods = new Set(["get", "put", "post", "delete", "patch"]);
+  for (const [path, item] of Object.entries(spec.paths)) {
+    for (const [method, operation] of Object.entries(item)) {
+      if (!methods.has(method)) continue;
+      for (const status of ["400", "413"]) {
+        assert.ok(operation.responses[status], `${method} ${path} does not list ${status}`);
+      }
+    }
+  }
+});

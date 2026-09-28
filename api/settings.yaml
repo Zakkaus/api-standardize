@@ -74,12 +74,16 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
         "401":
           $ref: ./openapi.yaml#/components/responses/Unauthorized
         "403":
           $ref: ./openapi.yaml#/components/responses/Forbidden
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
     patch:
       operationId: patchRuntimeSettings
       summary: Change runtime-adjustable settings without a reload
@@ -260,6 +264,9 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        "503":
+          $ref: ./openapi.yaml#/components/responses/Unavailable
+          description: A setting could not be stored (temporarily_unavailable). Read the settings back before retrying after Retry-After.
 schemas:
   RuntimeSettingField:
     type: string

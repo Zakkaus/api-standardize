@@ -79,6 +79,8 @@ paths:
           $ref: ./openapi.yaml#/components/responses/Unauthorized
         "403":
           $ref: ./openapi.yaml#/components/responses/Forbidden
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
   /api/v1/version:
     get:
       operationId: getVersion
@@ -117,10 +119,14 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
         "401":
           $ref: ./openapi.yaml#/components/responses/Unauthorized
         "403":
           $ref: ./openapi.yaml#/components/responses/Forbidden
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
   /api/v1/capabilities:
     get:
       operationId: getCapabilities
@@ -295,10 +301,14 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
         "401":
           $ref: ./openapi.yaml#/components/responses/Unauthorized
         "403":
           $ref: ./openapi.yaml#/components/responses/Forbidden
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
 schemas:
   Discovery:
     description: >-

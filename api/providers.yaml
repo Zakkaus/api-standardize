@@ -59,6 +59,8 @@ paths:
           $ref: ./openapi.yaml#/components/responses/Forbidden
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
         "503":
           $ref: ./openapi.yaml#/components/responses/SnapshotUnavailable
     post:
@@ -292,6 +294,8 @@ paths:
           $ref: ./openapi.yaml#/components/responses/Forbidden
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
     delete:
       operationId: deleteProvider
       summary: Remove a subscription or file provider from the managed configuration
@@ -327,12 +331,22 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
         "401":
           $ref: ./openapi.yaml#/components/responses/Unauthorized
         "403":
           $ref: ./openapi.yaml#/components/responses/Forbidden
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
+        "409":
+          $ref: ./openapi.yaml#/components/responses/Conflict
+          description: The configuration still names the provider in a reference the delete would break (state_conflict); nothing is removed. Filter-matched membership is not a reference.
+        "412":
+          $ref: ./openapi.yaml#/components/responses/PreconditionFailed
+          description: The configuration changed while the delete was being admitted (stale_revision); nothing is removed. Read the provider back and retry.
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
         "503":
           $ref: ./openapi.yaml#/components/responses/Unavailable
   /api/v1/providers/{id}/refresh:
@@ -440,6 +454,8 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
         "429":
           $ref: ./openapi.yaml#/components/responses/RateLimited
         "503":

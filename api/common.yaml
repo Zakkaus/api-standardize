@@ -267,17 +267,77 @@ responses:
               Cache-Control: no-store
               X-Content-Type-Options: nosniff
   Conflict:
-    $ref: ./openapi.yaml#/components/responses/ErrorResponseCommon
     description: State, idempotency, or cursor conflict
+    headers:
+      Cache-Control:
+        $ref: ./openapi.yaml#/components/headers/NoStore
+      X-Content-Type-Options:
+        $ref: ./openapi.yaml#/components/headers/NoSniff
+    content:
+      application/json:
+        schema:
+          $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+        examples:
+          state_conflict:
+            value:
+              error:
+                code: state_conflict
+                message: The current state prevents this change.
+                details: null
+              request_id: request-01HZX4K8W6
+            x-headers:
+              Content-Type: application/json
+              Cache-Control: no-store
+              X-Content-Type-Options: nosniff
   Gone:
     $ref: ./openapi.yaml#/components/responses/ErrorResponseCommon
     description: Flow or paginated snapshot retention expired
   PreconditionFailed:
-    $ref: ./openapi.yaml#/components/responses/ErrorResponseCommon
     description: If-Match does not equal the current configuration revision or on-disk source content hash
+    headers:
+      Cache-Control:
+        $ref: ./openapi.yaml#/components/headers/NoStore
+      X-Content-Type-Options:
+        $ref: ./openapi.yaml#/components/headers/NoSniff
+    content:
+      application/json:
+        schema:
+          $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+        examples:
+          stale_revision:
+            value:
+              error:
+                code: stale_revision
+                message: The resource changed; read it again.
+                details: null
+              request_id: request-01HZX4K8W6
+            x-headers:
+              Content-Type: application/json
+              Cache-Control: no-store
+              X-Content-Type-Options: nosniff
   TooLarge:
-    $ref: ./openapi.yaml#/components/responses/ErrorResponseCommon
     description: Request size or advertised fan-out limit exceeded
+    headers:
+      Cache-Control:
+        $ref: ./openapi.yaml#/components/headers/NoStore
+      X-Content-Type-Options:
+        $ref: ./openapi.yaml#/components/headers/NoSniff
+    content:
+      application/json:
+        schema:
+          $ref: ./openapi.yaml#/components/schemas/ErrorResponse
+        examples:
+          request_too_large:
+            value:
+              error:
+                code: request_too_large
+                message: The request exceeds a size limit.
+                details: null
+              request_id: request-01HZX4K8W6
+            x-headers:
+              Content-Type: application/json
+              Cache-Control: no-store
+              X-Content-Type-Options: nosniff
   UnsupportedMediaType:
     $ref: ./openapi.yaml#/components/responses/ErrorResponseCommon
     description: Unsupported request Content-Type

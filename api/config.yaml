@@ -75,6 +75,8 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
         "401":
           description: Credentials are missing or invalid
           headers:
@@ -135,6 +137,8 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
         "429":
           description: Advertised request rate exceeded
           headers:
@@ -459,6 +463,8 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        "400":
+          $ref: ./openapi.yaml#/components/responses/BadRequest
         "401":
           $ref: ./openapi.yaml#/components/responses/Unauthorized
         "403":
@@ -491,6 +497,8 @@ paths:
                     Content-Type: application/json
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
+        "413":
+          $ref: ./openapi.yaml#/components/responses/TooLarge
         "429":
           $ref: ./openapi.yaml#/components/responses/RateLimited
     put:
@@ -983,6 +991,9 @@ paths:
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
                     Retry-After: 1
+        "503":
+          $ref: ./openapi.yaml#/components/responses/Unavailable
+          description: The validation worker is unavailable or its queue is full (temporarily_unavailable); nothing was validated. Retry after Retry-After.
 schemas:
   EffectiveConfig:
     type: object
