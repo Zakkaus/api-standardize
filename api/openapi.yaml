@@ -12,6 +12,43 @@ info:
 servers:
   - url: http://localhost:9527
 security: []
+tags:
+  - name: Discovery
+    description: Entry point, version and capabilities.
+  - name: Authentication
+    description: Password-mode setup, login and logout.
+  - name: Configuration
+    description: Accepted configuration sources, validation and source writes.
+  - name: Runtime
+    description: Runtime status, memory, outbounds, history and datapath.
+  - name: "Runtime settings"
+    description: Runtime settings the engine can change without a reload.
+  - name: Nodes
+    description: Nodes and node management.
+  - name: Providers
+    description: Node providers and subscription refresh.
+  - name: Geodata
+    description: Geodata files, sources and updates.
+  - name: Groups
+    description: Groups, their configuration and runtime selection.
+  - name: Probes
+    description: Node and group health probes.
+  - name: Connections
+    description: Live connections.
+  - name: Flows
+    description: Recorded flows and their traces.
+  - name: Routing
+    description: Routing simulation.
+  - name: Rules
+    description: Traffic routing rules.
+  - name: DNS
+    description: DNS query, log, cache and rules.
+  - name: Events
+    description: Server-sent change events.
+  - name: Logs
+    description: Engine log records.
+  - name: Operations
+    description: Asynchronous operations (reload, suspend, resume) and their status.
 paths:
   /api:
     $ref: ./discovery.yaml#/paths/~1api
@@ -164,8 +201,6 @@ components:
       $ref: ./common.yaml#/responses/Gone
     SnapshotExpired:
       $ref: ./common.yaml#/responses/SnapshotExpired
-    PreconditionFailed:
-      $ref: ./common.yaml#/responses/PreconditionFailed
     TooLarge:
       $ref: ./common.yaml#/responses/TooLarge
     UnsupportedMediaType:

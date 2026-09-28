@@ -2,6 +2,7 @@ paths:
   /api:
     get:
       operationId: getDiscovery
+      tags: [ Discovery ]
       summary: Discover the native API
       description: >-
         Public in every auth mode, so a client can choose how to sign in. A
@@ -84,6 +85,7 @@ paths:
   /api/v1/version:
     get:
       operationId: getVersion
+      tags: [ Discovery ]
       summary: Read native and engine version identity
       description: Requires bearer authentication when the listener has a deployment secret or runs in password mode. Anonymous access is permitted only on an explicitly secretless loopback listener. No resource permission is required.
       security:
@@ -130,6 +132,7 @@ paths:
   /api/v1/capabilities:
     get:
       operationId: getCapabilities
+      tags: [ Discovery ]
       summary: Negotiate resources, visibility, and limits
       description: Requires bearer authentication when the listener has a deployment secret or runs in password mode. Anonymous access is permitted only on an explicitly secretless loopback listener. No resource permission is required.
       security:

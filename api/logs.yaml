@@ -2,6 +2,7 @@ paths:
   /api/v1/logs:
     get:
       operationId: streamLogs
+      tags: [ Logs ]
       summary: Follow bounded resumable engine logs
       description: |
         Requires resources.logs.available. Emit stream.ready first on every connection,

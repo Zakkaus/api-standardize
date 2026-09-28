@@ -2,6 +2,7 @@ paths:
   /api/v1/nodes:
     get:
       operationId: listNodes
+      tags: [ Nodes ]
       summary: List nodes and latest typed health samples
       x-permission: observe
       security:
@@ -73,6 +74,7 @@ paths:
           $ref: ./openapi.yaml#/components/responses/SnapshotUnavailable
     post:
       operationId: createNode
+      tags: [ Nodes ]
       summary: Add an inline node from a share link
       description: |
         Requires resources.nodes.can_manage; otherwise returns 404
@@ -280,6 +282,7 @@ paths:
       - $ref: ./openapi.yaml#/components/parameters/NodeId
     get:
       operationId: getNode
+      tags: [ Nodes ]
       summary: Read one node and its latest typed health samples
       description: |
         Returns the same projection as one entry of GET /api/v1/nodes. An unknown id
@@ -326,6 +329,7 @@ paths:
           $ref: ./openapi.yaml#/components/responses/TooLarge
     delete:
       operationId: deleteNode
+      tags: [ Nodes ]
       summary: Remove an inline node from the managed configuration
       description: |
         Requires resources.nodes.can_manage; otherwise returns 404
@@ -416,6 +420,7 @@ paths:
   /api/v1/groups:
     get:
       operationId: listGroups
+      tags: [ Groups ]
       summary: List group summaries
       x-permission: observe
       security:
@@ -466,6 +471,7 @@ paths:
       - $ref: ./openapi.yaml#/components/parameters/GroupId
     get:
       operationId: getGroup
+      tags: [ Groups ]
       summary: Read a complete group resource
       description: |
         Returns the group with its configuration, runtime selection and health.
@@ -566,6 +572,7 @@ paths:
       - $ref: ./openapi.yaml#/components/parameters/GroupId
     get:
       operationId: getGroupConfig
+      tags: [ Groups ]
       summary: Read the group's policy and configured options
       description: |
         Returns the group's policy and config, the same values GET
@@ -622,6 +629,7 @@ paths:
           $ref: ./openapi.yaml#/components/responses/TooLarge
     patch:
       operationId: patchGroupConfig
+      tags: [ Groups ]
       summary: Patch mutable group configuration
       description: |
         RFC 6902 JSON Patch whose target document is GroupConfigDocument, the
@@ -759,6 +767,7 @@ paths:
       - $ref: ./openapi.yaml#/components/parameters/GroupId
     put:
       operationId: selectGroupMember
+      tags: [ Groups ]
       summary: Replace a selector's choice, or pin a member on an automatic group
       x-permission: control
       security:
@@ -822,6 +831,7 @@ paths:
           description: The runtime control owner is unavailable or did not confirm the transition (temporarily_unavailable). The selection may have changed; read the group back before retrying after Retry-After.
     delete:
       operationId: clearGroupOverride
+      tags: [ Groups ]
       summary: Clear a pinned member so the automatic policy chooses again
       x-permission: control
       security:

@@ -2,6 +2,7 @@ paths:
   /api/v1/probes:
     post:
       operationId: createProbe
+      tags: [ Probes ]
       summary: Start a bounded typed probe operation
       x-permission: control
       security:
@@ -113,6 +114,7 @@ paths:
   /api/v1/operations/reload:
     post:
       operationId: startReload
+      tags: [ Operations ]
       summary: Start an asynchronous reload
       x-permission: control
       security:
@@ -187,6 +189,7 @@ paths:
   /api/v1/operations/suspend:
     post:
       operationId: startSuspend
+      tags: [ Operations ]
       summary: Start an asynchronous suspend transition
       x-permission: control
       security:
@@ -261,6 +264,7 @@ paths:
   /api/v1/operations/resume:
     post:
       operationId: startResume
+      tags: [ Operations ]
       summary: Start an asynchronous resume transition
       x-permission: control
       security:
@@ -301,6 +305,7 @@ paths:
   /api/v1/operations/{operation_id}:
     get:
       operationId: getOperation
+      tags: [ Operations ]
       summary: Read an asynchronous operation
       x-permission: observe-owner-or-control
       security:

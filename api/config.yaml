@@ -2,6 +2,7 @@ paths:
   /api/v1/config:
     get:
       operationId: getConfig
+      tags: [ Configuration ]
       summary: Read the effective configuration
       description: |
         Requires resources.config.available. Returns one coherent snapshot of the
@@ -152,6 +153,7 @@ paths:
   /api/v1/config/sources:
     post:
       operationId: createConfigSource
+      tags: [ Configuration ]
       summary: Create one configuration source and reload
       description: |
         Requires control, resources.config.available, resources.config.writable,
@@ -399,6 +401,7 @@ paths:
         example: source-main
     get:
       operationId: getConfigSource
+      tags: [ Configuration ]
       summary: Read one accepted configuration source
       description: |
         Requires resources.config.available. Returns the same ConfigSource as
@@ -500,6 +503,7 @@ paths:
           $ref: ./openapi.yaml#/components/responses/RateLimited
     put:
       operationId: replaceConfigSource
+      tags: [ Configuration ]
       summary: Replace one configuration source and reload
       description: |
         Requires control, resources.config.available, resources.config.writable,
@@ -742,6 +746,7 @@ paths:
   /api/v1/config/validate:
     post:
       operationId: validateConfig
+      tags: [ Configuration ]
       summary: Validate candidate configuration without applying it
       description: |
         Requires resources.config_validate.available and control because the body

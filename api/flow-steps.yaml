@@ -149,7 +149,8 @@ schemas:
         enum: [ upstream, asis, accept, reject, requery, null ]
     allOf:
       - oneOf:
-          - properties:
+          - required: [ chain ]
+            properties:
               chain:
                 enum: [ traffic, dns_upstream ]
               input:
@@ -158,7 +159,8 @@ schemas:
                   - $ref: ./openapi.yaml#/components/schemas/TrafficRoutingInput
               dns_action:
                 type: "null"
-          - properties:
+          - required: [ chain ]
+            properties:
               chain:
                 const: dns_request
               input:
@@ -171,7 +173,8 @@ schemas:
                 type: "null"
               mark:
                 type: "null"
-          - properties:
+          - required: [ chain ]
+            properties:
               chain:
                 const: dns_response
               input:

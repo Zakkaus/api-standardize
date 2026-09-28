@@ -2,6 +2,7 @@ paths:
   /api/v1/providers:
     get:
       operationId: listProviders
+      tags: [ Providers ]
       summary: List provider metadata
       description: |
         Read current subscription, file and inline provider metadata; never fetch a
@@ -67,6 +68,7 @@ paths:
           $ref: ./openapi.yaml#/components/responses/SnapshotUnavailable
     post:
       operationId: createProvider
+      tags: [ Providers ]
       summary: Add a subscription provider to the managed configuration
       description: |
         Requires resources.providers.can_manage; otherwise returns 404
@@ -293,6 +295,7 @@ paths:
       - $ref: ./openapi.yaml#/components/parameters/ProviderId
     get:
       operationId: getProvider
+      tags: [ Providers ]
       summary: Read one provider's current metadata
       x-permission: observe
       security:
@@ -343,6 +346,7 @@ paths:
           $ref: ./openapi.yaml#/components/responses/TooLarge
     delete:
       operationId: deleteProvider
+      tags: [ Providers ]
       summary: Remove a subscription or file provider from the managed configuration
       description: |
         Requires resources.providers.can_manage; otherwise returns 404
@@ -435,6 +439,7 @@ paths:
       - $ref: ./openapi.yaml#/components/parameters/ProviderId
     post:
       operationId: refreshProvider
+      tags: [ Providers ]
       summary: Queue a provider refresh
       description: |
         Requires resources.providers.can_refresh. This action takes no request body

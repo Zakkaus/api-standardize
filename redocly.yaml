@@ -1,6 +1,18 @@
+# recommended-strict reports every recommended rule as an error, so any new
+# lint finding fails CI. Deliberate exceptions are listed per location in
+# .redocly.lint-ignore.yaml:
+# - no-required-schema-properties-undefined: if/then and not branches require
+#   properties that the enclosing schema defines; the rule does not look there.
+# - no-unused-components: SSE event payload schemas and the event example are bound by name through
+#   x-event-data-schemas on the text/event-stream media type, which the rule
+#   does not follow. tools/contract.mjs checks each binding resolves.
+# - no-server-example.com: the server entry documents the local default listener.
 extends:
-  - spec
+  - recommended-strict
 rules:
+  # The repository has no license yet; add info.license when the maintainers
+  # choose one.
+  info-license: off
   no-invalid-media-type-examples:
     severity: error
     allowAdditionalProperties: true

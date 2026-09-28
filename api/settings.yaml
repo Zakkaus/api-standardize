@@ -2,6 +2,7 @@ paths:
   /api/v1/runtime/settings:
     get:
       operationId: getRuntimeSettings
+      tags: [ "Runtime settings" ]
       summary: Read the runtime-adjustable settings
       description: |
         Requires resources.runtime_settings.available. Returns the current
@@ -99,6 +100,7 @@ paths:
           $ref: ./openapi.yaml#/components/responses/TooLarge
     patch:
       operationId: patchRuntimeSettings
+      tags: [ "Runtime settings" ]
       summary: Change runtime-adjustable settings without a reload
       description: |
         Requires control and resources.runtime_settings.available. The body is a

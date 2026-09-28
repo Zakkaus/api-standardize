@@ -2,6 +2,7 @@ paths:
   /api/v1/events:
     get:
       operationId: streamEvents
+      tags: [ Events ]
       summary: Follow bounded resumable invalidation events
       description: |
         Send stream.ready first on every connection, including a valid resume.
