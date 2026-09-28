@@ -1393,7 +1393,9 @@ paths:
         Requires control, resources.config.available, resources.config.writable,
         and writable: true on the source. Checks If-Match against the stored
         source hash, validates the complete engine-native replacement in full
-        mode, commits it atomically, and returns 202 with a reload operation.
+        mode, and returns 202 with a reload operation that commits the validated
+        replacement atomically, before activation or after the new generation
+        becomes active.
         The normative rules are in [Configuration: Editing](/v0.1.0/en/docs/configuration.html#Editing).
       x-permission: control
       security:

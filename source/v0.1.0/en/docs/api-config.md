@@ -8,9 +8,10 @@ This page describes native listener security, authentication and permissions.
 How an engine configures its listener is engine-specific; honk's keys are in
 the [honk notes](honk-notes.html#Listener-configuration-in-honk).
 
-A server uses a single listen address, an opaque bearer secret, and explicit
-CORS origins. Interface-name wildcards and regexes are not part of
-the native contract because they make binding and authorization ambiguous.
+A server uses one listen address and explicit CORS origins. Token mode may use
+a deployment secret; password mode uses session tokens. Interface-name
+wildcards and regexes are not part of the native contract because they make
+binding and authorization ambiguous.
 
 ## Listener and authentication rules
 

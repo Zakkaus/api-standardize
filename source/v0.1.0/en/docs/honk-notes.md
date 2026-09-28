@@ -19,7 +19,8 @@ engine. Another engine may make different choices within the same rules.
   readback, validation, source replacement and reload are separate from the
   Clash-compatible `/configs` endpoint.
 - An empty `allow_origins` does not disable the same-origin `/ui/` interface.
-- honk's listener secrets are `native_api.secret` and `clash_api.secret`.
+- honk's listener secrets are `experimental.native_api.secret` and
+  `experimental.clash_api.secret`.
 
 ## Password sessions in honk
 

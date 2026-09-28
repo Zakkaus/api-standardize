@@ -69,8 +69,9 @@ GET. Operation IDs must not leak through events to other observe principals.
 
 ## Replay and recovery
 
-These rules apply to every SSE stream; [logs](logs.html#Replay-and-recovery)
-lists only where its stream differs.
+The connection, cursor, replay, queue and authorization rules below also apply
+to log streams; [logs](logs.html#Replay-and-recovery) lists only where its
+stream differs. Baseline snapshots and flow revisions apply only to `/events`.
 
 - Every connection starts with `stream.ready`, which carries a replay cursor.
   On a fresh connection the client then fetches its baseline snapshots,

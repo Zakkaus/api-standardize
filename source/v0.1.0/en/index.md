@@ -4,8 +4,8 @@ title: dae/honk Native API Documentation
 
 # dae/honk Native API Documentation
 
-This site defines the native HTTP JSON control plane of dae and honk, the Linux
-eBPF transparent-proxy engines. It is a draft: each engine implements it
+This site defines a draft native HTTP JSON control-plane contract for dae and
+honk, the Linux eBPF transparent-proxy engines. Each engine implements it
 separately, and neither is required to support every resource.
 
 ## Overview
@@ -37,8 +37,10 @@ revision identifiers remain opaque strings and must not be parsed.
 ## Implementing an engine
 
 Read the pages in this order. Steps 1 to 3 make up the `base`
-[conformance profile](docs/capabilities.html#Conformance-profiles); every
-resource in step 4 is optional and advertised in the capabilities.
+[conformance profile](docs/capabilities.html#Conformance-profiles). The
+resources in step 4 are optional for `base` and advertised in the
+capabilities. `full_transparency` additionally requires nodes, groups,
+connections, recorded flows and events.
 
 1. Discovery and authentication: [Discovery](docs/discovery.html),
    [Authentication](docs/auth.html), and the listener, authentication-mode and
@@ -79,7 +81,7 @@ contract or build this site, see the repository README.
 | runtime generation | One published runtime configuration, `generation.active_id` in [Runtime](docs/runtime-status.html). |
 | datapath generation | One kernel policy publication, `ebpf.routing.generation_id` in [Datapath](docs/datapath.html). A reload can publish a new runtime generation and keep the datapath generation. |
 | configuration revision | The opaque `revision` of the accepted configuration, used by runtime and group responses. It is not the source-write precondition. |
-| source hash | `content_sha256` of one source's accepted bytes. A source replacement sends it in `If-Match`. |
+| source hash | `content_sha256` of one source's accepted bytes. A source replacement sends the accepted hash in `If-Match`; the server compares it with the source's current hash in the configuration store. |
 | accepted snapshot | The configuration sources the active generation was built from, as `GET /config` returns them. It can differ from the configuration store. |
 | configuration store | The authoritative copy of every configuration source: files for a file-backed engine, records for a database-backed one. |
 | admitted caller | A caller the listener accepts under its [authentication mode](docs/api-config.html#Authentication-modes). Every admitted caller has the same visibility. |
