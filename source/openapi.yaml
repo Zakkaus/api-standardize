@@ -615,12 +615,10 @@ paths:
                           global {
                             log_level: info
                           }
-                          experimental {
-                            native_api {
-                              secret: '<redacted>'
-                            }
+                          api {
+                            secret: '<redacted>'
                           }
-                        line_count: 8
+                        line_count: 6
                     diagnostics:
                       - level: warning
                         source_id: source-main
@@ -1336,12 +1334,10 @@ paths:
                       global {
                         log_level: info
                       }
-                      experimental {
-                        native_api {
-                          secret: '<redacted>'
-                        }
+                      api {
+                        secret: '<redacted>'
                       }
-                    line_count: 8
+                    line_count: 6
                   x-headers:
                     Content-Type: application/json
                     Cache-Control: no-store

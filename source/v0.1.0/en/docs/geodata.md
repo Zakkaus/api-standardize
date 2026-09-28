@@ -151,8 +151,8 @@ values masked; see the [visibility table](api-config.html#Visibility).
 
 The following rules determine each field's effective value. A field has a file
 value, an override set by `PATCH`, or neither, in which case the engine's
-built-in value applies. honk's configuration file can name the URL lists and the
-download route, but not `auto_update` or `verify_checksum`.
+built-in value applies. Which fields the configuration file can name is
+engine-specific.
 
 `resources.geodata.lifecycle` advertises when the engine takes file values
 and how long overrides last:

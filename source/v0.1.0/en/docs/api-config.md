@@ -4,36 +4,26 @@ title: API Configuration
 
 # API Configuration
 
-Honk configures its native API under `experimental.native_api`, separately from
-`experimental.clash_api`. This page describes native listener security and
-permissions; configuration syntax remains engine-specific.
+This page describes native listener security, authentication and permissions.
+How an engine configures its listener is engine-specific; honk's keys are in
+the [honk notes](honk-notes.html#Listener-configuration-in-honk).
 
-A server uses a single listen address, an opaque bearer secret,
-and explicit CORS origins. Interface-name wildcards and regexes are not part of
+A server uses a single listen address, an opaque bearer secret, and explicit
+CORS origins. Interface-name wildcards and regexes are not part of
 the native contract because they make binding and authorization ambiguous.
-
-## Honk listener configuration
-
-Configure the native listener under `experimental.native_api`. Its settings
-include `enabled`, `listen`, `secret`, `allow_origins`, and `ui`. Use an explicit
-loopback address for local access. A non-loopback listener requires a secret or
-password mode.
-
-`experimental.clash_api.external_controller` configures the separate
-Clash-compatible listener.
 
 ## Listener and authentication rules
 
-- Omitting `listen` binds only to loopback.
-- A non-loopback listener requires deployment-secret authentication (`secret`)
-  or password authentication; otherwise startup fails closed.
-- `secret` is opaque. Implementations may enforce a minimum entropy policy but
+- A listener without a configured address binds only to loopback.
+- A non-loopback listener requires deployment-secret authentication or
+  password authentication; otherwise startup fails closed.
+- The deployment secret is opaque. Implementations may enforce a minimum entropy policy but
   must not require one specific textual encoding.
 - Authentication uses `Authorization: Bearer <secret>`. Secrets must not appear
   in URLs, responses, or logs.
-- Cross-origin browser access requires an exact origin in `allow_origins`.
-  An empty list disables cross-origin access, not the same-origin `/ui/`
-  interface. Bearer authentication still follows the listener configuration.
+- Cross-origin browser access requires the exact origin in the listener's
+  allowed-origin list. An empty list disables cross-origin access; same-origin
+  requests are unaffected. Bearer authentication still follows the listener configuration.
 - For an allowed origin, CORS permits the `Authorization`, `Last-Event-ID`,
   `Content-Type`, `If-Match`, `Idempotency-Key`, and `Accept` request headers,
   and exposes `Location`, `Retry-After`, and `ETag`.
@@ -50,9 +40,6 @@ Clash-compatible listener.
 - On a secretless loopback listener, reject browser requests marked
   `Sec-Fetch-Site: cross-site`, even without Origin. Cross-site GET navigation
   must not trigger a control action such as a live DNS query.
-
-Honk serves the native and Clash-compatible APIs on separate listeners and ports,
-with independent routing, authentication, and CORS. Native resources use `/api/v1/*`.
 
 ## Authentication modes
 
@@ -123,8 +110,7 @@ restrict access.
 | Writes to geodata sources | `control` and a credential; an anonymous loopback caller gets `403 permission_denied`. |
 | Configuration writes | As `resources.config.writable` advertises; an engine may keep writes off on a secretless listener. |
 
-A listener secret is identified by its role, not by a key name; honk's are
-`native_api.secret` and `clash_api.secret`. An engine masks the fields that
+A listener secret is identified by its role, not by a key name. An engine masks the fields that
 carry these secrets, and the deployment secret values it holds, before it
 stores or emits text. It need not keep a recoverable password or past session
 tokens to find other copies of them.

@@ -349,9 +349,3 @@ Diagnostic codes are engine-defined, not members of the HTTP `ErrorCode` catalog
 Coordinates refer to the original source before redaction. When known, `line`
 and `column` equal the span start. Unknown locations stay null; engines must
 not invent positions from setting names.
-
-## Honk mapping
-
-Honk implements native configuration readback, validation, source replacement,
-and reload operations. These are separate from the Clash-compatible `/configs`
-endpoint.

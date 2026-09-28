@@ -4,9 +4,8 @@ title: Recorded Flows
 
 # Recorded flows
 
-Recorded flows expose retained routing and lifecycle evidence. Honk implements
-the endpoint, but clients must inspect its advertised recording scopes and each
-trace's completeness. The causal chain is rule input, dial mode, IP/DNS decisions,
+Recorded flows expose retained routing and lifecycle evidence. Clients must
+inspect the advertised recording scopes and each trace's completeness. The causal chain is rule input, dial mode, IP/DNS decisions,
 rerouting, outbound selection, and connection status; record the order the engine
 actually executed.
 
