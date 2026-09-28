@@ -350,5 +350,4 @@ not invent positions from setting names.
 
 Honk implements native configuration readback, validation, source replacement,
 and reload operations. These are separate from the Clash-compatible `/configs`
-endpoint. The [implementation evidence](honk-mapping.html) describes an older
-pinned source revision; it is not the current native API implementation status.
+endpoint.

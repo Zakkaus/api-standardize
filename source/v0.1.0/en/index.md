@@ -78,7 +78,8 @@ Native API status: **draft**. `/api/v1` identifies the wire major, not a claim
 that honk 1.0 or this API is released. The `v0.1.0` site directory is the
 document revision. Breaking wire changes require a new major path; additive
 features are negotiated through capabilities, never inferred from engine
-versions. Unversioned resource routes are not aliases.
+versions. Unversioned resource routes are not aliases. Engine-only routes,
+capabilities and fields use the [`x-<engine>` namespace](docs/capabilities.html#Engine-extensions).
 
 The [OpenAPI contract](/openapi.yaml) is the generated public bundle. Its
 authoring sources live under `api/`, grouped by resource, with native named
@@ -96,8 +97,8 @@ Builds clear Hexo's rendered-page cache so changed contract examples cannot
 leave stale documentation behind. Restart `npm run server` after changing
 `api/` sources; ordinary prose edits still use Hexo's normal development loop.
 
-See [honk implementation evidence](docs/honk-mapping.html) for the current
-instrumentation gaps and the disposition of PR #1's comments. Native JSON
+The [honk notes](docs/honk-notes.html) record choices honk makes where the
+contract leaves them to the engine; they are not part of the contract. Native JSON
 and the existing Clash API stay side by side. A separate panel or LuCI
 client can use the native API; whether its assets ship embedded or as an
 external UI does not change this contract.

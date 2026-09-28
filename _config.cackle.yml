@@ -36,8 +36,8 @@ menu:
     file: docs/routing-trace
   - title: Events
     file: docs/events
-  - title: honk Implementation Evidence
-    file: docs/honk-mapping
+  - title: honk Notes
+    file: docs/honk-notes
   - title: DNS Query
     file: docs/dns-query
   - title: DNS Cache

@@ -189,7 +189,7 @@ activation under `file_values: activation`.
 
 An asset with neither a file value nor an override uses its built-in URLs under
 any `source`. The download route does not affect `source`.
-[honk notes](honk-mapping.html#Geodata-sources-in-honk) describe how honk stores
+[honk notes](honk-notes.html#Geodata-sources-in-honk) describe how honk stores
 and reconciles these values.
 
 {% api_example getRuntimeSettings 200 config_sources %}
@@ -263,4 +263,4 @@ included. `next_check_at` reports the due time with the delay, so a retry is due
 no later than the interval plus the delay. Changing `auto_update` recomputes the
 due time from the last finished attempt, or from the time of the change when
 there is none yet. honk's delay and backoff values are in the [honk
-notes](honk-mapping.html#Geodata-sources-in-honk).
+notes](honk-notes.html#Geodata-sources-in-honk).

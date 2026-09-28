@@ -83,7 +83,7 @@ test("connection and flow-summary examples carry required list-view evidence", (
   const fields = ["chain", "chain_source", "rule_id", "rule_expression", "rule_source", "ingress", "domain_source"];
   const sources = {
     chain_source: ["evaluation", "reconstructed", "unknown"],
-    rule_source: ["kernel", "recomputed", "unknown"],
+    rule_source: ["kernel", "userspace", "recomputed", "unknown"],
   };
   const selectors = {
     listConnections: (body) => [...body.tcp, ...body.udp],
@@ -1941,4 +1941,31 @@ test("datapath step actions have a core set and accept engine-defined values", (
     assertInvalid(contract.validate(schema, { ...data, action }), `action ${JSON.stringify(action)} passed`);
   }
   assertInvalid(contract.validate(schema, (({ action, ...rest }) => rest)(data)), "action is required");
+});
+
+test("engine-only capabilities, links and routes live under x-<engine>", () => {
+  const capabilities = example("getCapabilities:200:available");
+  capabilities.body.resources["x-honk"] = { config_export: { available: true } };
+  assertValid(validateExample(contract, capabilities));
+  capabilities.body.resources["x-honk"].config_export = {};
+  assertInvalid(validateExample(contract, capabilities), "an extension resource must carry available");
+  delete capabilities.body.resources["x-honk"];
+  capabilities.body.resources.config_export = { available: true };
+  assertInvalid(validateExample(contract, capabilities), "an engine-only resource key must be namespaced");
+  const discovery = example("getDiscovery:200:draft");
+  discovery.body.links["x-honk"] = { config_export: "/api/v1/x-honk/config/export" };
+  assertValid(validateExample(contract, discovery));
+  discovery.body.links["x-honk"].config_export = "/api/v1/config/export";
+  assertInvalid(validateExample(contract, discovery), "an extension link must stay under /api/v1/x-<engine>/");
+  delete discovery.body.links["x-honk"];
+  discovery.body.links.config_export = "/api/v1/x-honk/config/export";
+  assertInvalid(validateExample(contract, discovery), "an engine-only link must be namespaced");
+  for (const path of Object.keys(spec.paths)) {
+    assert.ok(!/^\/api\/v1\/x-/.test(path), `${path}: the contract defines no engine routes`);
+    assert.notEqual(path, "/api/v1/discovery", "discovery has no alias");
+  }
+  const version = example("getVersion:200:build");
+  assert.equal(version.body.api.name, example("getDiscovery:200:draft").body.name);
+  version.body.engine.name = "Honk";
+  assertInvalid(validateExample(contract, version), "engine.name is a lowercase identifier");
 });

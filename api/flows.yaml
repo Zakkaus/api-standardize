@@ -955,8 +955,8 @@ schemas:
         description: Display expression for that rule, or null when unavailable.
       rule_source:
         type: string
-        enum: [ kernel, recomputed, unknown ]
-        description: Deciding kernel rule, recomputed userspace evidence, or unavailable provenance; see honk-mapping's matched_rule row.
+        enum: [ kernel, userspace, recomputed, unknown ]
+        description: kernel, the rule the kernel datapath decided with; userspace, the rule a userspace router decided with; recomputed, a userspace re-evaluation after the kernel decided, which need not be the deciding rule; unknown, provenance unavailable.
       ingress:
         type: [ string, "null" ]
         enum: [ lan, wan, null ]
@@ -1095,8 +1095,8 @@ schemas:
         description: Display expression for that rule, or null when unavailable.
       rule_source:
         type: string
-        enum: [ kernel, recomputed, unknown ]
-        description: Deciding kernel rule, recomputed userspace evidence, or unavailable provenance; see honk-mapping's matched_rule row.
+        enum: [ kernel, userspace, recomputed, unknown ]
+        description: kernel, the rule the kernel datapath decided with; userspace, the rule a userspace router decided with; recomputed, a userspace re-evaluation after the kernel decided, which need not be the deciding rule; unknown, provenance unavailable.
       ingress:
         type: [ string, "null" ]
         enum: [ lan, wan, null ]

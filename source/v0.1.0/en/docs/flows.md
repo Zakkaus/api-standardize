@@ -73,7 +73,7 @@ columns. Nullable fields remain present when unavailable.
 | chain_source | string | `evaluation`: captured at selection; `reconstructed`: recovered from retained evidence; `unknown`: unavailable. |
 | rule_id | string or null | Generation-scoped traffic rule ID, or null when unavailable. |
 | rule_expression | string or null | Display expression for that rule, or null when unavailable. |
-| rule_source | string | `kernel`: deciding kernel rule; `recomputed`: userspace recomputation, not the deciding kernel rule; `unknown`: unavailable provenance. |
+| rule_source | string | `kernel`: the rule the kernel datapath decided with; `userspace`: the rule a userspace router decided with; `recomputed`: a userspace re-evaluation after the kernel decided, which need not be the deciding rule; `unknown`: unavailable provenance. |
 | ingress | string or null | `lan` or `wan` when captured; null when unavailable. |
 | domain_source | string or null | `tls_sni`, `http_host`, `quic_sni`, `dns_mapping`, `explicit`, or `unknown`; null without domain evidence. |
 
@@ -83,9 +83,9 @@ unknown` when the path was not captured; an empty chain alone does not prove
 direct/block. Never join today's group registry to claim an old selection.
 The source label describes evidence, not the outbound step's `routing_source`.
 
-The [honk `matched_rule` row](honk-mapping.html#matched-rule) distinguishes
-the deciding kernel rule from recomputed userspace evidence. Preserve that
-distinction in `rule_source`; GET must not re-run routing to populate it.
+An engine that re-runs its userspace router after the kernel decided, for
+tracking only, reports that rule as `recomputed`, never as `kernel` or
+`userspace`. GET must not re-run routing to populate `rule_source`.
 `rule_expression` is display text, never executable configuration.
 Rule IDs retain their generation and traffic-chain scope; use the detail
 trace for that context rather than merging identical IDs across reloads.
@@ -180,7 +180,7 @@ Likewise direct activation ends userspace setup, not the native connection.
 Record the order of datapath decisions in `datapath` steps without exposing
 mutable verdict tokens. A step's `action` is `pass`, `redirect`, `hold`,
 `drop`, or an engine-defined value; clients show an unknown value as it is.
-honk's NFQUEUE steps are in the [honk notes](honk-mapping.html#Flow-steps-in-honk). Static port-53 interception and early
+honk's NFQUEUE steps are in the [honk notes](honk-notes.html#Flow-steps-in-honk). Static port-53 interception and early
 bypasses are enforcement reasons, not invented configured rule matches.
 
 `server_addr` is the physical proxy server/socket peer if observed; `dial_ip`

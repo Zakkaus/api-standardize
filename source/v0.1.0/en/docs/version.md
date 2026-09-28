@@ -25,10 +25,10 @@ response is independent of the engine implementation language.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| api.name | string | Stable name of the native API surface. |
+| api.name | string | `daeuniverse/native`, the same for every engine. It names the API surface, not the engine. |
 | api.status | string | Current API design status. The draft value is `draft`. |
 | api.major | integer | Wire major selected by `/api/v1`, independent of engine release. |
-| engine.name | string | Running engine name, such as `dae` or `honk`. |
+| engine.name | string | Running engine name, such as `dae` or `honk`. The only engine identity in the API; it also names the engine's [extension members](capabilities.html#Engine-extensions). |
 | engine.version | string | Engine release or build version. It may be `unknown` when the build does not provide one. |
 | build | object or null | Optional generic build metadata. |
 | build.revision | string or null | Source revision when embedded at build time. |

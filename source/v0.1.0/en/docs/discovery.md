@@ -36,7 +36,7 @@ below. Other fields are withheld, not null.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| name | string | Stable name of the native API surface. |
+| name | string | `daeuniverse/native`, the same for every engine; engine identity is `engine.name` in [version](version.html). |
 | status | string | API design status; currently `draft`. |
 | api_major | integer | Selected wire major, currently 1; independent of document/engine version. |
 | base_path | string | Versioned native resource prefix. |
@@ -57,6 +57,7 @@ below. Other fields are withheld, not null.
 | links.auth_setup | string or null | `/api/v1/auth/setup` in password mode; null otherwise. |
 | links.auth_login | string or null | `/api/v1/auth/login` in password mode; null otherwise. |
 | links.auth_logout | string or null | `/api/v1/auth/logout` in password mode; null otherwise. |
+| links.x-&lt;engine&gt; | object, optional | The engine's [extension](capabilities.html#Engine-extensions) links, each under `/api/v1/x-<engine>/`. No other link member is allowed. |
 | auth | object, optional | Authentication mode; absent on servers that predate password login. |
 | auth.mode | string | `password` or `token`. |
 | auth.setup_required | boolean | Whether password-mode administrator setup is required. |

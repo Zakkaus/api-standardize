@@ -35,7 +35,7 @@ paths:
               examples:
                 draft:
                   value:
-                    name: dae/honk-native
+                    name: daeuniverse/native
                     status: draft
                     api_major: 1
                     base_path: /api/v1
@@ -66,7 +66,7 @@ paths:
                     X-Content-Type-Options: nosniff
                 public:
                   value:
-                    name: dae/honk-native
+                    name: daeuniverse/native
                     api_major: 1
                     links:
                       auth_setup: /api/v1/auth/setup
@@ -110,7 +110,7 @@ paths:
                 build:
                   value:
                     api:
-                      name: dae/honk-native
+                      name: daeuniverse/native
                       major: 1
                       status: draft
                     engine:
@@ -1775,8 +1775,8 @@ paths:
       operationId: getRuntimeOutbounds
       summary: Read per-outbound cumulative counters
       description: |
-        Mirrors honk's Clash-surface /stats counters for visible traffic, not
-        a sum of live connections. All rows share counter_since; restart or
+        Cumulative per-outbound counters for visible traffic, kept by the engine
+        and including closed connections, not a sum of live connections. All rows share counter_since; restart or
         counter reset starts a new interval. Requires resources.runtime_outbounds.available.
       x-permission: observe
       security:
@@ -7239,7 +7239,7 @@ components:
       properties:
         name:
           type: string
-          const: dae/honk-native
+          const: daeuniverse/native
         status:
           type: string
           const: draft
@@ -7251,6 +7251,14 @@ components:
           const: /api/v1
         links:
           type: object
+          description: Shared links, plus an x-<engine> member for the engine's extension links (see capabilities, Engine extensions). Other members are not allowed.
+          additionalProperties: false
+          patternProperties:
+            ^x-[a-z][a-z0-9]*$:
+              type: object
+              additionalProperties:
+                type: string
+                pattern: ^/api/v1/x-[a-z][a-z0-9]*/
           required:
             - version
             - capabilities
@@ -7344,7 +7352,7 @@ components:
       properties:
         name:
           type: string
-          const: dae/honk-native
+          const: daeuniverse/native
         api_major:
           type: integer
           const: 1
@@ -7443,7 +7451,7 @@ components:
           properties:
             name:
               type: string
-              const: dae/honk-native
+              const: daeuniverse/native
             major:
               type: integer
               const: 1
@@ -7458,7 +7466,9 @@ components:
           properties:
             name:
               type: string
-              minLength: 1
+              pattern: ^[a-z][a-z0-9]*$
+              maxLength: 32
+              description: Lowercase engine name, such as dae or honk. It names the engine's x-<engine> extension members and routes.
             version:
               type: string
               minLength: 1
@@ -7524,9 +7534,16 @@ components:
               minimum: 1
         resources:
           type: object
-          description: Only runtime is required. An absent resource key means the resource is unavailable, exactly as available false does, so a server that predates a resource still validates.
+          description: Only runtime is required. An absent resource key means the resource is unavailable, exactly as available false does, so a server that predates a resource still validates. Engine-only resources go in an x-<engine> member; other unlisted keys are not allowed.
           required:
             - runtime
+          additionalProperties: false
+          patternProperties:
+            ^x-[a-z][a-z0-9]*$:
+              type: object
+              description: The engine's extension resources, keyed by name. Each follows the rules for shared resource keys.
+              additionalProperties:
+                $ref: '#/components/schemas/AvailableResource'
           properties:
             config:
               type: object
@@ -8337,7 +8354,7 @@ components:
             $ref: '#/components/schemas/ConfigDiagnostic'
         secrets_redacted:
           type: boolean
-          description: True when a listener-secret value (native_api.secret, clash_api.secret) was masked somewhere in this response. Content, paths and diagnostics are otherwise returned in the clear to an admitted request.
+          description: True when a listener-secret value (the deployment secret of an API listener, such as honk's native_api.secret and clash_api.secret) was masked somewhere in this response. Content, paths and diagnostics are otherwise returned in the clear to an admitted request.
     ConfigSource:
       type: object
       required:
@@ -10936,9 +10953,10 @@ components:
           type: string
           enum:
             - kernel
+            - userspace
             - recomputed
             - unknown
-          description: Deciding kernel rule, recomputed userspace evidence, or unavailable provenance; see honk-mapping's matched_rule row.
+          description: kernel, the rule the kernel datapath decided with; userspace, the rule a userspace router decided with; recomputed, a userspace re-evaluation after the kernel decided, which need not be the deciding rule; unknown, provenance unavailable.
         ingress:
           type:
             - string
@@ -11301,9 +11319,10 @@ components:
           type: string
           enum:
             - kernel
+            - userspace
             - recomputed
             - unknown
-          description: Deciding kernel rule, recomputed userspace evidence, or unavailable provenance; see honk-mapping's matched_rule row.
+          description: kernel, the rule the kernel datapath decided with; userspace, the rule a userspace router decided with; recomputed, a userspace re-evaluation after the kernel decided, which need not be the deciding rule; unknown, provenance unavailable.
         ingress:
           type:
             - string
