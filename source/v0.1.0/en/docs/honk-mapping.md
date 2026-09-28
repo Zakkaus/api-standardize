@@ -202,10 +202,19 @@ another way.
   from the configuration file over the stored values. A list or route an
   earlier file wrote and the file no longer names is deleted, so the built-in
   value applies; a patched one is kept.
-- `source` is `config` while every stored list carries the file mark,
-  `override` once a stored list does not, and `default` when no list is stored.
-- honk advertises `max_urls: 4`, `interval_hours` 6 to 168 with a default of
-  24, and `checksum: sha256sum`.
-- Each automatic wait adds a random delay of up to 60 minutes. After a failed
-  attempt the wait is a backoff that starts at one hour, doubles on each
-  further failure, and never exceeds the interval.
+- `source` is `config` while every stored list carries the file mark, `db`
+  once a stored list does not, and `default` when no list is stored. A planned
+  honk change renames `db` to `override`.
+- A patch that sets one asset's URLs currently stores both lists as patched,
+  freezing the other list at its effective value. A planned honk change stores
+  only the patched list, as the contract requires.
+- honk enforces 4 URLs per asset, an interval of 6 to 168 hours with a default
+  of 24, and the `sha256sum` checksum method. A planned honk change advertises
+  them as `max_urls`, `interval_hours` and `checksum`, with
+  `lifecycle: {file_values: start, overrides_persist: true}`.
+- The checksum URL is the file URL with `.sha256sum` appended to its path. A
+  `404` accepts the file unverified; any other failure moves to the next URL.
+- The next automatic attempt is due at the end of the last attempt, or at
+  process start before the first, plus the wait and a random delay of up to 60
+  minutes. After a failed attempt the wait is a backoff that starts at one
+  hour, doubles on each further failure, and never exceeds the interval.

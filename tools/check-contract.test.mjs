@@ -250,6 +250,21 @@ test("geodata sources are patched through runtime settings and reported with the
   assert.ok(resources.runtime_settings.fields.includes("geodata"));
   const bounds = resources.geodata.interval_hours;
   assert.ok(bounds.min <= bounds.default && bounds.default <= bounds.max, "the advertised default is within its bounds");
+  for (const field of ["max_urls", "interval_hours", "checksum", "lifecycle"]) {
+    const capabilities = example("getCapabilities:200:available");
+    delete capabilities.body.resources.geodata[field];
+    assertInvalid(validateExample(contract, capabilities), `configurable_sources requires ${field}`);
+  }
+  for (const interval_hours of [{min: 24, max: 1, default: 12}, {min: 6, max: 168, default: 200}, {min: 12, max: 24, default: 6}]) {
+    const capabilities = example("getCapabilities:200:available");
+    capabilities.body.resources.geodata.interval_hours = interval_hours;
+    assertInvalid(validateExample(contract, capabilities), "inverted or out-of-range interval bounds");
+  }
+  const updatable = example("getCapabilities:200:available");
+  updatable.body.resources.geodata = {available: true, can_update: true, assets: ["geosite"]};
+  assertInvalid(validateExample(contract, updatable), "updates require a checksum method");
+  updatable.body.resources.geodata.checksum = null;
+  assertValid(validateExample(contract, updatable), "a null checksum method means unverified");
   for (const key of ["current", "config_sources"]) {
     const settings = example(`getRuntimeSettings:200:${key}`);
     assertValid(validateExample(contract, settings));

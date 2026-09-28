@@ -610,6 +610,10 @@ export function validateExample(context, example) {
       const location = headerEntry(example.headers, "Location")?.[1];
       if (location !== example.body?.href) fail("Location must equal response body href");
     }
+    const bounds = example.operationId === "getCapabilities" ? example.body?.resources?.geodata?.interval_hours : undefined;
+    if (isObject(bounds) && !(bounds.min <= bounds.default && bounds.default <= bounds.max)) {
+      fail("geodata interval_hours must satisfy min <= default <= max");
+    }
   } else {
     if (example.operationId !== "streamEvents" || example.status !== 200) fail("event is not bound to streamEvents:200");
     if (example.mediaType !== "text/event-stream") fail("event media type must be text/event-stream");
