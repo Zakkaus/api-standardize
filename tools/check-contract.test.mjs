@@ -1213,6 +1213,27 @@ test("flow IDs, ownership, and parent graphs remain causal", () => {
   assertInvalid(validateFlowTrace(lookupCycle));
 });
 
+test("step seq values strictly increase within a flow", () => {
+  const gaps = example("getFlow:200:interleaved_dns").body;
+  gaps.trace.steps.forEach((candidate, index) => {
+    candidate.seq = (index + 1) * 10;
+  });
+  assertValid(validateFlowTrace(gaps));
+
+  const repeated = example("getFlow:200:interleaved_dns").body;
+  repeated.trace.steps[2].seq = repeated.trace.steps[1].seq;
+  assertInvalid(validateFlowTrace(repeated));
+
+  const swapped = example("getFlow:200:interleaved_dns").body;
+  const [first, second] = swapped.trace.steps;
+  [first.seq, second.seq] = [second.seq, first.seq];
+  assertInvalid(validateFlowTrace(swapped));
+
+  const partial = example("getFlow:200:partial_handoff").body;
+  partial.trace.steps.at(-1).seq = 1;
+  assertInvalid(validateFlowTrace(partial));
+});
+
 test("complete traces require known routing sources and DNS actions", () => {
   const unknownSource = example("getFlow:200:interleaved_dns").body;
   step(unknownSource, "outbound", (data) => data.attempt_id === "attempt-app").data.routing_source =
