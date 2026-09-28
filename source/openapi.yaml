@@ -52,7 +52,7 @@ paths:
                       providers: /api/v1/providers
                       rules: /api/v1/rules
                       geodata: /api/v1/geodata
-                      operations: /api/v1/operations/{id}
+                      operations: /api/v1/operations/{operation_id}
                       auth_setup: null
                       auth_login: null
                       auth_logout: null
@@ -2126,6 +2126,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/SnapshotExpired'
         '413':
           $ref: '#/components/responses/TooLarge'
         '503':
@@ -2301,8 +2303,8 @@ paths:
         Read current subscription, file and inline provider metadata; never fetch a
         subscription while serving a GET. Use the shared snapshot cursor semantics.
         The effective default limit is min(100, resources.providers.max_page_size).
-        A limit above the advertised maximum returns 400 invalid_request, as does an
-        unknown, expired or invalidated cursor. Restart the page walk without it.
+        A limit above the advertised maximum returns 400 invalid_request. The
+        Cursor parameter defines how an unusable cursor is answered.
       x-permission: observe
       security:
         - bearerAuth: []
@@ -2355,6 +2357,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/SnapshotExpired'
         '413':
           $ref: '#/components/responses/TooLarge'
         '503':
@@ -2370,7 +2374,7 @@ paths:
         advances the configuration revision, and emits generation.changed. A later
         replacement of that main source using its previous content_sha256 returns
         412 stale_revision. The provider is created unfetched: node_count 0, updated_at null and
-        status stale; call POST /providers/{id}/refresh to load it. The URL is stored,
+        status stale; call POST /providers/{provider_id}/refresh to load it. The URL is stored,
         never returned; the response carries url_redacted. A name already in use
         returns 409 state_conflict. A URL that is not HTTP(S) returns 422 unsupported_value.
         update_interval, user_agent and cache are accepted only when named in
@@ -2541,7 +2545,7 @@ paths:
                     X-Content-Type-Options: nosniff
         '503':
           $ref: '#/components/responses/Unavailable'
-  /api/v1/providers/{id}:
+  /api/v1/providers/{provider_id}:
     parameters:
       - $ref: '#/components/parameters/ProviderId'
     get:
@@ -2649,7 +2653,7 @@ paths:
           $ref: '#/components/responses/TooLarge'
         '503':
           $ref: '#/components/responses/Unavailable'
-  /api/v1/providers/{id}/refresh:
+  /api/v1/providers/{provider_id}/refresh:
     parameters:
       - $ref: '#/components/parameters/ProviderId'
     post:
@@ -2788,7 +2792,7 @@ paths:
                     Retry-After: 1
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
-  /api/v1/nodes/{id}:
+  /api/v1/nodes/{node_id}:
     parameters:
       - $ref: '#/components/parameters/NodeId'
     get:
@@ -3169,7 +3173,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '413':
           $ref: '#/components/responses/TooLarge'
-  /api/v1/groups/{groupId}:
+  /api/v1/groups/{group_id}:
     parameters:
       - $ref: '#/components/parameters/GroupId'
     get:
@@ -3403,7 +3407,7 @@ paths:
         '503':
           $ref: '#/components/responses/Unavailable'
           description: The change could not be queued (temporarily_unavailable); nothing is written. Retry after Retry-After.
-  /api/v1/groups/{groupId}/selection:
+  /api/v1/groups/{group_id}/selection:
     parameters:
       - $ref: '#/components/parameters/GroupId'
     put:
@@ -3783,8 +3787,9 @@ paths:
         ownership. Kernel-direct and kernel-bypassed flows, including ebpf-only
         observations, are not closable.
 
-        Idempotency-Key is accepted, but every call evaluates current live state;
-        repeated keys do not replay results or return an operation.
+        The call has no replay semantics and takes no Idempotency-Key: every call
+        evaluates current live state, so retrying after an uncertain result can
+        close connections that opened in the meantime.
 
         For recorded flows, closing advances terminal state and emits flow.updated
         when advertised. Fetch the event's href and refresh /connections. Changed
@@ -3804,7 +3809,6 @@ paths:
           schema:
             type: boolean
             default: false
-        - $ref: '#/components/parameters/IdempotencyKey'
       responses:
         '200':
           description: Bulk-close counts; entries that disappeared before cancellation are excluded.
@@ -3882,8 +3886,10 @@ paths:
         '503':
           description: |
             Closing at least one selected connection could not be confirmed
-            (temporarily_unavailable). error.details counts the connections already
-            closed or skipped; they stay closed, so a retry must not assume nothing changed.
+            (temporarily_unavailable), sent after every selected close has finished.
+            error.details carries closed and skipped over the whole selected set;
+            a connection whose close could not be confirmed counts in neither.
+            Closed connections stay closed; a retry selects again from current live state.
           headers:
             Retry-After:
               description: Retry delay in seconds.
@@ -3940,9 +3946,8 @@ paths:
         returns 409 state_conflict.
 
         Return 204 with no body only after cancellation or retirement. Unknown or
-        already-gone IDs return 404 resource_not_found. Idempotency-Key is accepted,
-        but each call evaluates current live state; a repeated close returns 404
-        rather than replaying 204 or returning an operation.
+        already-gone IDs return 404 resource_not_found. The call has no replay
+        semantics and takes no Idempotency-Key; a repeated close returns 404.
 
         For recorded flows, closing advances terminal state and emits flow.updated
         when advertised. Fetch the event's href and refresh /connections. Changed
@@ -3955,7 +3960,6 @@ paths:
         - {}
       parameters:
         - $ref: '#/components/parameters/ConnectionId'
-        - $ref: '#/components/parameters/IdempotencyKey'
       responses:
         '204':
           description: Connection closed; no response body or Content-Type.
@@ -4041,10 +4045,6 @@ paths:
     get:
       operationId: listFlows
       summary: List active and retained terminal flow decisions
-      description: |
-        The cursor binds the filters and limit. A cursor sent with a different
-        limit returns 410 snapshot_expired; to change the page size, restart
-        the walk without a cursor.
       x-permission: observe
       security:
         - bearerAuth: []
@@ -4137,11 +4137,11 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '410':
-          $ref: '#/components/responses/Gone'
+          $ref: '#/components/responses/SnapshotExpired'
         '413':
           $ref: '#/components/responses/TooLarge'
         '503':
-          description: Bounded recorder memory cannot admit a snapshot
+          description: Bounded recorder memory cannot admit a snapshot (snapshot_unavailable)
           headers:
             Retry-After:
               description: Retry delay in seconds when retryable.
@@ -4160,8 +4160,8 @@ paths:
                 snapshot_full:
                   value:
                     error:
-                      code: temporarily_unavailable
-                      message: Flow snapshot capacity is full.
+                      code: snapshot_unavailable
+                      message: The flow snapshot could not be held within its memory budget.
                     request_id: request-1
                   x-headers:
                     Content-Type: application/json
@@ -4861,7 +4861,7 @@ paths:
       parameters:
         - name: kinds
           in: query
-          description: Comma-separated advertised event kinds.
+          description: Comma-separated advertised event kinds. A kind outside EventKind or a repeated kind returns 400; an EventKind member the capabilities do not advertise returns 422.
           schema:
             type: string
             minLength: 1
@@ -4903,10 +4903,13 @@ paths:
           $ref: '#/components/responses/EventCursorExpired'
         '413':
           $ref: '#/components/responses/TooLarge'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
         '429':
           $ref: '#/components/responses/RateLimited'
         '503':
           $ref: '#/components/responses/Unavailable'
+          description: max_clients streams are already open, or the event stream is unavailable (temporarily_unavailable)
   /api/v1/logs:
     get:
       operationId: streamLogs
@@ -4937,7 +4940,7 @@ paths:
       parameters:
         - name: level
           in: query
-          description: Minimum severity, ordered trace < debug < info < warn < error. Omit for all advertised levels; an unadvertised level returns 400 invalid_request.
+          description: Minimum severity, ordered trace < debug < info < warn < error. Omit for all advertised levels. A value outside LogLevel returns 400 invalid_request; a LogLevel member not in resources.logs.levels returns 422 unsupported_value.
           schema:
             $ref: '#/components/schemas/LogLevel'
           example: info
@@ -5105,12 +5108,14 @@ paths:
       operationId: patchRuntimeSettings
       summary: Change runtime-adjustable settings without a reload
       description: |
-        Requires control and resources.runtime_settings.available; only the fields
-        listed in resources.runtime_settings.fields may appear, others return 400
-        invalid_request. The body is a merge: an absent field keeps its value. Every
-        value is checked against its ceiling before anything changes; an unadvertised
-        log level, a ring below 64 records, or a value above the ceiling returns 400
-        and changes nothing. Shrinking a ring drops its oldest records and expires
+        Requires control and resources.runtime_settings.available. The body is a
+        merge: an absent field keeps its value. Every value is checked before
+        anything changes, and a rejected patch changes nothing. A field the schema
+        does not define, a ring below 64 records, or a value above its ceiling
+        returns 400 invalid_request. A field not listed in
+        resources.runtime_settings.fields, a log level not in
+        resources.logs.levels, or pinning a recorder whose allowed is false returns
+        422 unsupported_value; see Errors. Shrinking a ring drops its oldest records and expires
         cursors older than the new floor. The change applies immediately and lasts
         until the process restarts or the next configuration activation resets it; it
         is not written to the configuration file.
@@ -5128,14 +5133,12 @@ paths:
         a stored list that an earlier file wrote but the file no longer names.
         Activations never change them, so patched URLs last until the next startup.
         download follows the same startup rule as the URLs, and a download with
-        route group whose group_id is not a current group returns 422
-        unsupported_value and changes nothing.
+        route group whose group_id is not a current group returns 409
+        state_conflict and changes nothing.
       x-permission: control
       security:
         - bearerAuth: []
         - {}
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -5247,7 +5250,7 @@ paths:
                     Cache-Control: no-store
                     X-Content-Type-Options: nosniff
         '400':
-          description: A field outside resources.runtime_settings.fields, an unadvertised level, or a value outside its range
+          description: A field the schema does not define, or a value outside its range or advertised ceiling
           headers:
             Cache-Control:
               $ref: '#/components/headers/NoStore'
@@ -5274,11 +5277,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-        '413':
-          $ref: '#/components/responses/TooLarge'
-        '415':
-          $ref: '#/components/responses/UnsupportedMediaType'
-        '422':
+        '409':
           description: geodata.download names a group_id that is not a current group
           headers:
             Cache-Control:
@@ -5293,8 +5292,35 @@ paths:
                 unknown_group:
                   value:
                     error:
-                      code: unsupported_value
+                      code: state_conflict
                       message: geodata.download.group_id is not a current group.
+                      details: null
+                    request_id: request-4
+                  x-headers:
+                    Content-Type: application/json
+                    Cache-Control: no-store
+                    X-Content-Type-Options: nosniff
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          description: A field not in resources.runtime_settings.fields, a level not in resources.logs.levels, or pinning a recorder that is not allowed
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/NoStore'
+            X-Content-Type-Options:
+              $ref: '#/components/headers/NoSniff'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                unadvertised_level:
+                  value:
+                    error:
+                      code: unsupported_value
+                      message: log.level is not an advertised level.
                       details: null
                     request_id: request-4
                   x-headers:
@@ -5430,9 +5456,10 @@ paths:
         excluding diagnostic /dns/query calls, in a bounded in-memory ring.
         Results are newest first. The ring holds at most
         resources.dns_log.max_records and is cleared on restart.
-        A limit above resources.dns_log.max_page_size returns 400 invalid_request,
-        as does a cursor whose record has left the ring; restart from the newest
-        page without a cursor.
+        A limit above resources.dns_log.max_page_size returns 400 invalid_request.
+        A cursor whose record has left the ring returns 410 snapshot_expired, as
+        the Cursor parameter defines; restart from the newest page without a
+        cursor.
         A page may hold fewer than limit records while next_cursor is
         non-null, for example when the server's response size limit ends it
         early. Only a null next_cursor ends the walk. A record whose answers
@@ -5468,12 +5495,7 @@ paths:
             $ref: '#/components/schemas/SafeUInt'
             minimum: 1
           example: 200
-        - name: cursor
-          in: query
-          description: Opaque cursor from a previous page; older records follow it.
-          schema:
-            type: string
-            minLength: 1
+        - $ref: '#/components/parameters/Cursor'
       responses:
         '200':
           description: Recent resolutions, newest first
@@ -5538,10 +5560,12 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/SnapshotExpired'
         '413':
           $ref: '#/components/responses/TooLarge'
         '503':
-          $ref: '#/components/responses/Unavailable'
+          $ref: '#/components/responses/SnapshotUnavailable'
   /api/v1/dns/cache:
     get:
       operationId: listDnsCache
@@ -5643,10 +5667,12 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/SnapshotExpired'
         '413':
           $ref: '#/components/responses/TooLarge'
         '503':
-          $ref: '#/components/responses/Unavailable'
+          $ref: '#/components/responses/SnapshotUnavailable'
     delete:
       operationId: deleteDnsCacheByName
       summary: Delete cache entries for one exact name
@@ -6138,7 +6164,7 @@ paths:
           $ref: '#/components/responses/RateLimited'
         '503':
           $ref: '#/components/responses/Unavailable'
-  /api/v1/operations/{id}:
+  /api/v1/operations/{operation_id}:
     get:
       operationId: getOperation
       summary: Read an asynchronous operation
@@ -6348,17 +6374,18 @@ components:
       name: cursor
       in: query
       description: |
-        Opaque cursor bound to the resource, running adapter instance, filters,
-        and retained snapshot. Restart, changed filters, or snapshot expiry or
-        eviction invalidates it. GET /flows returns 410 snapshot_expired;
-        GET /nodes, GET /providers and GET /dns/cache return 400 invalid_request
-        for a cursor that is unknown or no longer valid. Discard it and restart
-        the page walk without a cursor; never silently continue against a new snapshot.
+        Opaque cursor from the previous page's next_cursor, bound to the running
+        instance, the retained snapshot or record, the filters and limit. A cursor
+        the server no longer recognises (snapshot expired or evicted, record left
+        the ring, process restarted, never issued) returns 410 snapshot_expired;
+        discard it and restart the walk without a cursor. A recognised cursor sent
+        with different filters or a different limit returns 400 invalid_request.
+        The server never continues a walk against a different snapshot.
       schema:
         type: string
         minLength: 1
     GroupId:
-      name: groupId
+      name: group_id
       in: path
       required: true
       schema:
@@ -6390,7 +6417,7 @@ components:
         minLength: 1
       example: dns-entry-01HZX4K8W5
     OperationId:
-      name: id
+      name: operation_id
       in: path
       required: true
       schema:
@@ -6409,6 +6436,11 @@ components:
       name: Idempotency-Key
       in: header
       required: false
+      description: |
+        Replay key for this operation, scoped to the running instance, caller,
+        method and path. A byte-identical body returns the original response; a
+        different body returns 409 idempotency_conflict. Only operations that list
+        this header replay.
       schema:
         type: string
         minLength: 1
@@ -6421,7 +6453,7 @@ components:
         minLength: 1
       example: instance-7:123
     ProviderId:
-      name: id
+      name: provider_id
       in: path
       required: true
       schema:
@@ -6429,7 +6461,7 @@ components:
         minLength: 1
       example: provider-a
     NodeId:
-      name: id
+      name: node_id
       in: path
       required: true
       schema:
@@ -6620,7 +6652,30 @@ components:
                 X-Content-Type-Options: nosniff
     Gone:
       $ref: '#/components/responses/ErrorResponseCommon'
-      description: Flow or paginated snapshot retention expired
+      description: Flow retention expired (flow_expired)
+    SnapshotExpired:
+      description: The page cursor no longer names a retained snapshot or record; restart the walk without a cursor
+      headers:
+        Cache-Control:
+          $ref: '#/components/headers/NoStore'
+        X-Content-Type-Options:
+          $ref: '#/components/headers/NoSniff'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            snapshot_expired:
+              value:
+                error:
+                  code: snapshot_expired
+                  message: The page snapshot expired; restart the page walk.
+                  details: null
+                request_id: request-01HZX4K8W6
+              x-headers:
+                Content-Type: application/json
+                Cache-Control: no-store
+                X-Content-Type-Options: nosniff
     PreconditionFailed:
       description: If-Match does not equal the current configuration revision or on-disk source content hash
       headers:
@@ -6976,7 +7031,7 @@ components:
               const: /api/v1/geodata
             operations:
               type: string
-              const: /api/v1/operations/{id}
+              const: /api/v1/operations/{operation_id}
             auth_setup:
               type:
                 - string
@@ -7196,35 +7251,9 @@ components:
               minimum: 1
         resources:
           type: object
+          description: Only runtime is required. An absent resource key means the resource is unavailable, exactly as available false does, so a server that predates a resource still validates.
           required:
-            - config
-            - config_validate
             - runtime
-            - runtime_memory
-            - runtime_outbounds
-            - traffic_history
-            - memory_history
-            - datapath
-            - nodes
-            - providers
-            - groups
-            - probes
-            - connections
-            - flows
-            - routing_trace
-            - rules
-            - events
-            - logs
-            - dns_query
-            - dns_cache
-            - dns_log
-            - dns_rules
-            - runtime_settings
-            - operations
-            - reload
-            - suspend
-            - resume
-            - geodata
           properties:
             config:
               type: object
@@ -7430,7 +7459,7 @@ components:
                   type: boolean
                 can_manage:
                   type: boolean
-                  description: POST /nodes and DELETE /nodes/{id} are implemented for inline nodes; the backend owns a writable main source.
+                  description: POST /nodes and DELETE /nodes/{node_id} are implemented for inline nodes; the backend owns a writable main source.
             providers:
               type: object
               required:
@@ -7854,7 +7883,7 @@ components:
                 fields:
                   type: array
                   uniqueItems: true
-                  description: The settings PATCH /runtime/settings accepts on this backend; others return 400.
+                  description: The settings PATCH /runtime/settings accepts on this backend; another field the schema defines returns 422.
                   items:
                     $ref: '#/components/schemas/RuntimeSettingField'
             geodata:
@@ -12453,6 +12482,7 @@ components:
         - geodata_update
     OperationAccepted:
       type: object
+      description: A replayed Idempotency-Key returns this original body unchanged, including status queued, whatever the operation's current status.
       required:
         - operation_id
         - kind
@@ -12764,13 +12794,13 @@ components:
           description: |
             Read-only recorder state. A client is attached while an admitted GET SSE stream on
             /events or /logs is open, or for 60 seconds after the last stream closed or a successful
-            GET on /flows, /flows/{id} or /dns/log; other requests, including settings reads, do not
+            GET on /flows, /flows/{flow_id} or /dns/log; other requests, including settings reads, do not
             renew attachment. Automatic log and DNS-log recorders follow attachment. The automatic
             flow recorder follows flow demand instead, so that an open panel does not record full
             flow traces for every connection: an admitted GET /events stream whose kinds include
             flow.updated or flow.gap, or that sets a nonblank flow_id with a flow kind in its
             effective kinds, holds demand while open and for 60 seconds after the last one closed,
-            and a successful GET on /flows or /flows/{id} renews it for 60 seconds. Event streams
+            and a successful GET on /flows or /flows/{flow_id} renews it for 60 seconds. Event streams
             without kinds, /logs streams and /dns/log reads do not create flow demand. Recording
             starts on attachment or demand, so the first history a client reads may be empty.
           properties:

@@ -299,7 +299,7 @@ paths:
           $ref: ./openapi.yaml#/components/responses/RateLimited
         "503":
           $ref: ./openapi.yaml#/components/responses/Unavailable
-  /api/v1/operations/{id}:
+  /api/v1/operations/{operation_id}:
     get:
       operationId: getOperation
       summary: Read an asynchronous operation
@@ -626,6 +626,7 @@ schemas:
         type: [ string, "null" ]
   OperationAccepted:
     type: object
+    description: A replayed Idempotency-Key returns this original body unchanged, including status queued, whatever the operation's current status.
     required: [ operation_id, kind, status, href ]
     properties:
       operation_id:

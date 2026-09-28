@@ -7,8 +7,8 @@ paths:
         Read current subscription, file and inline provider metadata; never fetch a
         subscription while serving a GET. Use the shared snapshot cursor semantics.
         The effective default limit is min(100, resources.providers.max_page_size).
-        A limit above the advertised maximum returns 400 invalid_request, as does an
-        unknown, expired or invalidated cursor. Restart the page walk without it.
+        A limit above the advertised maximum returns 400 invalid_request. The
+        Cursor parameter defines how an unusable cursor is answered.
       x-permission: observe
       security:
         - bearerAuth: []
@@ -59,6 +59,8 @@ paths:
           $ref: ./openapi.yaml#/components/responses/Forbidden
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
+        "410":
+          $ref: ./openapi.yaml#/components/responses/SnapshotExpired
         "413":
           $ref: ./openapi.yaml#/components/responses/TooLarge
         "503":
@@ -74,7 +76,7 @@ paths:
         advances the configuration revision, and emits generation.changed. A later
         replacement of that main source using its previous content_sha256 returns
         412 stale_revision. The provider is created unfetched: node_count 0, updated_at null and
-        status stale; call POST /providers/{id}/refresh to load it. The URL is stored,
+        status stale; call POST /providers/{provider_id}/refresh to load it. The URL is stored,
         never returned; the response carries url_redacted. A name already in use
         returns 409 state_conflict. A URL that is not HTTP(S) returns 422 unsupported_value.
         update_interval, user_agent and cache are accepted only when named in
@@ -243,7 +245,7 @@ paths:
                     X-Content-Type-Options: nosniff
         "503":
           $ref: ./openapi.yaml#/components/responses/Unavailable
-  /api/v1/providers/{id}:
+  /api/v1/providers/{provider_id}:
     parameters:
       - $ref: ./openapi.yaml#/components/parameters/ProviderId
     get:
@@ -349,7 +351,7 @@ paths:
           $ref: ./openapi.yaml#/components/responses/TooLarge
         "503":
           $ref: ./openapi.yaml#/components/responses/Unavailable
-  /api/v1/providers/{id}/refresh:
+  /api/v1/providers/{provider_id}/refresh:
     parameters:
       - $ref: ./openapi.yaml#/components/parameters/ProviderId
     post:

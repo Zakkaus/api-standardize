@@ -212,10 +212,12 @@ paths:
           $ref: ./openapi.yaml#/components/responses/Forbidden
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
+        "410":
+          $ref: ./openapi.yaml#/components/responses/SnapshotExpired
         "413":
           $ref: ./openapi.yaml#/components/responses/TooLarge
         "503":
-          $ref: ./openapi.yaml#/components/responses/Unavailable
+          $ref: ./openapi.yaml#/components/responses/SnapshotUnavailable
     delete:
       operationId: deleteDnsCacheByName
       summary: Delete cache entries for one exact name
@@ -375,9 +377,10 @@ paths:
         excluding diagnostic /dns/query calls, in a bounded in-memory ring.
         Results are newest first. The ring holds at most
         resources.dns_log.max_records and is cleared on restart.
-        A limit above resources.dns_log.max_page_size returns 400 invalid_request,
-        as does a cursor whose record has left the ring; restart from the newest
-        page without a cursor.
+        A limit above resources.dns_log.max_page_size returns 400 invalid_request.
+        A cursor whose record has left the ring returns 410 snapshot_expired, as
+        the Cursor parameter defines; restart from the newest page without a
+        cursor.
         A page may hold fewer than limit records while next_cursor is
         non-null, for example when the server's response size limit ends it
         early. Only a null next_cursor ends the walk. A record whose answers
@@ -413,12 +416,7 @@ paths:
             $ref: ./openapi.yaml#/components/schemas/SafeUInt
             minimum: 1
           example: 200
-        - name: cursor
-          in: query
-          description: Opaque cursor from a previous page; older records follow it.
-          schema:
-            type: string
-            minLength: 1
+        - $ref: ./openapi.yaml#/components/parameters/Cursor
       responses:
         "200":
           description: Recent resolutions, newest first
@@ -471,10 +469,12 @@ paths:
           $ref: ./openapi.yaml#/components/responses/Forbidden
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
+        "410":
+          $ref: ./openapi.yaml#/components/responses/SnapshotExpired
         "413":
           $ref: ./openapi.yaml#/components/responses/TooLarge
         "503":
-          $ref: ./openapi.yaml#/components/responses/Unavailable
+          $ref: ./openapi.yaml#/components/responses/SnapshotUnavailable
   /api/v1/dns/rules:
     get:
       operationId: listDnsRules

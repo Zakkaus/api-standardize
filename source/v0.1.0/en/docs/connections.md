@@ -21,7 +21,7 @@ network speeds where the observation plane provides them.
 |-----------|------|---------|-------------|
 | type | string | all | Filter: `tcp`, `udp`, or `all` |
 | src | string | - | Exact source IP literal without a port; applied with `type` before `limit`. |
-| limit | int | 100 | Max connections to return across both arrays; capped at 1000. |
+| limit | int | 100 | Max connections to return across both arrays, 1–1000; larger returns `400`. |
 | detail | string | summary | `summary` omits `src`, `dst`, and `domain`; `full` includes them when observable. |
 
 ## Response
@@ -131,7 +131,7 @@ headers remain mandatory.
 
 {% api_example closeConnection 204 closed http %}
 
-An unknown or already-gone ID returns `404 resource_not_found`:
+For the missing-ID response, see [deleting what is not there](errors.html#Deleting-what-is-not-there):
 
 {% api_example closeConnection 404 gone %}
 
@@ -139,11 +139,11 @@ An observed connection that is not closable returns `409 state_conflict`:
 
 {% api_example closeConnection 409 not_closable %}
 
-Both DELETE endpoints accept `Idempotency-Key`, as other control calls do.
-These synchronous calls evaluate current live state even with a repeated key;
-they do not replay an earlier result or return a retained operation.
-Closing the same ID twice therefore returns `404 resource_not_found` on
-the second call, including when the key is repeated.
+Neither DELETE endpoint has replay semantics, and neither takes
+`Idempotency-Key`. Each call evaluates current live state: closing the same ID
+twice returns `404 resource_not_found` on the second call, and repeating a
+filtered bulk close after an uncertain result can close connections that
+opened in the meantime. Read `/connections` before retrying a bulk close.
 
 If cancellation or retirement cannot be confirmed, the call returns
 `503 temporarily_unavailable` with `Retry-After`; the connection may already
@@ -185,9 +185,10 @@ set; selected entries that disappear before cancellation contribute to neither c
 
 If closing any selected connection cannot be confirmed, return
 `503 temporarily_unavailable` with `Retry-After` after every selected close has
-finished. `error.details` carries the same `closed` and `skipped` counts as a
-success, covering the connections handled before the failure. Those stay
-closed; a retry selects again from current live state.
+finished. `error.details` carries `closed` and `skipped` over the whole selected
+set, as a success does; a connection whose close could not be confirmed counts
+in neither. Closed connections stay closed; a retry selects again from current
+live state.
 
 {% api_example closeConnections 503 incomplete %}
 

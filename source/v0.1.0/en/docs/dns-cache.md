@@ -24,10 +24,7 @@ An implementation that does not expose a capability must return `404` with
 The response is a paginated snapshot. The cache can change while the client
 walks the pages, so `cursor` is opaque and must not be manufactured by a
 client.
-The server binds the cursor to the running adapter instance, filters, and
-retained snapshot. Restart, changed filters, or snapshot expiry/eviction invalidates
-it. An unknown or invalidated cursor returns `400 invalid_request`; discard
-it and restart without a cursor, never silently continue a different snapshot.
+Cursors follow the [paging rule](errors.html#Page-cursors).
 
 A page holds at most `limit` entries and may hold fewer while `next_cursor`
 is non-null, for example when the server's response size limit ends it
@@ -45,7 +42,7 @@ at it and never receives a clipped answer set.
 | domain | string | - | Listing-only partial-match convenience filter; never accepted by a delete request |
 | type | string | - | Record type filter; may be repeated, for example `type=A&type=AAAA` |
 | include_expired | bool | false | Include expired entries that have not yet been lazily evicted |
-| limit | int | 100 | Max entries to return; servers cap this value at 1000 |
+| limit | int | 100 | Max entries to return, 1–1000; larger returns `400` |
 | cursor | string | - | Opaque cursor returned as `next_cursor` |
 | detail | string | summary | `summary` omits answer RDATA; `full` includes `answers`. |
 
@@ -189,7 +186,7 @@ recorded. The ring is not durable and clears on restart.
 | type | One record type. |
 | src | Client source IP literal, IPv4 or IPv6. |
 | limit | Page size, at most `dns_log.max_page_size`; above it returns `400 invalid_request`. |
-| cursor | Opaque cursor from `next_cursor`; older records follow it. Once its record leaves the ring it returns `400 invalid_request`; restart from the newest page. |
+| cursor | Opaque cursor from `next_cursor`; older records follow it. Once its record leaves the ring it returns `410 snapshot_expired`; see the [paging rule](errors.html#Page-cursors). |
 
 Pages follow the same rule as `/dns/cache`: a page may hold fewer than
 `limit` records while `next_cursor` is non-null, and a record whose answers

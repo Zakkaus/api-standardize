@@ -83,7 +83,7 @@ Use the detail endpoint for members and health observations.
 
 {% api_example listGroups 200 groups %}
 
-## GET /api/v1/groups/{groupId}
+## GET /api/v1/groups/{group_id}
 
 Returns the complete current group resource described above.
 The response includes an `ETag` whose value matches `config_revision`.
@@ -92,7 +92,7 @@ The response includes an `ETag` whose value matches `config_revision`.
 
 {% api_request getGroup %}
 
-## PATCH /api/v1/groups/{groupId}
+## PATCH /api/v1/groups/{group_id}
 
 Updates group configuration only. It does not change runtime selection.
 
@@ -144,7 +144,7 @@ An asynchronous response uses the [shared operation contract](operations.html):
 
 {% api_example patchGroup 202 queued %}
 
-## PUT /api/v1/groups/{groupId}/selection
+## PUT /api/v1/groups/{group_id}/selection
 
 Replaces the runtime selection when `capabilities.can_select` is `true`.
 Selection is separate from configuration so a runtime choice is not confused
@@ -175,7 +175,7 @@ reports `source: override`. Health checks keep running so the ranking is
 current when the pin is cleared. A group with neither capability returns
 `422 unsupported_value`.
 
-## DELETE /api/v1/groups/{groupId}/selection
+## DELETE /api/v1/groups/{group_id}/selection
 
 Clears the override for `network`, which defaults to `both`. The response contains
 `selection.tcp` and `selection.udp`; either is null when that transport has no

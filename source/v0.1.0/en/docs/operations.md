@@ -2,7 +2,7 @@
 title: Operations
 ---
 
-# GET /api/v1/operations/{id}
+# GET /api/v1/operations/{operation_id}
 
 > Draft endpoint. Reload, suspend, resume, probes, asynchronous group updates,
 > and provider refreshes use one operation envelope.
@@ -77,11 +77,30 @@ Operation status is visible to the principal that created it and to callers
 with `control`; unknown, expired, or unauthorized IDs all return
 `404 resource_not_found` to avoid leaking existence.
 
-Operation-start endpoints accept an optional `Idempotency-Key` header. During
-the advertised operation retention window, the key is scoped to the caller,
-method, and path. Reusing it with the same body returns the original operation;
-reusing it with a different body returns `409 idempotency_conflict`. Without a
-key, a retried POST may create another operation.
+## Replay
+
+Only the requests below accept `Idempotency-Key` and support replay. The key
+is scoped to the running instance, caller, method, and path. Reusing it with a byte-identical body returns the original response: the
+original `202` body unchanged (its `status` stays `queued` whatever the
+operation's current status), or the original synchronous `200`. Reusing it with
+a body that differs in any byte returns `409 idempotency_conflict`. The key is
+retained while its operation is queued or running and for the advertised
+retention window after the operation reaches a terminal state. Without a key,
+a retried request may start another operation.
+
+| Request | Replay |
+|-----------|--------|
+| `POST /api/v1/operations/reload`, `/suspend`, `/resume` | Original `202` |
+| `POST /api/v1/probes` | Original `202` |
+| `POST /api/v1/providers/{provider_id}/refresh` | Original `202` |
+| `POST /api/v1/geodata/update` | Original `202` |
+| `POST /api/v1/config/sources`, `PUT /api/v1/config/sources/{source_id}` | Original `202` |
+| `PATCH /api/v1/groups/{group_id}` | Original `200` or `202` |
+
+Every other write, including `PATCH /api/v1/runtime/settings` and both
+connection `DELETE` endpoints, has no replay semantics: each call is evaluated
+against current state. After an uncertain result, read the resource back
+before retrying.
 
 A key outlives its operation's early eviction: a replay can return an operation
 whose `GET` is already `404`. Retained keys are bounded too; past 1024, the

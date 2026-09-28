@@ -19,7 +19,7 @@ Starts the adapter's suspend transition when `resources.suspend.available` is tr
 
 {% api_example startSuspend 202 queued http %}
 
-Poll [`GET /api/v1/operations/{id}`](operations.html) for completion.
+Poll [`GET /api/v1/operations/{operation_id}`](operations.html) for completion.
 
 ### Completed result
 

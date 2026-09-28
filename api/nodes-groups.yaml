@@ -65,6 +65,8 @@ paths:
           $ref: ./openapi.yaml#/components/responses/Forbidden
         "404":
           $ref: ./openapi.yaml#/components/responses/NotFound
+        "410":
+          $ref: ./openapi.yaml#/components/responses/SnapshotExpired
         "413":
           $ref: ./openapi.yaml#/components/responses/TooLarge
         "503":
@@ -231,7 +233,7 @@ paths:
                     X-Content-Type-Options: nosniff
         "503":
           $ref: ./openapi.yaml#/components/responses/Unavailable
-  /api/v1/nodes/{id}:
+  /api/v1/nodes/{node_id}:
     parameters:
       - $ref: ./openapi.yaml#/components/parameters/NodeId
     get:
@@ -380,7 +382,7 @@ paths:
           $ref: ./openapi.yaml#/components/responses/NotFound
         "413":
           $ref: ./openapi.yaml#/components/responses/TooLarge
-  /api/v1/groups/{groupId}:
+  /api/v1/groups/{group_id}:
     parameters:
       - $ref: ./openapi.yaml#/components/parameters/GroupId
     get:
@@ -604,7 +606,7 @@ paths:
         "503":
           $ref: ./openapi.yaml#/components/responses/Unavailable
           description: The change could not be queued (temporarily_unavailable); nothing is written. Retry after Retry-After.
-  /api/v1/groups/{groupId}/selection:
+  /api/v1/groups/{group_id}/selection:
     parameters:
       - $ref: ./openapi.yaml#/components/parameters/GroupId
     put:

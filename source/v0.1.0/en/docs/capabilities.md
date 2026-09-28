@@ -117,11 +117,11 @@ example is an illustrative partial adapter, **not honk's current response**.
 
 - **`base`** requires discovery, version, capabilities, runtime, the shared
   authentication/error/visibility rules, and honest capability declarations.
-  Every resource key in this page's `resources` object MUST have an entry,
-  even when unavailable; discovery/version/capabilities themselves are mandatory.
-  Operations are required whenever an advertised action is asynchronous;
-  events and mutations are otherwise optional. dae can implement this
-  profile without claiming honk-only features.
+  `resources.runtime` MUST be present; any other resource key may be omitted,
+  and an absent key means the resource is unavailable, as `available: false`
+  does. Operations are required whenever an advertised action is
+  asynchronous; events and mutations are otherwise optional. dae can
+  implement this profile without claiming honk-only features.
 - **`full_transparency`** additionally requires nodes, groups, connections,
   recorded flows and events; observed rule inputs/short-circuit decisions,
   dial-mode verification, DNS linkage, reroute reasons, actual member/leaf

@@ -47,7 +47,7 @@ paths:
                       providers: /api/v1/providers
                       rules: /api/v1/rules
                       geodata: /api/v1/geodata
-                      operations: /api/v1/operations/{id}
+                      operations: /api/v1/operations/{operation_id}
                       auth_setup: null
                       auth_login: null
                       auth_logout: null
@@ -412,7 +412,7 @@ schemas:
             const: /api/v1/geodata
           operations:
             type: string
-            const: /api/v1/operations/{id}
+            const: /api/v1/operations/{operation_id}
           auth_setup:
             type: [ string, "null" ]
             enum: [ /api/v1/auth/setup, null ]
@@ -500,7 +500,8 @@ schemas:
             minimum: 1
       resources:
         type: object
-        required: [ config, config_validate, runtime, runtime_memory, runtime_outbounds, traffic_history, memory_history, datapath, nodes, providers, groups, probes, connections, flows, routing_trace, rules, events, logs, dns_query, dns_cache, dns_log, dns_rules, runtime_settings, operations, reload, suspend, resume, geodata ]
+        description: Only runtime is required. An absent resource key means the resource is unavailable, exactly as available false does, so a server that predates a resource still validates.
+        required: [ runtime ]
         properties:
           config:
             type: object
@@ -673,7 +674,7 @@ schemas:
                 type: boolean
               can_manage:
                 type: boolean
-                description: POST /nodes and DELETE /nodes/{id} are implemented for inline nodes; the backend owns a writable main source.
+                description: POST /nodes and DELETE /nodes/{node_id} are implemented for inline nodes; the backend owns a writable main source.
           providers:
             type: object
             required: [ available ]
@@ -1025,7 +1026,7 @@ schemas:
               fields:
                 type: array
                 uniqueItems: true
-                description: The settings PATCH /runtime/settings accepts on this backend; others return 400.
+                description: The settings PATCH /runtime/settings accepts on this backend; another field the schema defines returns 422.
                 items:
                   $ref: ./openapi.yaml#/components/schemas/RuntimeSettingField
           geodata:

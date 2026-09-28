@@ -17,14 +17,10 @@ title: Nodes
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | group_id | string | - | Return direct members of one group. |
-| limit | int | 100 | Maximum nodes to return; capped at 1000. |
+| limit | int | 100 | Maximum nodes to return, 1–1000; larger returns `400`. |
 | cursor | string | - | Opaque cursor returned by `next_cursor`. |
 
-The server binds cursors to the running adapter instance, filters, and
-retained snapshot. Restart, changed filters, or snapshot expiry/eviction invalidates
-them. The server rejects unknown or invalidated cursors with
-`400 invalid_request`; discard the cursor and restart the page walk without it.
-If the server cannot retain the snapshot within its budget, it returns
+Cursors follow the [paging rule](errors.html#Page-cursors). If the server cannot retain the snapshot within its budget, it returns
 `503 snapshot_unavailable` with `Retry-After`.
 
 ## Response
@@ -101,7 +97,7 @@ curl "http://localhost:9527/api/v1/nodes?group_id=group-proxy"
 
 ## Read one node
 
-`GET /api/v1/nodes/{id}` requires `observe` and returns the same projection as
+`GET /api/v1/nodes/{node_id}` requires `observe` and returns the same projection as
 one entry of the list. An unknown id returns `404 resource_not_found`.
 
 {% api_request getNode %}
@@ -118,7 +114,7 @@ and delete return `404 capability_not_supported`.
 
 {% api_example createNode 201 created http %}
 
-`Location` names the new node; read it back with `GET /api/v1/nodes/{id}`.
+`Location` names the new node; read it back with `GET /api/v1/nodes/{node_id}`.
 
 The backend parses the share link with the engine's own support, writes it
 into the `node` section of its managed main source under the given name,
@@ -132,7 +128,7 @@ until a probe or the engine's own checks observe it.
 
 ## Delete an inline node
 
-`DELETE /api/v1/nodes/{id}` requires `resources.nodes.can_manage`. A node
+`DELETE /api/v1/nodes/{node_id}` requires `resources.nodes.can_manage`. A node
 from a subscription or file provider returns `404 capability_not_supported`:
 refresh or delete its [provider](providers.html) instead.
 

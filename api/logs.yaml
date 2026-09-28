@@ -29,7 +29,7 @@ paths:
       parameters:
         - name: level
           in: query
-          description: Minimum severity, ordered trace < debug < info < warn < error. Omit for all advertised levels; an unadvertised level returns 400 invalid_request.
+          description: Minimum severity, ordered trace < debug < info < warn < error. Omit for all advertised levels. A value outside LogLevel returns 400 invalid_request; a LogLevel member not in resources.logs.levels returns 422 unsupported_value.
           schema:
             $ref: ./openapi.yaml#/components/schemas/LogLevel
           example: info

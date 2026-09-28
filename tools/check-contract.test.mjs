@@ -315,8 +315,10 @@ test("geodata sources are patched through runtime settings and reported with the
   const noRoute = example("getRuntimeSettings:200:current");
   delete noRoute.body.geodata.download;
   assertInvalid(validateExample(contract, noRoute), "the settings report the download route");
-  assert.equal(spec.paths["/api/v1/runtime/settings"].patch.responses["409"], undefined,
-    "URL patches are accepted under any source");
+  const conflict = spec.paths["/api/v1/runtime/settings"].patch.responses["409"];
+  assert.match(conflict.description, /group_id/, "the only settings conflict is a group reference");
+  assert.equal(conflict.content["application/json"].examples.unknown_group.value.error.code, "state_conflict",
+    "a group that is not current is a state conflict, not an unsupported value");
   const seeded = example("getRuntimeSettings:200:config_sources");
   seeded.body.geodata.geoip.urls = [];
   assertInvalid(validateExample(contract, seeded), "a stored URL list is never empty");
@@ -531,7 +533,7 @@ test("configuration capabilities require usable limits only when available", () 
     response.body.resources[resource] = { available: false };
     assertValid(validateExample(contract, response));
     delete response.body.resources[resource];
-    assertInvalid(validateExample(contract, response), "unavailable resource keys must still be present");
+    assertValid(validateExample(contract, response), "an absent resource key means unavailable");
   }
   const response = example("getCapabilities:200:available");
   for (const modes of [[], ["syntax", "syntax"], ["live"]]) {
@@ -1270,10 +1272,10 @@ test("observability resources expose discovery, permissions and examples for eve
   const methods = {
     "/api/v1/logs": ["get"],
     "/api/v1/providers": ["get", "post"],
-    "/api/v1/providers/{id}": ["get", "delete"],
-    "/api/v1/providers/{id}/refresh": ["post"],
+    "/api/v1/providers/{provider_id}": ["get", "delete"],
+    "/api/v1/providers/{provider_id}/refresh": ["post"],
     "/api/v1/nodes": ["get", "post"],
-    "/api/v1/nodes/{id}": ["get", "delete"],
+    "/api/v1/nodes/{node_id}": ["get", "delete"],
     "/api/v1/rules": ["get"],
     "/api/v1/geodata": ["get"],
     "/api/v1/geodata/update": ["post"],
@@ -1282,12 +1284,12 @@ test("observability resources expose discovery, permissions and examples for eve
     ["/api/v1/logs", "get", "observe"],
     ["/api/v1/providers", "get", "observe"],
     ["/api/v1/providers", "post", "control"],
-    ["/api/v1/providers/{id}", "get", "observe"],
-    ["/api/v1/providers/{id}", "delete", "control"],
-    ["/api/v1/providers/{id}/refresh", "post", "control"],
+    ["/api/v1/providers/{provider_id}", "get", "observe"],
+    ["/api/v1/providers/{provider_id}", "delete", "control"],
+    ["/api/v1/providers/{provider_id}/refresh", "post", "control"],
     ["/api/v1/nodes", "post", "control"],
-    ["/api/v1/nodes/{id}", "get", "observe"],
-    ["/api/v1/nodes/{id}", "delete", "control"],
+    ["/api/v1/nodes/{node_id}", "get", "observe"],
+    ["/api/v1/nodes/{node_id}", "delete", "control"],
     ["/api/v1/rules", "get", "observe"],
     ["/api/v1/geodata", "get", "observe"],
     ["/api/v1/geodata/update", "post", "control"],
@@ -1333,7 +1335,7 @@ test("observability capabilities require usable bounds only when available", () 
     response.body.resources[resource] = { available: false };
     assertValid(validateExample(contract, response));
     delete response.body.resources[resource];
-    assertInvalid(validateExample(contract, response), `${resource} declaration was optional`);
+    assertValid(validateExample(contract, response), `an absent ${resource} key means unavailable`);
   }
   const response = example("getCapabilities:200:available");
   for (const levels of [[], ["info", "info"], ["fatal"]]) {
@@ -1641,7 +1643,7 @@ test("DNS rules list request and response rules, each ending in one fallback", (
   advertised.body.resources.dns_rules = { available: false };
   assertValid(validateExample(contract, advertised));
   delete advertised.body.resources.dns_rules;
-  assertInvalid(validateExample(contract, advertised), "dns_rules declaration was optional");
+  assertValid(validateExample(contract, advertised), "an absent dns_rules key means unavailable");
 });
 
 test("DNS cache entries can name the root zone", () => {
@@ -1735,4 +1737,47 @@ test("every operation lists the request-boundary 400 and 413", () => {
       }
     }
   }
+});
+
+const resolveRef = (value) => value?.$ref
+  ? value.$ref.slice(2).split("/").reduce((node, key) => node[key.replaceAll("~1", "/").replaceAll("~0", "~")], spec)
+  : value;
+
+test("every paged list shares the cursor rule and returns 410 for an expired cursor", () => {
+  for (const [path, operationId] of [
+    ["/api/v1/nodes", "listNodes"],
+    ["/api/v1/providers", "listProviders"],
+    ["/api/v1/flows", "listFlows"],
+    ["/api/v1/dns/cache", "listDnsCache"],
+    ["/api/v1/dns/log", "listDnsLog"],
+  ]) {
+    const operation = spec.paths[path].get;
+    assert.equal(operation.operationId, operationId);
+    const cursors = operation.parameters.map(resolveRef).filter((parameter) => parameter.name === "cursor");
+    assert.equal(cursors.length, 1, `${path} takes one cursor`);
+    assert.match(cursors[0].description, /410 snapshot_expired/, `${path} uses the shared cursor rule`);
+    for (const sentence of (operation.description ?? "").split(/(?<=\.)\s+/)) {
+      assert.ok(!(/cursor/i.test(sentence) && /\b400\b/.test(sentence)),
+        `${path} description must not answer an unusable cursor with 400: ${sentence}`);
+    }
+    const gone = resolveRef(operation.responses["410"]);
+    assert.equal(gone.content["application/json"].examples.snapshot_expired.value.error.code, "snapshot_expired",
+      `${path} returns snapshot_expired`);
+  }
+});
+
+test("capabilities require only the runtime resource key", () => {
+  const response = example("getCapabilities:200:available");
+  delete response.body.resources.runtime;
+  assertInvalid(validateExample(contract, response), "runtime declaration was optional");
+});
+
+test("only operations with replay semantics take Idempotency-Key", () => {
+  const replays = (operation) => (operation.parameters ?? []).map(resolveRef)
+    .some((parameter) => parameter.name === "Idempotency-Key");
+  assert.equal(replays(spec.paths["/api/v1/connections"].delete), false);
+  assert.equal(replays(spec.paths["/api/v1/connections/{connection_id}"].delete), false);
+  assert.equal(replays(spec.paths["/api/v1/runtime/settings"].patch), false);
+  assert.equal(replays(spec.paths["/api/v1/operations/reload"].post), true);
+  assert.equal(replays(spec.paths["/api/v1/groups/{group_id}"].patch), true);
 });

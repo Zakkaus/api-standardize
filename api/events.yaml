@@ -15,7 +15,7 @@ paths:
       parameters:
         - name: kinds
           in: query
-          description: Comma-separated advertised event kinds.
+          description: Comma-separated advertised event kinds. A kind outside EventKind or a repeated kind returns 400; an EventKind member the capabilities do not advertise returns 422.
           schema:
             type: string
             minLength: 1
@@ -57,10 +57,13 @@ paths:
           $ref: ./openapi.yaml#/components/responses/EventCursorExpired
         "413":
           $ref: ./openapi.yaml#/components/responses/TooLarge
+        "422":
+          $ref: ./openapi.yaml#/components/responses/Unprocessable
         "429":
           $ref: ./openapi.yaml#/components/responses/RateLimited
         "503":
           $ref: ./openapi.yaml#/components/responses/Unavailable
+          description: max_clients streams are already open, or the event stream is unavailable (temporarily_unavailable)
 schemas:
   EventKind:
     type: string
