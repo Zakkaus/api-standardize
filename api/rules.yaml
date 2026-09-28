@@ -46,7 +46,7 @@ paths:
                         outbound: direct
                         must: false
                         source:
-                          file: "[redacted]/routing.dae"
+                          file: routing.dae
                           source_id: source-routing
                           line: 12
                           column: 5
@@ -57,7 +57,7 @@ paths:
                         outbound: proxy
                         must: false
                         source:
-                          file: "[redacted]/routing.dae"
+                          file: routing.dae
                           source_id: source-routing
                           line: 13
                           column: 5
@@ -152,7 +152,7 @@ schemas:
             $ref: ./openapi.yaml#/components/schemas/NullableSafeUInt
             minimum: 1
             description: One-based UTF-8 byte column of the rule's first token, or null if unknown.
-    description: Source location, or null when unavailable or unsafe to disclose. Coordinates refer to the original source before redaction.
+    description: Source location, or null when unavailable. Coordinates refer to the original source before listener secrets are masked.
   RoutingRule:
     type: object
     required: [ rule_id, index, expression, outbound, must, source, kind ]

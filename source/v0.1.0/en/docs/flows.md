@@ -72,7 +72,7 @@ columns. Nullable fields remain present when unavailable.
 | chain | array of strings | Application outbound `selection_path` group IDs followed by the leaf node ID, in order; empty for direct/block or an unknown path. |
 | chain_source | string | `evaluation`: captured at selection; `reconstructed`: recovered from retained evidence; `unknown`: unavailable. |
 | rule_id | string or null | Generation-scoped traffic rule ID, or null when unavailable. |
-| rule_expression | string or null | Sanitized display expression for that rule, or null when unavailable. |
+| rule_expression | string or null | Display expression for that rule, or null when unavailable. |
 | rule_source | string | `kernel`: deciding kernel rule; `recomputed`: userspace recomputation, not the deciding kernel rule; `unknown`: unavailable provenance. |
 | ingress | string or null | `lan` or `wan` when captured; null when unavailable. |
 | domain_source | string or null | `tls_sni`, `http_host`, `quic_sni`, `dns_mapping`, `explicit`, or `unknown`; null without domain evidence. |
@@ -103,8 +103,8 @@ server. `domain_source` is `tls_sni`, `http_host`, `quic_sni`, `dns_mapping`,
 `explicit`, or `unknown`. A DNS IP-to-domain association is not proof of what
 name this client requested. PID/path are optional observations, not inferred
 from a later lookup of a reused PID. All full fields require the same
-`observe` permission and MUST be sanitized; packet bodies and credentials
-are never returned.
+`observe` permission and follow [Visibility](api-config.html#Visibility);
+packet bodies are never returned.
 
 ## GET /api/v1/flows/{flow_id}
 
@@ -158,7 +158,7 @@ Path `member_id` is nullable when an empty/ineligible group has no selected
 member. Preserve that group and its failure/final-fallback reason. A final
 group adds another path item; a builtin/node terminal uses the outbound/leaf
 fields, not a fabricated declared group member.
-Names are sanitized decision-time captures, required but null when
+Names are decision-time captures, required but null when
 unavailable. IDs remain authoritative; never replace a retained name by
 joining the current node or group registry.
 
@@ -258,7 +258,7 @@ Each `rules[]` item has `rule_id`, nullable `expression`, `result`,
 `missing_inputs`, and `conditions`. Each condition has `id`, nullable
 `expression`, `result`, and `missing_inputs`; IDs identify nodes in the
 compiled predicate tree (including AND/OR/negation), not flattened
-independent booleans. `expression` is a sanitized display of that rule or
+independent booleans. `expression` is a display of that rule or
 predicate, including its configured operands; it is not a second executable
 rule language. Keep the generation's rule dictionary while records refer to
 it, and expand compact IDs at serialization, not on the packet path.

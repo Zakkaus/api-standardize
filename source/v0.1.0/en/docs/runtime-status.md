@@ -252,7 +252,9 @@ until the process restarts or the next configuration activation resets it.
 
 {% api_example patchRuntimeSettings 400 above_ceiling %}
 
-`geodata` differs: the backend keeps it as an override across restarts and
-activations and leaves the top-level `source` unchanged. It needs `control` and
-a credential. A URL list or download route the configuration file names
-replaces the override at the next start. See [Geodata](geodata.html#Configure-the-sources).
+`geodata` differs: it is an override whose lifetime
+`resources.geodata.lifecycle` advertises. `file_values` says when configuration
+file values replace it, `overrides_persist` whether it lasts across restarts, and
+the transition table in [Geodata](geodata.html#Effective-value-and-lifetime)
+gives each case. A `geodata` patch leaves the top-level `source` unchanged and
+needs `control` and a credential.

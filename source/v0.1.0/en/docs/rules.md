@@ -18,12 +18,14 @@ title: Rules
 
 `generation_id` identifies the coherent running generation. `rules` contains
 its complete evaluation order, including exactly one final `kind: fallback`
-entry. Each entry has `rule_id`, zero-based `index`, safe display `expression`,
+entry. Each entry has `rule_id`, zero-based `index`, display `expression`,
 `outbound`, boolean `must`, nullable `source`, and `kind` (`rule` or `fallback`).
-When present, `source` contains a redacted display `file`, the configuration
-`source_id`, a one-based `line`, and a one-based UTF-8 byte `column`. `column` is
-null when unknown; `source` is null when the location is unavailable or unsafe
-to disclose. Coordinates refer to the original source before redaction.
+When present, `source` contains the source `file` as written, apart from
+listener secrets (see [Visibility](api-config.html#Visibility)), the
+configuration `source_id`, a one-based `line`, and a one-based UTF-8 byte
+`column`. `column` is null when unknown; `source` is null when the location is
+unavailable. Coordinates refer to the original source before listener secrets
+are masked.
 The top-level `fallback` repeats that entry's `outbound` and `source`.
 
 `rule_id` is identical to the IDs used by

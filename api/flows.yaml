@@ -952,7 +952,7 @@ schemas:
         description: Generation-scoped traffic rule ID, or null when unavailable.
       rule_expression:
         type: [ string, "null" ]
-        description: Sanitized display expression for that rule, or null when unavailable.
+        description: Display expression for that rule, or null when unavailable.
       rule_source:
         type: string
         enum: [ kernel, recomputed, unknown ]
@@ -1092,7 +1092,7 @@ schemas:
         description: Generation-scoped traffic rule ID, or null when unavailable.
       rule_expression:
         type: [ string, "null" ]
-        description: Sanitized display expression for that rule, or null when unavailable.
+        description: Display expression for that rule, or null when unavailable.
       rule_source:
         type: string
         enum: [ kernel, recomputed, unknown ]

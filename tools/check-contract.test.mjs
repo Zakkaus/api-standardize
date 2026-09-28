@@ -5,7 +5,7 @@ import { once } from "node:events";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 import { parse } from "yaml";
-import { createContract, renderExample, validateExample } from "./contract.mjs";
+import { createContract, renderExample, validateCapabilities, validateExample } from "./contract.mjs";
 import { validateFlowTrace } from "./validate-flow.mjs";
 import { checkContract } from "./check-contract.mjs";
 
@@ -255,10 +255,14 @@ test("geodata sources are patched through runtime settings and reported with the
     delete capabilities.body.resources.geodata[field];
     assertInvalid(validateExample(contract, capabilities), `configurable_sources requires ${field}`);
   }
-  for (const interval_hours of [{min: 24, max: 1, default: 12}, {min: 6, max: 168, default: 200}, {min: 12, max: 24, default: 6}]) {
+  const schema = contract.spec.components.schemas.Capabilities;
+  assertValid(validateCapabilities(contract, example("getCapabilities:200:available").body));
+  for (const interval_hours of [{min: 24, default: 48, max: 1}, {min: 6, max: 168, default: 200}, {min: 12, max: 24, default: 6}]) {
     const capabilities = example("getCapabilities:200:available");
     capabilities.body.resources.geodata.interval_hours = interval_hours;
-    assertInvalid(validateExample(contract, capabilities), "inverted or out-of-range interval bounds");
+    assertValid(contract.validate(schema, capabilities.body), "the schema alone cannot order the bounds");
+    assertInvalid(validateCapabilities(contract, capabilities.body), "capability validation rejects inverted bounds");
+    assertInvalid(validateExample(contract, capabilities), "examples apply the same constraint");
   }
   const updatable = example("getCapabilities:200:available");
   updatable.body.resources.geodata = {available: true, can_update: true, assets: ["geosite"]};

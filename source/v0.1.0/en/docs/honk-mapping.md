@@ -214,7 +214,7 @@ another way.
   `lifecycle: {file_values: start, overrides_persist: true}`.
 - The checksum URL is the file URL with `.sha256sum` appended to its path. A
   `404` accepts the file unverified; any other failure moves to the next URL.
-- The next automatic attempt is due at the end of the last attempt, or at
-  process start before the first, plus the wait and a random delay of up to 60
-  minutes. After a failed attempt the wait is a backoff that starts at one
+- The next automatic attempt is due at the end of the last attempt, or, before
+  the first, at process start or the latest `auto_update` change, plus the wait
+  and a random delay of up to 60 minutes. After a failed attempt the wait is a backoff that starts at one
   hour, doubles on each further failure, and never exceeds the interval.

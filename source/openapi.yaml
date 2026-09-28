@@ -2389,7 +2389,7 @@ paths:
   /api/v1/providers:
     get:
       operationId: listProviders
-      summary: List provider metadata without credentials
+      summary: List provider metadata
       description: |
         Read current subscription, file and inline provider metadata; never fetch a
         subscription while serving a GET. Use the shared snapshot cursor semantics.
@@ -2422,7 +2422,7 @@ paths:
                       - id: provider-a
                         name: provider-a
                         kind: subscription
-                        url_redacted: https://subscriptions.example.com/[redacted]
+                        url_redacted: https://subscriptions.example.com/a/sub?token=secret-a
                         node_count: 1
                         updated_at: '2026-08-15T10:00:00Z'
                         expires_at: '2026-10-01T00:00:00Z'
@@ -2525,7 +2525,7 @@ paths:
                     id: provider-b
                     name: provider-b
                     kind: subscription
-                    url_redacted: https://subscriptions.example.com/[redacted]
+                    url_redacted: https://subscriptions.example.com/sub?token=secret
                     node_count: 0
                     updated_at: null
                     expires_at: null
@@ -2706,7 +2706,7 @@ paths:
                     id: provider-a
                     name: provider-a
                     kind: subscription
-                    url_redacted: https://subscriptions.example.com/[redacted]
+                    url_redacted: https://subscriptions.example.com/a/sub?token=secret-a
                     node_count: 1
                     updated_at: '2026-08-15T10:00:00Z'
                     expires_at: '2026-10-01T00:00:00Z'
@@ -4978,7 +4978,7 @@ paths:
                         outbound: direct
                         must: false
                         source:
-                          file: '[redacted]/routing.dae'
+                          file: routing.dae
                           source_id: source-routing
                           line: 12
                           column: 5
@@ -4989,7 +4989,7 @@ paths:
                         outbound: proxy
                         must: false
                         source:
-                          file: '[redacted]/routing.dae'
+                          file: routing.dae
                           source_id: source-routing
                           line: 13
                           column: 5
@@ -6088,7 +6088,7 @@ paths:
                         action: upstream
                         upstream: alidns
                         source:
-                          file: '[redacted]/config.dae'
+                          file: config.dae
                           source_id: source-main
                           line: 40
                           column: 7
@@ -6099,7 +6099,7 @@ paths:
                         action: reject
                         upstream: null
                         source:
-                          file: '[redacted]/config.dae'
+                          file: config.dae
                           source_id: source-main
                           line: 41
                           column: 7
@@ -6110,7 +6110,7 @@ paths:
                         action: upstream
                         upstream: googledns
                         source:
-                          file: '[redacted]/config.dae'
+                          file: config.dae
                           source_id: source-main
                           line: 42
                           column: 7
@@ -6122,7 +6122,7 @@ paths:
                         action: requery
                         upstream: alidns
                         source:
-                          file: '[redacted]/config.dae'
+                          file: config.dae
                           source_id: source-main
                           line: 45
                           column: 7
@@ -8160,7 +8160,7 @@ components:
                     - min
                     - max
                     - default
-                  description: Bounds and default of geodata auto_update.interval_hours, with 1 <= min <= default <= max. Required when configurable_sources is true.
+                  description: Bounds and default of geodata auto_update.interval_hours. Required when configurable_sources is true. min <= default <= max is required; JSON Schema cannot express this ordering, so validators check it separately.
                   properties:
                     min:
                       type: integer
@@ -9609,7 +9609,7 @@ components:
             - string
             - 'null'
           minLength: 1
-          description: Display-only download source, in the display form described in Geodata; query and fragment removed and credential-shaped path segments replaced with [redacted]. With several configured URLs, the first. Null when no source is configured or the URL does not parse, including a URL with userinfo.
+          description: Display-only download source, in the display form described in Geodata; query removed and credential-shaped path segments replaced with [redacted]. With several configured URLs, the first. Null when no source is configured or the URL does not parse, including a URL with userinfo or a fragment.
         fetched_url_redacted:
           type:
             - string
@@ -10795,7 +10795,7 @@ components:
           type:
             - string
             - 'null'
-          description: Sanitized display expression for that rule, or null when unavailable.
+          description: Display expression for that rule, or null when unavailable.
         rule_source:
           type: string
           enum:
@@ -11160,7 +11160,7 @@ components:
           type:
             - string
             - 'null'
-          description: Sanitized display expression for that rule, or null when unavailable.
+          description: Display expression for that rule, or null when unavailable.
         rule_source:
           type: string
           enum:
@@ -12335,7 +12335,7 @@ components:
               $ref: '#/components/schemas/NullableSafeUInt'
               minimum: 1
               description: One-based UTF-8 byte column of the rule's first token, or null if unknown.
-      description: Source location, or null when unavailable or unsafe to disclose. Coordinates refer to the original source before redaction.
+      description: Source location, or null when unavailable. Coordinates refer to the original source before listener secrets are masked.
     RoutingRule:
       type: object
       required:

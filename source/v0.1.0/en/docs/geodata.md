@@ -25,8 +25,8 @@ Reading never touches the network.
 
 `source_redacted` and `fetched_url_redacted` use one display form. It keeps the
 scheme, host, port and path of an absolute `http` or `https` URL, removes the
-query and the fragment, and replaces these path segments, compared in their
-percent-encoded form, with `[redacted]`:
+query, and replaces these path segments, compared in their percent-encoded
+form, with `[redacted]`:
 
 - the segment after one named `access_key`, `access_token`, `api_key`,
   `apikey`, `auth`, `auth_token`, `client_secret`, `credential`, `key`,
@@ -39,8 +39,9 @@ percent-encoded form, with `[redacted]`:
   or 32 or more characters, no `-`, and is not all lower-case hex.
 
 Listener-secret values are then masked. The field is null when no source is
-configured or the URL does not parse, including a URL with userinfo. The display
-form is not the configured URL; `GET /runtime/settings` returns that.
+configured or the URL does not parse, including a URL with userinfo or a
+fragment. The display form is not the configured URL; `GET /runtime/settings`
+returns that.
 
 When `resources.geodata.configurable_sources` is true, the response also
 carries the update status, and each asset reports where its file came from:
@@ -56,8 +57,9 @@ carries the update status, and each asset reports where its file came from:
 | last_error | A [SafeError](errors.html) with an adapter-defined code when the last attempt failed on every URL; null otherwise. |
 | required_codes | Per asset kind, the lowercase category names the active configuration references, sorted and without attribute suffixes. |
 
-The timestamps are null before the first attempt. A backend without the
-capability omits all of these fields.
+`last_checked_at` and `last_updated_at` are null before the first attempt;
+`next_check_at` is set from startup while automatic updates are on. A backend
+without the capability omits all of these fields.
 
 {% api_example getGeoData 200 packaged %}
 
@@ -251,12 +253,14 @@ loaded files follow the upstream lists without a manual update. Set
 `auto_update.enabled` to false to stop them.
 
 The next automatic attempt is due a wait plus a random delay after the last
-attempt, manual or automatic, finished. Before the first attempt, the wait
-counts from process start, so a start never downloads at once. The wait is the
-interval; after a failed attempt the backend may wait less, never more, and a
-success restores the interval. The backend bounds the random delay, which
+attempt, manual or automatic, finished. Until this process finishes its first
+attempt, the wait counts from process start or from the latest change to
+`auto_update`, whichever is later, so a start never downloads at once. The wait
+is the interval; after a failed attempt the backend may wait less, never more,
+and a success restores the interval. The backend bounds the random delay, which
 spreads downloads from many devices, and adds it to every wait, retries
-included. `next_check_at` reports the due time with the delay, so a retry is
-due no later than the interval plus the delay. Changing `auto_update`
-recomputes the due time from the same last attempt. honk's delay and backoff
-values are in the [honk notes](honk-mapping.html#Geodata-sources-in-honk).
+included. `next_check_at` reports the due time with the delay, so a retry is due
+no later than the interval plus the delay. Changing `auto_update` recomputes the
+due time from the last finished attempt, or from the time of the change when
+there is none yet. honk's delay and backoff values are in the [honk
+notes](honk-mapping.html#Geodata-sources-in-honk).

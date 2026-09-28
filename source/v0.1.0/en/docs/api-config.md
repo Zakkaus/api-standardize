@@ -143,8 +143,11 @@ server-side request forgery (SSRF).
   `check_url` PATCH, or a geodata source PATCH changes the configured
   destinations. API callers cannot change the destination or port allowlists;
   the deployment owns them.
-- Only the scheme's default port is allowed unless the deployment configures an
-  explicit port allowlist.
+- Port rules depend on the destination kind. An `http` or `https` URL may use
+  its scheme's default port (80 or 443) or a port in the deployment's port
+  allowlist. A TCP connect check dials the node's configured server port, and
+  any nonzero port is allowed. A DNS check target may use port 53 or a port in
+  the allowlist. Port 0 is never allowed.
 - The rules apply after the final route is selected and before each dial,
   including each retry. When the backend resolves the name itself, whether the
   route is direct or through a node, it rejects loopback, link-local,
@@ -157,6 +160,10 @@ server-side request forgery (SSRF).
   patched `check_url` like one written through a
   [configuration source](configuration.html). The address and port rules do
   not apply to it, including through a direct member.
+- A geodata URL equal, as the exact string, to the URL the configuration file
+  names for that asset is exempt from the address and port rules, for both the
+  file download and its checksum request. The same URL set by a geodata source
+  PATCH is exempt too; any other URL follows every rule.
 - The backend bounds response size and time. Where a feature follows
   redirects, it bounds their number and repeats these checks for each one;
   geodata downloads follow none.

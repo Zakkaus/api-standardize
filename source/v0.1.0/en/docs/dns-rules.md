@@ -31,7 +31,7 @@ parser omitted with a diagnostic is not listed; read the diagnostics from
 Each entry has `rule_id`, zero-based `index`, `expression` (the rule's
 source text as written, for display), `action`, `upstream`, nullable `source`, and `kind`
 (`rule` or `fallback`). `source` has the same shape as in
-[GET /rules](rules.html): a redacted display `file`, the configuration
+[GET /rules](rules.html): the source `file` as written, the configuration
 `source_id`, a one-based `line`, and a nullable one-based UTF-8 byte `column`.
 
 | List | `action` | Meaning | `upstream` |

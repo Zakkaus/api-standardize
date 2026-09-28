@@ -2,7 +2,7 @@ paths:
   /api/v1/providers:
     get:
       operationId: listProviders
-      summary: List provider metadata without credentials
+      summary: List provider metadata
       description: |
         Read current subscription, file and inline provider metadata; never fetch a
         subscription while serving a GET. Use the shared snapshot cursor semantics.
@@ -35,7 +35,7 @@ paths:
                       - id: provider-a
                         name: provider-a
                         kind: subscription
-                        url_redacted: https://subscriptions.example.com/[redacted]
+                        url_redacted: https://subscriptions.example.com/a/sub?token=secret-a
                         node_count: 1
                         updated_at: 2026-08-15T10:00:00Z
                         expires_at: 2026-10-01T00:00:00Z
@@ -172,7 +172,7 @@ paths:
                     id: provider-b
                     name: provider-b
                     kind: subscription
-                    url_redacted: https://subscriptions.example.com/[redacted]
+                    url_redacted: https://subscriptions.example.com/sub?token=secret
                     node_count: 0
                     updated_at: null
                     expires_at: null
@@ -315,7 +315,7 @@ paths:
                     id: provider-a
                     name: provider-a
                     kind: subscription
-                    url_redacted: https://subscriptions.example.com/[redacted]
+                    url_redacted: https://subscriptions.example.com/a/sub?token=secret-a
                     node_count: 1
                     updated_at: 2026-08-15T10:00:00Z
                     expires_at: 2026-10-01T00:00:00Z

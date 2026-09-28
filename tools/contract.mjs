@@ -530,6 +530,20 @@ export function createContract(spec) {
   return context;
 }
 
+/** Validate a capabilities document against the Capabilities schema and the constraints the schema cannot express. */
+export function validateCapabilities(context, capabilities) {
+  return [...context.validate(context.spec.components?.schemas?.Capabilities, capabilities), ...capabilityConstraints(capabilities)];
+}
+
+/** Semantic constraints on a capabilities document that JSON Schema cannot express. */
+function capabilityConstraints(capabilities) {
+  const bounds = capabilities?.resources?.geodata?.interval_hours;
+  if (isObject(bounds) && !(bounds.min <= bounds.default && bounds.default <= bounds.max)) {
+    return ["geodata interval_hours must satisfy min <= default <= max"];
+  }
+  return [];
+}
+
 /** Validate one normalized example without interpreting rendered HTTP or SSE text. */
 export function validateExample(context, example) {
   const prefix = typeof example?.id === "string" ? `${example.id}: ` : "example: ";
@@ -610,9 +624,8 @@ export function validateExample(context, example) {
       const location = headerEntry(example.headers, "Location")?.[1];
       if (location !== example.body?.href) fail("Location must equal response body href");
     }
-    const bounds = example.operationId === "getCapabilities" ? example.body?.resources?.geodata?.interval_hours : undefined;
-    if (isObject(bounds) && !(bounds.min <= bounds.default && bounds.default <= bounds.max)) {
-      fail("geodata interval_hours must satisfy min <= default <= max");
+    if (example.operationId === "getCapabilities" && example.status === 200) {
+      for (const message of capabilityConstraints(example.body)) fail(message);
     }
   } else {
     if (example.operationId !== "streamEvents" || example.status !== 200) fail("event is not bound to streamEvents:200");

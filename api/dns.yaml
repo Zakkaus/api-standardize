@@ -524,7 +524,7 @@ paths:
                         action: upstream
                         upstream: alidns
                         source:
-                          file: "[redacted]/config.dae"
+                          file: config.dae
                           source_id: source-main
                           line: 40
                           column: 7
@@ -535,7 +535,7 @@ paths:
                         action: reject
                         upstream: null
                         source:
-                          file: "[redacted]/config.dae"
+                          file: config.dae
                           source_id: source-main
                           line: 41
                           column: 7
@@ -546,7 +546,7 @@ paths:
                         action: upstream
                         upstream: googledns
                         source:
-                          file: "[redacted]/config.dae"
+                          file: config.dae
                           source_id: source-main
                           line: 42
                           column: 7
@@ -558,7 +558,7 @@ paths:
                         action: requery
                         upstream: alidns
                         source:
-                          file: "[redacted]/config.dae"
+                          file: config.dae
                           source_id: source-main
                           line: 45
                           column: 7
