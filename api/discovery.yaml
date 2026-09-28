@@ -256,6 +256,7 @@ paths:
                       logs:
                         available: true
                         levels: [ trace, debug, info, warn, error ]
+                        filters: [ level, target ]
                         retention_seconds: 60
                         min_buffered_records: 64
                         max_buffered_records: 4096
@@ -928,7 +929,7 @@ schemas:
                 available:
                   const: true
             then:
-              required: [ levels, retention_seconds, max_buffered_records ]
+              required: [ levels, filters, retention_seconds, max_buffered_records ]
             properties:
               available:
                 type: boolean
@@ -938,6 +939,15 @@ schemas:
                 uniqueItems: true
                 items:
                   $ref: ./openapi.yaml#/components/schemas/LogLevel
+              filters:
+                type: array
+                uniqueItems: true
+                description: The GET /logs query filters this engine applies. level is always listed; a filter not listed returns 422 unsupported_value.
+                items:
+                  type: string
+                  enum: [ level, target ]
+                contains:
+                  const: level
               retention_seconds:
                 type: integer
                 minimum: 1

@@ -70,12 +70,12 @@ cache class they claim to expose.
 
 `usage` describes the whole runtime cache at snapshot time and ignores the
 filters. Every page of one snapshot repeats it. Both fields are UInt64
-decimal strings:
+decimal strings, and `entry_capacity` may be null:
 
 | Field | Description |
 |-------|-------------|
 | entries | Entries currently retained, including expired entries not yet evicted |
-| entry_capacity | Effective entry limit after the engine applies its bounds, at most 100,000 |
+| entry_capacity | Effective entry limit after the engine applies its bounds, or null when the cache has no entry limit or the engine cannot report it |
 
 The entry count is the cache's only limit; the size of an entry is not bounded.
 The engine evicts when `entries` reaches `entry_capacity`, so a client showing

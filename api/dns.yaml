@@ -796,8 +796,10 @@ schemas:
       entries:
         $ref: ./openapi.yaml#/components/schemas/UInt64
       entry_capacity:
-        $ref: ./openapi.yaml#/components/schemas/UInt64
-        description: Effective entry limit after the engine applies its bounds, at most 100,000.
+        oneOf:
+          - $ref: ./openapi.yaml#/components/schemas/UInt64
+          - type: "null"
+        description: Effective entry limit after the engine applies its bounds, or null when the cache has no entry limit or the engine cannot report it.
   DnsLogRecord:
     type: object
     required: [ id, observed_at, src, question, status, cached, upstream, route, elapsed_ms, answers ]

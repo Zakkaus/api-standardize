@@ -1413,7 +1413,7 @@ test("observability resources expose discovery, permissions and examples for eve
 
 test("observability capabilities require usable bounds only when available", () => {
   for (const [resource, fields] of [
-    ["logs", ["levels", "retention_seconds", "max_buffered_records"]],
+    ["logs", ["levels", "filters", "retention_seconds", "max_buffered_records"]],
     ["providers", ["can_refresh", "can_manage", "max_page_size"]],
     ["rules", ["max_rules"]],
     ["geodata", ["can_update", "assets"]],
@@ -1470,7 +1470,8 @@ test("log payloads and filters preserve typed records and the shared cursor erro
   const schema = { $ref: bindings.log };
   record.fields = null;
   assertValid(contract.validate(schema, record));
-  for (const [field, invalid] of [["ts", "yesterday"], ["level", "fatal"], ["fields", []]]) {
+  assertValid(contract.validate(schema, { ...record, target: null }), "an engine without targets reports null");
+  for (const [field, invalid] of [["ts", "yesterday"], ["level", "fatal"], ["fields", []], ["target", ""]]) {
     const changed = { ...record, [field]: invalid };
     assertInvalid(contract.validate(schema, changed));
   }
@@ -1879,4 +1880,44 @@ test("only operations with replay semantics take Idempotency-Key", () => {
   assert.equal(replays(spec.paths["/api/v1/runtime/settings"].patch), false);
   assert.equal(replays(spec.paths["/api/v1/operations/reload"].post), true);
   assert.equal(replays(spec.paths["/api/v1/groups/{group_id}"].patch), true);
+});
+
+test("log filters are advertised and always include level", () => {
+  const capabilities = example("getCapabilities:200:available");
+  const logs = capabilities.body.resources.logs;
+  assert.deepEqual(logs.filters, ["level", "target"]);
+  logs.filters = ["level"];
+  assertValid(validateExample(contract, capabilities), "an engine without targets lists level alone");
+  for (const invalid of [["target"], [], ["level", "module"], ["level", "level"]]) {
+    logs.filters = invalid;
+    assertInvalid(validateExample(contract, capabilities), `filters ${JSON.stringify(invalid)} passed`);
+  }
+});
+
+test("DNS cache capacity may be unbounded and is not capped by the contract", () => {
+  const usage = { $ref: "#/components/schemas/DnsCacheUsage" };
+  assertValid(contract.validate(usage, { entries: "5", entry_capacity: null }), "null capacity");
+  assertValid(contract.validate(usage, { entries: "5", entry_capacity: "1000000" }), "no fixed cap");
+  assertInvalid(contract.validate(usage, { entries: "5" }), "capacity may be null but not absent");
+});
+
+test("eBPF attachments are interface or cgroup attachments", () => {
+  const response = example("getDatapath:200:active");
+  const attachments = response.body.ebpf.attachments;
+  assert.deepEqual(attachments.map((attachment) => attachment.kind), ["interface", "cgroup"]);
+  assertValid(validateExample(contract, response));
+  const schema = { $ref: "#/components/schemas/EbpfAttachment" };
+  const [iface, cgroup] = attachments;
+  for (const [label, value] of [
+    ["kind is required", (({ kind, ...rest }) => rest)(iface)],
+    ["an interface attachment needs its direction", (({ direction, ...rest }) => rest)(iface)],
+    ["an interface attachment needs its interface", (({ interface: _, ...rest }) => rest)(iface)],
+    ["an interface attachment has no cgroup", { ...iface, cgroup: "/" }],
+    ["a cgroup attachment needs its path", (({ cgroup: _, ...rest }) => rest)(cgroup)],
+    ["a cgroup attachment has no interface", { ...cgroup, interface: "eth0" }],
+    ["a cgroup attachment has no direction", { ...cgroup, direction: "egress" }],
+    ["kind comes from the enum", { ...cgroup, kind: "xdp" }],
+  ]) {
+    assertInvalid(contract.validate(schema, value), label);
+  }
 });

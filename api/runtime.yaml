@@ -458,8 +458,13 @@ paths:
                         epoch: "3"
                       attachments:
                         - name: wan_ingress
+                          kind: interface
                           interface: eth0
                           direction: ingress
+                          state: attached
+                        - name: connect4
+                          kind: cgroup
+                          cgroup: /
                           state: attached
                       maps:
                         state: ready
@@ -874,20 +879,42 @@ schemas:
             $ref: ./openapi.yaml#/components/schemas/EbpfMaps
   EbpfAttachment:
     type: object
-    required: [ name, interface, direction, state ]
+    required: [ name, kind, state ]
+    description: One program attachment. An interface attachment names the interface and direction; a cgroup attachment names the cgroup instead and has neither.
     properties:
       name:
         type: string
         minLength: 1
+        description: Program or hook name.
+      kind:
+        type: string
+        enum: [ interface, cgroup ]
       interface:
         type: string
         minLength: 1
       direction:
         type: string
         enum: [ ingress, egress ]
+      cgroup:
+        type: string
+        minLength: 1
+        description: cgroup v2 path relative to the cgroup2 mount; / is the root cgroup.
       state:
         type: string
         enum: [ attached, detached, error, unknown ]
+    if:
+      properties:
+        kind:
+          const: interface
+    then:
+      required: [ interface, direction ]
+      properties:
+        cgroup: false
+    else:
+      required: [ cgroup ]
+      properties:
+        interface: false
+        direction: false
   EbpfMaps:
     type: object
     required: [ state, conn_state ]

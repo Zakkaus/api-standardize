@@ -35,7 +35,7 @@ paths:
           example: info
         - name: target
           in: query
-          description: Case-sensitive literal module prefix; omit for all targets.
+          description: Case-sensitive literal prefix of LogRecord.target; omit for all targets. Requires target in resources.logs.filters, otherwise 422 unsupported_value. Records whose target is null never match.
           schema:
             type: string
             minLength: 1
@@ -102,9 +102,9 @@ schemas:
       level:
         $ref: ./openapi.yaml#/components/schemas/LogLevel
       target:
-        type: string
+        type: [ string, "null" ]
         minLength: 1
-        description: Engine module name, not a network destination.
+        description: The engine component that emitted the record, such as a module name; not a network destination. null when the engine does not report one.
       message:
         type: string
         minLength: 1

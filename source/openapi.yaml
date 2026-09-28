@@ -298,6 +298,9 @@ paths:
                           - info
                           - warn
                           - error
+                        filters:
+                          - level
+                          - target
                         retention_seconds: 60
                         min_buffered_records: 64
                         max_buffered_records: 4096
@@ -2085,8 +2088,13 @@ paths:
                         epoch: '3'
                       attachments:
                         - name: wan_ingress
+                          kind: interface
                           interface: eth0
                           direction: ingress
+                          state: attached
+                        - name: connect4
+                          kind: cgroup
+                          cgroup: /
                           state: attached
                       maps:
                         state: ready
@@ -5164,7 +5172,7 @@ paths:
           example: info
         - name: target
           in: query
-          description: Case-sensitive literal module prefix; omit for all targets.
+          description: Case-sensitive literal prefix of LogRecord.target; omit for all targets. Requires target in resources.logs.filters, otherwise 422 unsupported_value. Records whose target is null never match.
           schema:
             type: string
             minLength: 1
@@ -7996,6 +8004,7 @@ components:
               then:
                 required:
                   - levels
+                  - filters
                   - retention_seconds
                   - max_buffered_records
               properties:
@@ -8007,6 +8016,17 @@ components:
                   uniqueItems: true
                   items:
                     $ref: '#/components/schemas/LogLevel'
+                filters:
+                  type: array
+                  uniqueItems: true
+                  description: The GET /logs query filters this engine applies. level is always listed; a filter not listed returns 422 unsupported_value.
+                  items:
+                    type: string
+                    enum:
+                      - level
+                      - target
+                  contains:
+                    const: level
                 retention_seconds:
                   type: integer
                   minimum: 1
@@ -9167,13 +9187,19 @@ components:
       type: object
       required:
         - name
-        - interface
-        - direction
+        - kind
         - state
+      description: One program attachment. An interface attachment names the interface and direction; a cgroup attachment names the cgroup instead and has neither.
       properties:
         name:
           type: string
           minLength: 1
+          description: Program or hook name.
+        kind:
+          type: string
+          enum:
+            - interface
+            - cgroup
         interface:
           type: string
           minLength: 1
@@ -9182,6 +9208,10 @@ components:
           enum:
             - ingress
             - egress
+        cgroup:
+          type: string
+          minLength: 1
+          description: cgroup v2 path relative to the cgroup2 mount; / is the root cgroup.
         state:
           type: string
           enum:
@@ -9189,6 +9219,22 @@ components:
             - detached
             - error
             - unknown
+      if:
+        properties:
+          kind:
+            const: interface
+      then:
+        required:
+          - interface
+          - direction
+        properties:
+          cgroup: false
+      else:
+        required:
+          - cgroup
+        properties:
+          interface: false
+          direction: false
     EbpfMaps:
       type: object
       required:
@@ -12647,8 +12693,10 @@ components:
         entries:
           $ref: '#/components/schemas/UInt64'
         entry_capacity:
-          $ref: '#/components/schemas/UInt64'
-          description: Effective entry limit after the engine applies its bounds, at most 100,000.
+          oneOf:
+            - $ref: '#/components/schemas/UInt64'
+            - type: 'null'
+          description: Effective entry limit after the engine applies its bounds, or null when the cache has no entry limit or the engine cannot report it.
     DnsLogRecord:
       type: object
       required:
@@ -13099,9 +13147,11 @@ components:
         level:
           $ref: '#/components/schemas/LogLevel'
         target:
-          type: string
+          type:
+            - string
+            - 'null'
           minLength: 1
-          description: Engine module name, not a network destination.
+          description: The engine component that emitted the record, such as a module name; not a network destination. null when the engine does not report one.
         message:
           type: string
           minLength: 1
