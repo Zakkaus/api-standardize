@@ -827,7 +827,7 @@ schemas:
               recording:
                 type: string
                 enum: [ "off", "on", auto, sampled ]
-                description: The engine's flow recording policy, not whether the recorder is capturing now. off records none, because the configuration does not permit the flow recorder or its mode is off; on records every flow in scopes (mode on); auto is mode auto, recording while clients create demand, whether or not any client does now; sampled records a subset. recording.flows.active in GET /runtime/settings reports whether the recorder is capturing.
+                description: The engine's flow recording policy, not whether the recorder is capturing now. off records none, because the configuration does not permit the flow recorder or its mode is off; on records every flow in scopes (mode on); auto enables recording on client demand; sampled records a subset. recording.flows.active in GET /runtime/settings reports whether capture is active now.
               scopes:
                 type: array
                 uniqueItems: true

@@ -113,7 +113,7 @@ parameters:
   IfMatchOptional:
     name: If-Match
     in: header
-    description: Evaluated as RFC 9110 §13.1.1 defines; see Conditional requests in the error contract. A server that requires it returns 428 precondition_required when it is missing, except for a retained idempotent replay.
+    description: Evaluated as RFC 9110 §13.1.1 defines; see Conditional requests in the error contract. A new group-configuration PATCH without If-Match returns 428 precondition_required; a retained idempotent replay may omit it.
     schema:
       $ref: ./openapi.yaml#/components/schemas/EntityTagList
     example: '"17"'
@@ -657,7 +657,7 @@ schemas:
     description: "`*` or a comma-separated list of entity tags, strong or weak (W/ prefix), as RFC 9110 §8.8.3 and §13.1.1 define. An entity tag contains no space, tab or inner double quote. Empty list elements are ignored, as §5.6.1.2 requires of recipients."
     pattern: '^(\*|((W/)?"[!#-~\u0080-\u00ff]*")?([ \t]*,[ \t]*((W/)?"[!#-~\u0080-\u00ff]*")?)*)$'
   IpAddress:
-    description: An IPv4 or IPv6 address. The two branches differ only by format, so validating this value requires asserting the ipv4 and ipv6 formats.
+    description: An IPv4 or IPv6 address. Validators must enforce the ipv4 and ipv6 formats; without format assertion, either branch accepts any string.
     anyOf:
       - type: string
         format: ipv4

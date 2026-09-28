@@ -27,8 +27,8 @@ proxy handshake or application latency; it requires `transport: [tcp]`.
 TCP, and measures through the response headers. `dns` tests the configured DNS
 check through the target outbound; TCP and/or UDP describe that DNS query's
 transport. The kind fixes the health `purpose` that results and health
-observations report: `tcp_connect` and `http` report `data`, `dns` reports
-`dns`, so a DNS check over UDP never collapses into data-UDP health. The IP
+observations report: `tcp_connect` and `http` report `data`, and `dns` reports
+`dns`. A DNS probe keeps purpose `dns` when sent over UDP. The IP
 family refers to the check destination (node server for `tcp_connect`), not
 necessarily the tunnel's network. There is no arbitrary UDP echo or generic
 `latency` kind whose success criterion is unspecified.

@@ -28,7 +28,7 @@ The group API separates these responsibilities:
 | id | string | Opaque stable group identifier. Do not derive API identity from `name`. |
 | name | string | Engine-visible group name. |
 | icon | string or null | Icon the configuration names for the group (absolute http(s) URL or data URI), shown beside the name. `null` when none is configured; a client may keep its own local override. |
-| config_revision | string | Configuration-wide revision, the same value as `revision` in [GET /config](configuration.html) and the `ETag` of `GET /groups/{group_id}/config`. Any accepted configuration change advances it, not only a change to this group. |
+| config_revision | string | The same underlying revision as [`GET /config`](configuration.html)'s `revision`, quoted in the `ETag` of `GET /groups/{group_id}/config`. Any accepted configuration change advances it, not only a change to this group. |
 | policy.kind | string | Canonical behavior: `selector`, `urltest`, `loadbalance`, `fallback`, `random`, `score`, or `fixed`. A `fixed` group always uses its configured member, even when that member fails its check; dae's `fixed(index)` maps to it, with the index naming the member. |
 | policy.native | string | Effective engine policy, not a configuration alias that the runtime implements differently. |
 | members | array | Direct group members, in declaration order. |
@@ -87,8 +87,8 @@ Use the detail endpoint for members and health observations.
 ## GET /api/v1/groups/{group_id}
 
 Returns the complete current group resource described above. The response
-has no `ETag`: selection and health change without a configuration change, so
-one strong validator cannot describe it. Use `GET /groups/{group_id}/config`
+has no `ETag` because a tag based only on the configuration revision would not
+track selection or health changes. Use `GET /groups/{group_id}/config`
 for a conditional write.
 
 ### Request
@@ -110,13 +110,14 @@ Updates group configuration only. It does not change runtime selection.
 
 Use RFC 6902 JSON Patch and send the `ETag` of `GET /groups/{group_id}/config`
 in `If-Match`, evaluated as [conditional requests](errors.html#Conditional-requests)
-defines. The schema marks `If-Match` optional so that a retained replay can
-omit it; a server that requires it returns `428` when a new request lacks it.
+defines. A new group-configuration PATCH without `If-Match` returns `428`; a
+retained idempotent replay may omit it.
 Requires `resources.groups.config_patch`; without it the request
 returns `404 capability_not_supported`. A group patch is a configuration
 write, so `config_patch` is true only when `resources.config.writable` is.
 Because `config_revision` is configuration-wide, a patch sent after an
-unrelated accepted change returns `412`; read the configuration again and retry.
+unrelated accepted change returns `412`. Read `GET /groups/{group_id}/config`
+again and retry with its current `ETag`.
 
 {% api_example patchGroupConfig request tolerance http %}
 
@@ -178,7 +179,7 @@ as a `comment`, are ignored ([RFC 6902 §4](https://www.rfc-editor.org/rfc/rfc69
 | 404 | The group does not exist, or `resources.groups.config_patch` is false. |
 | 409 | A `test` operation failed, or current runtime state prevents the requested transition. |
 | 422 | The patch is syntactically valid but the field or value is unsupported. |
-| 428 | The server requires `If-Match` and the request has none. |
+| 428 | A new patch has no `If-Match`. |
 
 An asynchronous response uses the [shared operation contract](operations.html):
 

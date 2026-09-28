@@ -234,9 +234,9 @@ may be empty. honk's rules are in the
 
 `resources.flows.recording` reports the flow recorder's policy, and
 `recording.flows.active` reports whether it is capturing now. The policy is
-`off` when the configuration does not permit the recorder or its mode is `off`,
-and otherwise the mode itself (`on` or `auto`), whether or not a client creates
-demand at the moment.
+`off` when the configuration does not permit the recorder or its mode is `off`.
+Otherwise it reports `on` or `auto` according to the mode, or `sampled` when the
+engine records a subset.
 
 ## PATCH /api/v1/runtime/settings
 

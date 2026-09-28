@@ -75,12 +75,12 @@ check that fails:
 6. Current state: `409`.
 
 A rate limit (`429`) or full shared capacity (`503`) is reported when the
-request is admitted, after the checks it passed. Three exceptions: source
-creation returns `409` for a `path` already in use before it validates the
-content; a configuration write decides the listener-settings `403` during
-validation; and a group configuration patch checks `Content-Type` (`415`) first and reports a
-missing (`428`) or malformed (`400`) `If-Match` after the replay lookup, so a
-retained replay returns the original response without `If-Match`. The table below defines each status. Endpoint pages link here
+request is admitted, after the checks it passed. Three exceptions apply.
+Source creation returns `409` for a `path` already in use before it validates
+the content. A configuration write decides the listener-settings `403` during
+validation. For a group-configuration patch, check `Content-Type` (`415`) first.
+Check a missing (`428`) or malformed (`400`) `If-Match` after replay lookup; a
+retained replay can therefore omit the header. The table below defines each status. Endpoint pages link here
 instead of repeating the order; an endpoint page names only which of its own
 cases fall in which row.
 
@@ -124,10 +124,10 @@ that is not `*` or a list of entity tags returns `400 invalid_request`.
 
 The server checks the request in the order under
 [choosing the status](#Choosing-the-status): body parsing and schema checks come
-before the `412` precondition. RFC 9110 §13.2.1 evaluates preconditions before
-it processes content; the contract keeps the body checks first because neither
-check changes anything, so the order decides only which error a request with
-both faults receives.
+before the `412` precondition. Unlike
+[RFC 9110 §13.2.1](https://www.rfc-editor.org/rfc/rfc9110#section-13.2.1), this
+contract validates the body before it compares `If-Match` with the current tag;
+when both fail, the body error takes precedence.
 
 ## Page cursors
 

@@ -79,7 +79,8 @@ recorders on the `feat/native-api` branch.
   and `retention_seconds` rather than its maxima, and omits `min_flows`,
   `logs.min_buffered_records`, `dns_log.min_records`, `logs.filters` and the
   eBPF attachment `kind`. A planned honk change reports all of them as the
-  contract requires, with `auto` in `auto` mode.
+  contract requires, reporting `resources.flows.recording: auto` when the flow
+  recorder's mode is `auto`.
 - `grace_remaining_seconds` counts the attachment grace only, not the
   flow-demand grace. Event capture runs while a client is attached or any
   permitted recorder is pinned on.

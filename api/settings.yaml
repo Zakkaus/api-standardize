@@ -316,7 +316,7 @@ schemas:
   RecorderMode:
     type: string
     enum: [ "on", "off", auto ]
-    description: A recorder's mode. "on" keeps a permitted recorder on without clients, "off" forces it off, and auto (the startup default) lets the engine record on demand. What counts as demand, and how long it lasts, is engine-defined. PATCH sets it, GET reports it in RecorderState.mode, and resources.flows.recording reports the flow recorder's value.
+    description: A recorder's mode. "on" keeps a permitted recorder on without clients, "off" forces it off, and auto (the startup default) lets the engine record on demand. What counts as demand, and how long it lasts, is engine-defined. PATCH sets it, GET reports it in RecorderState.mode, and resources.flows.recording reports the effective flow policy, which can be off when recording is disallowed or sampled when the engine samples.
   RecorderState:
     type: object
     required: [ allowed, mode, active ]

@@ -6838,7 +6838,7 @@ components:
     IfMatchOptional:
       name: If-Match
       in: header
-      description: Evaluated as RFC 9110 §13.1.1 defines; see Conditional requests in the error contract. A server that requires it returns 428 precondition_required when it is missing, except for a retained idempotent replay.
+      description: Evaluated as RFC 9110 §13.1.1 defines; see Conditional requests in the error contract. A new group-configuration PATCH without If-Match returns 428 precondition_required; a retained idempotent replay may omit it.
       schema:
         $ref: '#/components/schemas/EntityTagList'
       example: '"17"'
@@ -8027,7 +8027,7 @@ components:
                     - 'on'
                     - auto
                     - sampled
-                  description: The engine's flow recording policy, not whether the recorder is capturing now. off records none, because the configuration does not permit the flow recorder or its mode is off; on records every flow in scopes (mode on); auto is mode auto, recording while clients create demand, whether or not any client does now; sampled records a subset. recording.flows.active in GET /runtime/settings reports whether the recorder is capturing.
+                  description: The engine's flow recording policy, not whether the recorder is capturing now. off records none, because the configuration does not permit the flow recorder or its mode is off; on records every flow in scopes (mode on); auto enables recording on client demand; sampled records a subset. recording.flows.active in GET /runtime/settings reports whether capture is active now.
                 scopes:
                   type: array
                   uniqueItems: true
@@ -12419,7 +12419,7 @@ components:
       description: '`*` or a comma-separated list of entity tags, strong or weak (W/ prefix), as RFC 9110 §8.8.3 and §13.1.1 define. An entity tag contains no space, tab or inner double quote. Empty list elements are ignored, as §5.6.1.2 requires of recipients.'
       pattern: ^(\*|((W/)?"[!#-~\u0080-\u00ff]*")?([ \t]*,[ \t]*((W/)?"[!#-~\u0080-\u00ff]*")?)*)$
     IpAddress:
-      description: An IPv4 or IPv6 address. The two branches differ only by format, so validating this value requires asserting the ipv4 and ipv6 formats.
+      description: An IPv4 or IPv6 address. Validators must enforce the ipv4 and ipv6 formats; without format assertion, either branch accepts any string.
       anyOf:
         - type: string
           format: ipv4
@@ -13537,7 +13537,7 @@ components:
         - 'on'
         - 'off'
         - auto
-      description: A recorder's mode. "on" keeps a permitted recorder on without clients, "off" forces it off, and auto (the startup default) lets the engine record on demand. What counts as demand, and how long it lasts, is engine-defined. PATCH sets it, GET reports it in RecorderState.mode, and resources.flows.recording reports the flow recorder's value.
+      description: A recorder's mode. "on" keeps a permitted recorder on without clients, "off" forces it off, and auto (the startup default) lets the engine record on demand. What counts as demand, and how long it lasts, is engine-defined. PATCH sets it, GET reports it in RecorderState.mode, and resources.flows.recording reports the effective flow policy, which can be off when recording is disallowed or sampled when the engine samples.
     RecorderState:
       type: object
       required:
