@@ -227,14 +227,26 @@ main source's file mode.
 
 {% api_example createConfigSource 202 queued http %}
 
-A failure before the source is stored creates nothing. Once stored, the source
-stays: no later failure removes it, whether the reload could not start or did
-not complete. The failed operation reports `written` and `committed` as for a
-replacement. `written: true` means the new source is in the store and the next
-reload loads it; correct or remove it before retrying, because a second create
-for the same `path` returns `409 state_conflict`. After a successful reload, `GET /config` lists the new source
+A failure before the source is stored creates nothing. After it is stored, the
+[activation outcome](errors.html#Activation-outcomes) decides whether it stays:
+
+- `committed: false`: the reload could not start or the engine rejected the new
+  configuration, and the previous generation is still active. The server removes
+  the created source, so the store again matches the active configuration, and
+  reports `written: false`. If the removal fails, it reports `written: true`:
+  the source is still in the store and the next reload loads it, but it is not
+  an accepted source, so the API cannot address it. Remove it from the
+  configuration store outside the API before retrying.
+- `committed: true`: the new generation is active but degraded. The source
+  stays and is an accepted source.
+- `committed: null`: the source stays. Read `GET /config` and `GET /runtime`
+  back to learn whether it became active.
+
+A second create for a `path` that is still in the store returns
+`409 state_conflict`. After a successful reload, `GET /config` lists the new source
 with `path` as given, and it can be edited through
-`PUT /config/sources/{source_id}`.
+`PUT /config/sources/{source_id}`. Replacement never removes a source: a
+replaced source keeps its accepted ID, so a later PUT can repair it.
 
 ### Errors
 

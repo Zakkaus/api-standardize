@@ -133,7 +133,10 @@ both in `error.details`:
   compare `generation.active_id` before retrying.
 
 `written` and `committed` are independent: a change can be stored without being
-active, or active without being stored.
+active, or active without being stored. Source creation is the exception: with
+`committed: false` the server removes the created source and reports
+`written: false`, or `written: true` when the removal failed. See
+[creating a source](configuration.html#Creating-a-source).
 
 A failed operation carries the outcome in `error.code`. A synchronous response,
 such as a node or provider write that would have returned `201` or `200`, keeps

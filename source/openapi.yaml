@@ -1017,9 +1017,11 @@ paths:
         against concurrent API writes. Then start a reload operation and return
         202 OperationAccepted with kind reload, Location, and Retry-After. This
         is not reload completion. A failure before the source is stored creates
-        nothing; once stored, no failure removes it. A failed operation reports
-        error.details.written and error.details.committed as defined under
-        activation outcomes in the error contract.
+        nothing. A failed operation reports error.details.written and
+        error.details.committed as defined under activation outcomes in the
+        error contract. With committed false, remove the created source and
+        report written false, or written true if the removal failed. With
+        committed true or null, keep the source.
         After successful reload, GET /config lists the new source with path as
         given. Idempotency-Key follows the same rules as for PUT.
       x-permission: control
