@@ -257,6 +257,13 @@ schemas:
         oneOf:
           - type: "null"
           - $ref: ./openapi.yaml#/components/schemas/GeoDataDownload
+      missing_codes:
+        type: array
+        uniqueItems: true
+        items:
+          type: string
+          minLength: 1
+        description: The lowercase categories, sorted and without attribute suffixes, that the active configuration references for this kind and the loaded file does not define. A rule on such a category never matches. Empty when none are missing. Reported by GET /api/v1/geodata only; omitted when the engine cannot check the loaded file.
     dependentRequired:
       fetched_url_redacted: [ verified, download_route ]
       verified: [ fetched_url_redacted ]

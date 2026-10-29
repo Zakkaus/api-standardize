@@ -51,6 +51,7 @@ carries the update status, and each asset reports where its file came from:
 | assets[].fetched_url_redacted | Display-only URL the loaded file was downloaded from, in the display form above. Null when the engine did not download it, for example a file installed by a package. |
 | assets[].verified | The file was downloaded and matched the checksum found by `resources.geodata.checksum`. False when no checksum was found for its URL, `checksum` is null, `verify_checksum` was false, or the engine did not download the file. |
 | assets[].download_route | The route the file was downloaded through: `route` as `download` was set for that download, and `group_id` the group the request went through, including the group the routing rules chose. Null when the engine did not download the file. |
+| assets[].missing_codes | The lowercase categories, sorted and without attribute suffixes, that the active configuration references for this kind and the loaded file does not define. A rule on such a category never matches. Reported by `GET` only, and omitted when the engine cannot check the file. |
 | last_checked_at | When the last update attempt, manual or automatic, finished, whatever its outcome. |
 | last_updated_at | When an update last replaced a loaded file. |
 | next_check_at | When the next automatic update is due, including its random delay and any backoff. Null while automatic updates are off. |
@@ -66,6 +67,8 @@ without the capability omits all of these fields.
 `required_codes` lets a client check a smaller file before choosing it: a
 replacement that lacks any listed category fails the update, so a panel can warn
 about the missing categories up front instead.
+`missing_codes` applies the same check to the files already loaded, so a panel
+can also warn about rules that match nothing today.
 
 ## Update the assets
 
